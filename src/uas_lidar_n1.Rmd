@@ -84,7 +84,7 @@ f <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
 list.files(f, pattern = ".*\\.(laz|las)$") %>% length()
 # what files are in here?
-list.files(f, pattern = ".*\\.(laz|las)$")[1:3]
+list.files(f, pattern = ".*\\.(laz|las)$")[1]
 ```
 
 what information does `lidR` read from the catalog?
@@ -118,6 +118,227 @@ ctg_temp %>%
   purrr::pluck("data") %>% 
   mapview::mapview(popup = F, layer.name = "point cloud tile")
 ```
+
+read RGB
+
+```{r}
+#### read RGB data keep only RGB
+rgb_rast_fnm <- "../data/dom/dom.tif"
+```
+
+```{r,eval=T,purl=FALSE}
+rgb_rast <- terra::rast(rgb_rast_fnm) 
+# rgb_rast %>% 
+# (NIR-R-G)
+rgb_rast %>% 
+  terra::subset(c(1,2,3)) %>% 
+  terra::plotRGB()
+# rgb_rast %>% 
+#   terra::subset(c(4,1,2)) %>% 
+#   terra::plotRGB()
+```
+
+pc extent vs rgb rast
+
+```{r}
+rgb_rast %>% 
+  terra::subset(c(1,2,3)) %>% 
+  terra::plotRGB()
+ctg_temp %>% 
+  cloud2trees:::check_las_ctg_empty() %>% 
+  purrr::pluck("data") %>% 
+  sf::st_transform(terra::crs(rgb_rast)) %>% 
+  terra::vect() %>% 
+  terra::plot(add = T, col = NA, border = "gold", lwd = 3)
+```
+
+## ITD Tuning
+
+```{r}
+itd_tuning_ans <- 
+  cloud2trees::itd_tuning(
+    input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
+    , n_samples = 2
+    , min_height = 1.37
+    , chm_res_m = 0.25
+  )
+names(itd_tuning_ans)
+itd_tuning_ans$plot_samples
+# ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples1.jpg", height = 11, width = 8, dpi = "print")
+itd_tuning_ans$plot_sample_summary
+# ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary1.jpg", height = 11, width = 8, dpi = "print")
+```
+
+look at the default window functions from `cloud2trees`
+
+```{r}
+itd_tuning_ans$ws_fn_list$lin_fn
+# plot the ws fn
+ggplot2::ggplot() +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
+  ggplot2::xlim(-5,60) +
+  ggplot2::labs(x = "heights", y = "ws", color = "") +
+  ggplot2::theme_light()
+
+# define a custom function
+my_linear <- function(x){
+    y <- dplyr::case_when(
+      is.na(x) ~ 0.001
+      , x < 0 ~ 0.001
+      , x < 2 ~ 1
+      , x < 10 ~ 0.75 + (x * 0.2)
+      , x == 10 ~ 0.75 + (10 * 0.14)
+      , x > 30 ~ 5
+      , TRUE ~ 0.75 + (x * 0.14)
+    )
+    return(y)
+}
+ggplot2::ggplot() +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$log_fn, aes(color = "log_fn"), lwd = 1) +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
+  ggplot2::geom_function(fun = my_linear, aes(color = "my_linear"), lwd = 1) +
+  ggplot2::xlim(-5,60) +
+  ggplot2::labs(x = "heights", y = "ws", color = "") +
+  ggplot2::theme_light()
+```
+
+re-run tuning with new function
+
+```{r}
+# let's put these in a list to test with the best default function we saved from above
+my_fn_list <- list(
+  lin_fn = cloud2trees::itd_ws_functions()[["lin_fn"]]
+  , exp_fn = cloud2trees::itd_ws_functions()[["exp_fn"]]
+  , my_linear = my_linear
+)
+itd_tuning_ans2 <- 
+  cloud2trees::itd_tuning(
+    input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
+    , ws_fn_list = my_fn_list
+    , n_samples = 4
+    , min_height = 1.37
+    , chm_res_m = 0.25
+  )
+itd_tuning_ans2$plot_samples
+ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples2.jpg", height = 11, width = 8, dpi = "print")
+itd_tuning_ans$plot_sample_summary
+# ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary1.jpg", height = 11, width = 8, dpi = "print")
+itd_tuning_ans2$crowns %>% dplyr::glimpse()
+itd_tuning_ans2$crowns %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::count(sample_number,ws_fn)
+```
+
+with the crowns data we can explore alternative visualizations including overlaying the detected trees on the RGB data if available
+
+plot it
+
+```{r,eval=T,purl=FALSE}
+# make a function to plot these detected crowns with rgb data
+plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.7) {
+  # crop
+  crp_rgb_rast_temp <- rgb_rast %>% 
+    terra::crop(
+      itd_crowns %>% 
+        dplyr::ungroup() %>% 
+        dplyr::filter(sample_number == sample_nmbr) %>% 
+        sf::st_union() %>% 
+        sf::st_bbox() %>% 
+        sf::st_as_sfc() %>% 
+        sf::st_buffer(0.2) %>% 
+        sf::st_transform(terra::crs(rgb_rast)) %>% 
+        terra::vect()
+    )
+  # convert raster to a data frame and create hex colors
+  # ?grDevices::rgb
+  rgb_df_temp <-
+    crp_rgb_rast_temp %>% 
+    terra::as.data.frame(xy = TRUE) %>%
+    dplyr::rename(
+      red = 3, green = 4, blue = 5
+    ) %>% 
+    dplyr::mutate(
+      hex_col = grDevices::rgb(
+        red
+        , green
+        , blue
+        , maxColorValue = 255
+      )
+    )
+    # dplyr::glimpse()
+  
+  # plt
+  plt <- ggplot2::ggplot() +
+    # add rgb base map
+    ggplot2::geom_raster(data = rgb_df_temp, mapping = ggplot2::aes(x = x, y = y, fill = hex_col)) +
+    # use identity scale so the hex codes are used directly
+    ggplot2::scale_fill_identity() +
+    # overlay polygons
+    # ggplot2::geom_sf(data = polys, fill = NA, color = "red", linewidth = 0.5) +
+    ggplot2::geom_sf(
+      data = itd_crowns %>% 
+        dplyr::filter(sample_number==sample_nmbr) %>% 
+        cloud2trees::simplify_multipolygon_crowns() %>% 
+        sf::st_make_valid() %>% 
+        dplyr::filter(sf::st_is_valid(.)) %>% 
+        sf::st_transform(terra::crs(crp_rgb_rast_temp))
+      , mapping = ggplot2::aes(color = ws_fn)
+      , fill = NA
+      , lwd = plt_lwd
+      , inherit.aes = F
+    ) +
+    ggplot2::facet_grid(cols = dplyr::vars(ws_fn)) +
+    ggplot2::scale_color_viridis_d(name = "") +
+    ggplot2::coord_sf(expand = F) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      legend.position = "none"
+      , strip.text = ggplot2::element_text(face = "bold", color = "black", margin = ggplot2::margin(t = 4, b = 4))
+      , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+      , panel.spacing = ggplot2::unit(1,"lines")
+    )
+  return(plt)
+}
+```
+
+plot the trees detected in sample one on the RGB
+
+```{r,eval=T,purl=FALSE, fig.height=5.5, fig.width=7.2}
+plt_rgb_temp <- plt_rgb_rast_itd_crowns(
+  sample_nmbr = 3
+  , rgb_rast = rgb_rast %>% terra::subset(c(1:3))
+  , itd_crowns = itd_tuning_ans2$crowns
+)
+
+rgb_rast %>% 
+  terra::crop(
+    itd_tuning_ans2$crowns %>% 
+    dplyr::filter(sample_number==2, ws_fn == "lin_fn") %>% 
+    sf::st_union() %>% 
+    sf::st_bbox() %>% 
+    sf::st_as_sfc() %>% 
+    sf::st_buffer(5) %>% 
+    sf::st_transform(terra::crs(rgb_rast)) %>% 
+    terra::vect()
+  ) %>% 
+  terra::plotRGB()
+itd_tuning_ans2$crowns %>% 
+  dplyr::filter(sample_number==2, ws_fn == "lin_fn") %>% 
+  sf::st_transform(terra::crs(rgb_rast)) %>% 
+  terra::vect() %>% 
+  terra::plot(add=T, col = NA, border = "cyan", lwd = 2.5)
+itd_tuning_ans2$crowns %>% 
+  dplyr::filter(sample_number==2, ws_fn == "exp_fn") %>% 
+  sf::st_transform(terra::crs(rgb_rast)) %>% 
+  terra::vect() %>% 
+  terra::plot(add=T, col = NA, border = "gold", lwd = 1.5)
+  
+
+```
+
+
 
 ## Point Cloud to Raster: `cloud2raster()`
 
@@ -390,18 +611,6 @@ itd_tuning_ans2$crowns %>% sf::st_drop_geometry() %>% dplyr::count(sample_number
 ```
 
 with the crowns data we can explore alternative visualizations including overlaying the detected trees on the RGB data if available
-
-read RGB
-
-```{r}
-#### read RGB data keep only RGB
-rgb_rast_fnm <- "d:/BLM_CO_SWDF_DawsonFuelsTreatment/Final/Ortho/BLM_CO_SWDF_DawsonFuelsTreatment_Ortho_202504.tif"
-```
-
-```{r,eval=T,purl=FALSE}
-pj_rgb_rast <- terra::rast(rgb_rast_fnm) %>% 
-  terra::subset(c(1,2,3))
-```
 
 plot it
 
