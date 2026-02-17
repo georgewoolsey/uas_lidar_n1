@@ -1,3 +1,3 @@
-# ICO Thinning Example: UAS-SfM data from PSINF Ute Creek area
+# influence of UAS-lidar flight parameters on tree detection at N1 study site
 
-[**Project site**](https://georgewoolsey.github.io/psinf_utecreek_ico_ex/)
+[**Project site**](https://georgewoolsey.github.io/uas_lidar_n1/)
