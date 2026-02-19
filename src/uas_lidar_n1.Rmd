@@ -73,44 +73,31 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-## Data Location
+Though not necessary for `cloud2trees` data processing, let's quickly check out the location and structure of the data we have
 
-Let's check out the location of the data we got
+we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
 ```{r,eval=T,purl=FALSE}
 # directory with the downloaded .las|.laz files
-f <- "../data/N1_400AGL_20MPH_TFOFF"
-# f <- "d:/BLM_CO_SWDF_DawsonFuelsTreatment/Final/PointCloud/Full/"
+point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
-list.files(f, pattern = ".*\\.(laz|las)$") %>% length()
+list.files(point_cld_folder, pattern = ".*\\.(laz|las)$") %>% length()
 # what files are in here?
-list.files(f, pattern = ".*\\.(laz|las)$")[1]
+list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 ```
 
-what information does `lidR` read from the catalog?
+again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
 ```{r,eval=T,purl=FALSE}
-ctg_temp <- lidR::readLAScatalog(f)
+# read folder as LAScatalog
+ctg_temp <- lidR::readLAScatalog(point_cld_folder)
+# what information do we get about the point cloud?
 ctg_temp
 ```
 
-that's a lot of points...can an ordinary laptop handle it? we'll find out.
+that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll find out.
 
-We'll plot our point cloud data tiles real quick
-
-```{r,eval=T,purl=FALSE}
-ctg_temp@data %>%
-  dplyr::mutate(
-    nm =
-      basename(filename) %>%
-      stringr::str_remove("\\.[^.]+$")
-  ) %>%
-  ggplot2::ggplot() + 
-  ggplot2::geom_sf(fill=NA, color = "red") +
-  ggplot2::theme_light()
-```
-
-let's look at this on a map to orient ourselves
+let's look at the point cloud extent on a map to orient ourselves in space
 
 ```{r,eval=T,purl=FALSE}
 ctg_temp %>% 
@@ -119,28 +106,17 @@ ctg_temp %>%
   mapview::mapview(popup = F, layer.name = "point cloud tile")
 ```
 
-read RGB
+i told you that we didn't need to do any of that for `cloud2trees` data processing and to prove it, we'll remove the `ctg_temp` object from our session
 
-```{r}
-#### read RGB data keep only RGB
+```{r, warning=FALSE, message=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+```{r,include=FALSE,eval=FALSE}
+#### pc extent vs rgb rast
 rgb_rast_fnm <- "../data/dom/dom.tif"
-```
-
-```{r,eval=T,purl=FALSE}
 rgb_rast <- terra::rast(rgb_rast_fnm) 
-# rgb_rast %>% 
-# (NIR-R-G)
-rgb_rast %>% 
-  terra::subset(c(1,2,3)) %>% 
-  terra::plotRGB()
-# rgb_rast %>% 
-#   terra::subset(c(4,1,2)) %>% 
-#   terra::plotRGB()
-```
-
-pc extent vs rgb rast
-
-```{r}
 rgb_rast %>% 
   terra::subset(c(1,2,3)) %>% 
   terra::plotRGB()
@@ -152,61 +128,135 @@ ctg_temp %>%
   terra::plot(add = T, col = NA, border = "gold", lwd = 3)
 ```
 
-## ITD Tuning
+# ITD Tuning
 
-```{r}
+from the `cloud2trees` readme:
+
+>The `itd_tuning()` function is used to visually assess tree crown delineation results from different window size functions used for the detection of individual trees. `itd_tuning()` allows users to test different window size functions on a sample of data to determine which function is most suitable for the area being analyzed. The preferred function can then be used in the `ws` parameter in `raster2trees()` and `cloud2trees()`.
+
+let's take this `cloud2trees::itd_tuning()` function for a spin with the parameter settings `chm_res_m = 0.25` since we plan on processing the entire data extent using a 0.25 m CHM resolution, `n_samples = 4` to get four 0.1 ha sample areas on which to visually assess the window functions, and `min_height = 1.37` to require that any potential tree has a height of at least 1.37 m to be considered a "tree"
+
+```{r, include=TRUE, eval=FALSE}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
-    , n_samples = 2
+    , n_samples = 4
     , min_height = 1.37
     , chm_res_m = 0.25
   )
-names(itd_tuning_ans)
-itd_tuning_ans$plot_samples
-# ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples1.jpg", height = 11, width = 8, dpi = "print")
-itd_tuning_ans$plot_sample_summary
-# ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary1.jpg", height = 11, width = 8, dpi = "print")
 ```
 
-look at the default window functions from `cloud2trees`
+```{r, include=F, eval=T, echo=F}
+itd_tuning_ans <- 
+  cloud2trees::itd_tuning(
+    input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
+    , n_samples = 1
+    , min_height = 2
+    , chm_res_m = 0.25
+  )
+```
+
+what does `cloud2trees::itd_tuning()` give us?
+
+```{r}
+names(itd_tuning_ans)
+```
+
+it's a named list. let's check out the `plot_*` results
+
+```{r, include=T, eval = FALSE}
+itd_tuning_ans$plot_samples
+# write the file to the disk for posterity
+ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples1.jpg", height = 11, width = 8, dpi = "print")
+```
+
+```{r, echo=FALSE, out.width="50%", out.height="50%", fig.align='center', fig.show='hold',results='asis'}
+knitr::include_graphics("../data/itd_tuning_plot_samples1.jpg")
+```
+
+the most noticeable difference between the window functions is with the segmentation of tall areas of the CHM using the `log_fn` compared to the other two. this function appears to not be separating tall trees appropriately: it is under-segmenting these areas resulting in too few tall trees. this under-segmentation by the `log_fn` can be seen most clearly in the top-left tall tree group of sample 1 and the top-left tall tree group of sample 4
+
+comparing the `lin_fn` (linear function) and `exp_fn` (exponential function) shows that both functions result in similar segmentation results for taller trees but the primary differences appear for shorter trees. The difference in short-tree segmentation between these two functions is most evident in sample 2 where the `lin_fn` predicts many more small trees than the `exp_fn`. This appears to be an over-segmentation (too many trees) by the `lin_fn` for shorter trees which is perhaps most clear in the area just above the very center of sample 2
+
+let's check out the resulting tree distribution of the different window functions over these sample areas
+
+```{r, include=T, eval = FALSE}
+itd_tuning_ans$plot_sample_summary
+# write the file to the disk for posterity
+ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary1.jpg", height = 11, width = 8, dpi = "print")
+```
+
+```{r, echo=FALSE, out.width="50%", out.height="50%", fig.align='center', fig.show='hold',results='asis'}
+knitr::include_graphics("../data/itd_tuning_plot_sample_summary1.jpg")
+```
+
+these results confirm what we identified about the `log_fn` compared to the other two: that it under-segments taller trees. predicting too few tall trees by not separating multiple tree crowns has the effect of producing tall trees with very wide crowns. this result is shown by the outlier yellow points in the RHS plots where the crown is predicted to be wider than the tree is tall (unlikely for this forest type)
+
+let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
 ```{r}
 itd_tuning_ans$ws_fn_list$lin_fn
+```
+
+it's a function defining the window size (called `y`) based on the CHM height (called `x`)
+
+we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
+
+```{r}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
-  ggplot2::xlim(-5,60) +
+  ggplot2::xlim(-5,42) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
   ggplot2::theme_light()
+```
 
+the `lin_fn` (linear function) and `exp_fn` (exponential function) result in similar window sizes for higher CHM values but the `exp_fn` expands the window size for shorter areas compared to the `lin_fn`. 
+
+let's make a custom linear function that expands the search window for shorter trees but keeps roughly the same window size for taller trees. looking at the plot of the two functions, we want to make a new, piecewise linear function that passes through (3.5,1.5) which is a point between the `exp_fn` and `lin_fn` in the 2-7.5 x-range
+
+```{r}
 # define a custom function
 my_linear <- function(x){
     y <- dplyr::case_when(
       is.na(x) ~ 0.001
       , x < 0 ~ 0.001
-      , x < 2 ~ 1
-      , x < 10 ~ 0.75 + (x * 0.2)
-      , x == 10 ~ 0.75 + (10 * 0.14)
-      , x > 30 ~ 5
-      , TRUE ~ 0.75 + (x * 0.14)
+      , x < 1.5 ~ 1 # (1.5,1) is connection for the next piece
+      # next piece:
+        # we want it to pass through ~ (3.5,1.5)
+        # m = (y2-y1)/(x2-x1) >> m = (1.5-1)/(3.5-1.5) = 0.25
+        # b = y-(m*x) >> b = 1-(0.25*1.5) = 0.625
+      , x < 7 ~ 0.625 + x*0.25 
+      # upper limit starts at (35,5)
+      , x > 35 ~ 5
+      # next piece:
+        # at x=7, first segment y = 0.625+7*0.25 = 2.375 >> (7,2.375)
+        # connect to (35,5)
+        # m = (5-2.375)/(35-7) = 0.09375
+        # b = 2.375-(0.09375*7) = 1.71875
+        # 7 <= x < 35
+      , T ~ 1.71875 + x*0.09375
     )
     return(y)
 }
+```
+
+let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
+
+```{r}
 ggplot2::ggplot() +
-  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$log_fn, aes(color = "log_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
   ggplot2::geom_function(fun = my_linear, aes(color = "my_linear"), lwd = 1) +
-  ggplot2::xlim(-5,60) +
+  ggplot2::xlim(-5,42) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
   ggplot2::theme_light()
 ```
 
 re-run tuning with new function
 
-```{r}
+```{r, include=TRUE, eval=FALSE}
 # let's put these in a list to test with the best default function we saved from above
 my_fn_list <- list(
   lin_fn = cloud2trees::itd_ws_functions()[["lin_fn"]]
@@ -221,25 +271,84 @@ itd_tuning_ans2 <-
     , min_height = 1.37
     , chm_res_m = 0.25
   )
+```
+
+let's check out the `plot_*` results
+
+```{r, include=T, eval = FALSE}
 itd_tuning_ans2$plot_samples
+# write the file to the disk for posterity
 ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples2.jpg", height = 11, width = 8, dpi = "print")
-itd_tuning_ans$plot_sample_summary
-# ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary1.jpg", height = 11, width = 8, dpi = "print")
+```
+
+```{r, echo=FALSE, out.width="50%", out.height="50%", fig.align='center', fig.show='hold',results='asis'}
+knitr::include_graphics("../data/itd_tuning_plot_samples2.jpg")
+```
+
+the `lin_fn` (linear function) and our custom `my_linear` function yield similar tree segmentation results for sample 1 which is what we expected since that area consists primarily of taller trees and the biggest change we made to `my_linear` function was to expand the search window for shorter trees so that less were detected compared to the default `lin_fn`. Compared to the `exp_fn` (exponential function), both linear functions identify fewer tall trees with the difference most noticeable in the top central portion of the plot of sample 1, just below the center point of sample 2, and the top center of sample 4. Our custom `my_linear` function yields fewer small trees than the default `lin_fn` since we allowed a window size at lower portions of the CHM with this effect most clear for the short trees (purple CHM regions) on samples 2 and 3. The small tree detection results between `my_linear` and `exp_fn` are similar.
+
+let's check out the resulting tree distribution of the different window functions over these sample areas
+
+```{r, include=T, eval = FALSE}
+itd_tuning_ans2$plot_sample_summary
+# write the file to the disk for posterity
+ggplot2::ggsave(filename = "../data/itd_tuning_plot_sample_summary2.jpg", height = 11, width = 8, dpi = "print")
+# save the crowns too?
+itd_tuning_ans2$crowns %>% sf::st_write(dsn = "../data/itd_tuning_crowns.gpkg", quiet = T, append = F) 
+```
+
+```{r, echo=FALSE, out.width="50%", out.height="50%", fig.align='center', fig.show='hold',results='asis'}
+knitr::include_graphics("../data/itd_tuning_plot_sample_summary2.jpg")
+# this is after we've already run the itd_tuning_ans2
+itd_tuning_ans2 <- list(crowns = NULL)
+itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = T)
+```
+
+let's check out the crown polygon data we got from our second `itd_tuining()` iteration
+
+```{r}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
+```
+
+this data includes the crown polygons for each window function and 0.1 ha sample plot
+
+```{r}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
 ```
 
-with the crowns data we can explore alternative visualizations including overlaying the detected trees on the RGB data if available
+## RGB `itd_tunining` Visualizations
 
-plot it
+with the crowns data we can explore alternative visualizations including overlaying the detected trees on the RGB data if available...we happen to have RGB data for a section of this study area, let's load it
+
+```{r}
+rgb_rast_fnm <- "../data/dom/dom.tif"
+rgb_rast <- terra::rast(rgb_rast_fnm) %>% 
+  # keep only rgb bands
+  terra::subset(c(1,2,3))
+# rgb_rast %>% 
+#   terra::subset(c(4,1,2)) %>% #nir-r-g
+#   terra::plotRGB()
+# rgb_rast %>% 
+#    terra::subset(c(1,2,3)) %>% 
+#   terra::plotRGB()
+```
+
+this is very fine-resolution data
+
+```{r}
+rgb_rast
+```
+
+make a function to plot the crowns overlaid on the RGB
 
 ```{r,eval=T,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
-plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.7) {
+plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5) {
   # crop
   crp_rgb_rast_temp <- rgb_rast %>% 
+    terra::subset(c(1,2,3)) %>% 
     terra::crop(
       itd_crowns %>% 
         dplyr::ungroup() %>% 
@@ -258,31 +367,38 @@ plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_l
     terra::as.data.frame(xy = TRUE) %>%
     dplyr::rename(
       red = 3, green = 4, blue = 5
-    ) %>% 
+    ) %>%
     dplyr::mutate(
-      hex_col = grDevices::rgb(
-        red
-        , green
-        , blue
+      # rows that have missing color data
+      is_missing = is.na(red) | is.na(green) | is.na(blue)
+      # hex using 0s for NAs to avoid grDevices::rgb error
+      , hex_col = grDevices::rgb(
+        ifelse(is_missing, 0, red)
+        , ifelse(is_missing, 0, green)
+        , ifelse(is_missing, 0, blue)
         , maxColorValue = 255
       )
-    )
+      # back to NA
+      , hex_col = ifelse(is_missing, as.character(NA), hex_col)
+    ) %>%
+    dplyr::select(-c(is_missing))
+      
     # dplyr::glimpse()
   
   # plt
   plt <- ggplot2::ggplot() +
     # add rgb base map
-    ggplot2::geom_raster(data = rgb_df_temp, mapping = ggplot2::aes(x = x, y = y, fill = hex_col)) +
+    ggplot2::geom_tile(data = rgb_df_temp, mapping = ggplot2::aes(x = x, y = y, fill = hex_col), color = NA) +
     # use identity scale so the hex codes are used directly
-    ggplot2::scale_fill_identity() +
+    ggplot2::scale_fill_identity(na.value = "transparent") + # !!! don't take this out or RGB plot will kill your computer
     # overlay polygons
     # ggplot2::geom_sf(data = polys, fill = NA, color = "red", linewidth = 0.5) +
     ggplot2::geom_sf(
       data = itd_crowns %>% 
         dplyr::filter(sample_number==sample_nmbr) %>% 
-        cloud2trees::simplify_multipolygon_crowns() %>% 
-        sf::st_make_valid() %>% 
-        dplyr::filter(sf::st_is_valid(.)) %>% 
+        # cloud2trees::simplify_multipolygon_crowns() %>% 
+        # sf::st_make_valid() %>% 
+        # dplyr::filter(sf::st_is_valid(.)) %>% 
         sf::st_transform(terra::crs(crp_rgb_rast_temp))
       , mapping = ggplot2::aes(color = ws_fn)
       , fill = NA
@@ -303,46 +419,33 @@ plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_l
 }
 ```
 
-plot the trees detected in sample one on the RGB
+plot the trees detected in sample 1 on the RGB
 
-```{r,eval=T,purl=FALSE, fig.height=5.5, fig.width=7.2}
-plt_rgb_temp <- plt_rgb_rast_itd_crowns(
-  sample_nmbr = 3
-  , rgb_rast = rgb_rast %>% terra::subset(c(1:3))
+```{r, include=T, eval=F,purl=FALSE, fig.height=5.5, fig.width=7.2}
+plt_rgb_rast_itd_crowns(
+  sample_nmbr = 1
+  , rgb_rast = rgb_rast
   , itd_crowns = itd_tuning_ans2$crowns
 )
-
-rgb_rast %>% 
-  terra::crop(
-    itd_tuning_ans2$crowns %>% 
-    dplyr::filter(sample_number==2, ws_fn == "lin_fn") %>% 
-    sf::st_union() %>% 
-    sf::st_bbox() %>% 
-    sf::st_as_sfc() %>% 
-    sf::st_buffer(5) %>% 
-    sf::st_transform(terra::crs(rgb_rast)) %>% 
-    terra::vect()
-  ) %>% 
-  terra::plotRGB()
-itd_tuning_ans2$crowns %>% 
-  dplyr::filter(sample_number==2, ws_fn == "lin_fn") %>% 
-  sf::st_transform(terra::crs(rgb_rast)) %>% 
-  terra::vect() %>% 
-  terra::plot(add=T, col = NA, border = "cyan", lwd = 2.5)
-itd_tuning_ans2$crowns %>% 
-  dplyr::filter(sample_number==2, ws_fn == "exp_fn") %>% 
-  sf::st_transform(terra::crs(rgb_rast)) %>% 
-  terra::vect() %>% 
-  terra::plot(add=T, col = NA, border = "gold", lwd = 1.5)
-  
-
+ggplot2::ggsave(filename = "../data/itd_tuning2_rgb_crowns_sample1.jpg", height = 5.5, width = 7.2, dpi = "print")
 ```
 
+plot the trees detected in sample 2 on the RGB
+
+```{r,eval=T,purl=FALSE, fig.height=4, fig.width=7.5}
+plt_rgb_rast_itd_crowns(
+  sample_nmbr = 2
+  , rgb_rast = rgb_rast
+  , itd_crowns = itd_tuning_ans2$crowns
+)
+ggplot2::ggsave(filename = "../data/itd_tuning2_rgb_crowns_sample2.jpg", height = 4, width = 7.5, dpi = "print")
+```
+
+## `cloud2trees::cloud2trees()` full processing
+
+the `cloud2trees::cloud2trees()` function combines methods in the `cloud2trees` package for an all-in-one approach, we'll the function to:
 
 
-## Point Cloud to Raster: `cloud2raster()`
-
-Although the `cloud2trees::cloud2trees()` function combines methods in the `cloud2trees` package for an all-in-one approach, we'll instead use the `cloud2trees::cloud2raster()` function to generate a CHM from the point cloud that we can work with to perform both individual tree detection and slash pile identification (discussed later).
 
 We'll set the options in the function to generate a CHM which represents a DSM with the ground removed and no other filtering. This high resolution (i.e. fine-grain) CHM will serve as the foundation for tree detection and slash pile detection as we can manipulate it to optimize the processing for both methods.
 
