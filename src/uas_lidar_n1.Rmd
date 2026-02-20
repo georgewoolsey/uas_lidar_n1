@@ -653,61 +653,239 @@ remove(itd_tuning_ans, itd_tuning_ans2,crowns_simplified,plt_rgb_rast_itd_crowns
 gc()
 ```
 
-## `cloud2trees::cloud2trees()` full processing
+# `cloud2trees::cloud2trees()` full processing
 
 the `cloud2trees::cloud2trees()` function combines methods in the `cloud2trees` package for an all-in-one approach, we'll the function to:
 
-We'll set the options in the function to generate a CHM which represents a DSM with the ground removed and no other filtering. This high resolution (i.e. fine-grain) CHM will serve as the foundation for tree detection and slash pile detection as we can manipulate it to optimize the processing for both methods.
+We'll set the options in the function to: 
 
-```{r, include=FALSE, eval=FALSE}
+* `accuracy_level = 2` - uses triangulation with high point density (20 pts/m2) to height normalize the points
+* `keep_intrmdt = T` - keeps intermediate files created in the processing (e.g. height-normalized points)
+* `dtm_res_m = 0.5` - sets the output DTM resolution to 0.5x0.5 m
+* `chm_res_m = 0.25` - sets the output CHM resolution to 0.25x0.25 m which is also used for tree detection
+* `min_height = 1.37` - the minimum height of a predicted segment that is required to be kept as a detected "tree"
+* `ws = my_linear` - the window function used in ITD
+* `estimate_tree_dbh = TRUE` - estimates DBH based on tree height
+* `estimate_tree_type = TRUE` - estimates FIA forest type group for the tree list
+* `estimate_tree_hmd = TRUE` - estimates height of maximum crown diameter for the trees
+* `hmd_tree_sample_n = 20000` - samples 20k trees to build HMD model for filling missing values
+* `hmd_estimate_missing_hmd = TRUE` - fills in HMD for values not successfully extracted from the point cloud
+* `estimate_tree_cbh = TRUE` - estimates crown base height for the trees
+* `cbh_tree_sample_n = 7500` - samples 7.5k trees to build CBH model for filling missing values
+* `cbh_estimate_missing_cbh = TRUE` - fills in CBH for values not successfully extracted from the point cloud
+* `estimate_biomass_method = c("landfire","cruz")` - estimates tree crown biomass and CBD
+
+```{r, warning=F, results=F}
 # outdir
-c2t_output_dir <- "../data"
+c2t_output_dir <- "../data/processed_N1_400AGL_20MPH_TFOFF"
+if(!dir.exists(c2t_output_dir)) dir.create(c2t_output_dir)
 c2t_process_dir <- file.path(c2t_output_dir, "point_cloud_processing_delivery")
-c2t_tracking_fnm <- file.path(c2t_process_dir, "processed_tracking_data.csv")
 ##############################################################
-# cloud2trees::cloud2raster
+# cloud2trees::cloud2trees
 ##############################################################
+file.exists( file.path(c2t_process_dir, "final_detected_tree_tops.gpkg") )
 if(
-  !file.exists( file.path(c2t_process_dir, "chm_0.1m.tif") )
-  || !file.exists( file.path(c2t_process_dir, "dtm_0.25m.tif") )
+  !file.exists( file.path(c2t_process_dir, "chm_0.25m.tif") )
+  || !file.exists( file.path(c2t_process_dir, "dtm_0.5m.tif") )
+  || !file.exists( file.path(c2t_process_dir, "final_detected_tree_tops.gpkg") )
+  || !file.exists( file.path(c2t_process_dir, "final_detected_crowns.gpkg") )
 ){
-  # time it
-  st_temp <- Sys.time()
   # run it
   # cloud2trees
-  cloud2raster_ans <- cloud2trees::cloud2raster(
+  cloud2trees_ans <- cloud2trees::cloud2trees(
     output_dir = c2t_output_dir
-    , input_las_dir = f
+    , input_las_dir = point_cld_folder
     , accuracy_level = 2
     , keep_intrmdt = T
-    , dtm_res_m = 0.25
-    , chm_res_m = 0.1
-    , min_height = 0 # effectively generates a DSM based on non-ground points
+    , dtm_res_m = 0.5
+    , chm_res_m = 0.25
+    , min_height = 1.37 # 1.37 = DBH
+    , ws = my_linear # a custom function
+    ###################################
+    # optional parameters to get more tree attributes
+    ###################################
+    , estimate_tree_dbh = TRUE # DBH
+    , estimate_tree_type = TRUE # FIA type
+    , estimate_tree_hmd = TRUE # HMD
+    , hmd_tree_sample_n = 20000 # HMD
+    , hmd_estimate_missing_hmd = TRUE # HMD
+    , estimate_tree_cbh = TRUE # CBH
+    , cbh_tree_sample_n = 7500
+    , cbh_estimate_missing_cbh = TRUE # CBH
+    , estimate_biomass_method = c("landfire","cruz") # crown biomass and CBD
   )
   
-  # timer
-  mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric()
-  # save tracking
-  dplyr::tibble(
-    timer_cloud2raster_mins = mins_temp
-  ) %>% 
-    write.csv(
-      file = c2t_tracking_fnm
-      , row.names = F, append = F
-    )
 }else{
-  dtm_temp <- terra::rast( file.path(c2t_process_dir, "dtm_0.25m.tif") )
-  chm_temp <- terra::rast( file.path(c2t_process_dir, "chm_0.1m.tif") )
+  dtm_temp <- terra::rast( file.path(c2t_process_dir, "dtm_0.5m.tif") )
+  chm_temp <- terra::rast( file.path(c2t_process_dir, "chm_0.25m.tif") )
+  crowns_temp <- sf::st_read(file.path(c2t_process_dir, "final_detected_crowns.gpkg"), quiet = T)
+  ttops_temp <- sf::st_read(file.path(c2t_process_dir, "final_detected_tree_tops.gpkg"), quiet = T)
   
-  cloud2raster_ans <- list(
+  cloud2trees_ans <- list(
     "dtm_rast" = dtm_temp
     , "chm_rast" = chm_temp
+    , "crowns_sf" = crowns_temp
+    , "treetops_sf" = ttops_temp
   )
 }
 ```
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+# cloud2trees:::search_dir_final_detected(c2t_process_dir)
 remove(list = ls()[grep("_temp",ls())])
-remove(f)
+gc()
+```
+
+## Raster Products
+
+there's a DTM
+
+```{r}
+# plot to check out the fine-resolution DTM raster
+cloud2trees_ans$dtm_rast %>% 
+  terra::plot(col = harrypotter::hp(n=100, option = "mischief"), main = "DTM (m)")
+```
+
+there’s a CHM
+
+```{r}
+# plot to check out the fine-resolution CHM raster
+cloud2trees_ans$chm_rast %>% 
+  terra::plot(col = viridis::plasma(n=100), main = "CHM (m)")
+```
+
+let's see some details about the CHM
+
+```{r}
+# what chm?
+cloud2trees_ans$chm_rast
+```
+
+## Tree list
+
+let's check out the tree top point data (the crowns data will have the same data attributes but have polygon geometry instead of point geometry)
+
+```{r}
+cloud2trees_ans$treetops_sf %>% 
+  dplyr::glimpse()
+```
+
+that's a lot of data
+
+let's check the relationship between height and DBH as estimated by the regional allometric relationship
+
+```{r}
+cloud2trees_ans$treetops_sf %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::slice_sample(prop = 0.55) %>% 
+  ggplot2::ggplot(mapping = ggplot2::aes(x = tree_height_m, y = dbh_cm)) + 
+  ggplot2::geom_point(color = "navy", alpha = 0.6) +
+  ggplot2::labs(x = "tree ht. (m)", y = "tree DBH (cm)") +
+  ggplot2::scale_x_continuous(limits = c(0,NA), breaks = scales::breaks_extended(n=8)) +
+  ggplot2::scale_y_continuous(limits = c(0,NA), breaks = scales::breaks_extended(n=8)) +
+  ggplot2::theme_light()
+```
+
+Let's look at the distribution of tree diameter in our study area
+
+```{r}
+cloud2trees_ans$treetops_sf %>% 
+  sf::st_drop_geometry() %>% 
+  ggplot2::ggplot(mapping = ggplot2::aes(x = dbh_cm)) +
+  ggplot2::geom_density(fill = "brown", color = "brown", alpha = 0.2) +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(11)) +
+  ggplot2::labs(x = "tree DBH (cm)", y = "") +
+  ggplot2::theme_light() +
+  ggplot2::theme(axis.text.y = ggplot2::element_blank(), axis.ticks.y = ggplot2::element_blank())
+```
+
+let's look at the summary statistics
+
+```{r}
+cloud2trees_ans$treetops_sf$dbh_cm %>% summary()
+```
+
+lots of small trees. what if we only count trees that are at least 2 m in height?
+
+```{r}
+cloud2trees_ans$treetops_sf %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(tree_height_m>=2) %>% 
+  ggplot2::ggplot(mapping = ggplot2::aes(x = dbh_cm)) +
+  ggplot2::geom_density(fill = "brown", color = "brown", alpha = 0.2) +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(11)) +
+  ggplot2::labs(x = "tree DBH (cm)", y = "") +
+  ggplot2::theme_light() +
+  ggplot2::theme(axis.text.y = ggplot2::element_blank(), axis.ticks.y = ggplot2::element_blank())
+```
+
+still a two-aged stand
+
+## Tree Crowns
+
+let's quickly look at the central 2.5 ha area of our RGB extent and the tree crowns detected
+
+```{r, fig.height=8.5}
+aoi_temp <- terra::ext(rgb_rast) %>% 
+  terra::vect() %>% 
+  sf::st_as_sf() %>% 
+  sf::st_set_crs(terra::crs(rgb_rast)) %>% 
+  sf::st_centroid() %>% 
+  sf::st_buffer(sqrt(25000/4),endCapStyle = "SQUARE") ## numerator = desired plot size in m2
+# plot
+rgb_rast %>% 
+  terra::crop(
+    aoi_temp %>% sf::st_buffer(10) %>% terra::vect()
+    , mask = T
+  ) %>% 
+  terra::plotRGB()
+# add crowns
+crowns_temp <- 
+  cloud2trees_ans$crowns_sf %>% 
+  dplyr::inner_join(
+    cloud2trees_ans$treetops_sf %>% 
+      dplyr::filter(tree_height_m>=2) %>% 
+      sf::st_transform(terra::crs(rgb_rast)) %>% 
+      sf::st_intersection(aoi_temp) %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::select(treeID)
+    , by = "treeID"
+  ) %>% 
+  cloud2trees::simplify_multipolygon_crowns()
+# add to plot
+crowns_temp %>% 
+  sf::st_transform(terra::crs(rgb_rast)) %>% 
+  terra::vect() %>% 
+  terra::plot(col = NA, border = "cyan", add = T, lwd = 1)
+```
+
+looks good
+
+and the same area on the CHM
+
+```{r, fig.height=8.5}
+# plot
+cloud2trees_ans$chm_rast %>% 
+  terra::crop(
+    aoi_temp %>% 
+      sf::st_buffer(10) %>% 
+      sf::st_transform(terra::crs(cloud2trees_ans$chm_rast)) %>% 
+      terra::vect()
+    , mask = T
+  ) %>% 
+  terra::plot(col = viridis::plasma(n=100), alpha = 0.9, main = "CHM (m)", axes = F)
+# add crowns
+# add to plot
+crowns_temp %>% 
+  sf::st_transform(terra::crs(cloud2trees_ans$chm_rast)) %>% 
+  terra::vect() %>% 
+  terra::plot(col = NA, border = "cyan", add = T, lwd = 1)
+```
+
+interesting
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+# cloud2trees:::search_dir_final_detected(c2t_process_dir)
+remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
