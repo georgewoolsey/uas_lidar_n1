@@ -7,6 +7,7 @@ output:
   html_document:
     toc: true
     toc_float: true
+    toc_depth: 5
     code_folding: hide
 editor_options: 
   chunk_output_type: console
@@ -215,10 +216,40 @@ ggplot2::ggplot() +
 
 the `lin_fn` (linear function) and `exp_fn` (exponential function) result in similar window sizes for higher CHM values but the `exp_fn` expands the window size for shorter areas compared to the `lin_fn`. 
 
-let's make a custom linear function that expands the search window for shorter trees but keeps roughly the same window size for taller trees. looking at the plot of the two functions, we want to make a new, piecewise linear function that passes through (3.5,1.5) which is a point between the `exp_fn` and `lin_fn` in the 2-7.5 x-range
+let's make a custom linear function that expands the search window for shorter trees but keeps roughly the same window size for taller trees between 15-25 m (we don't expect many trees above this in our study area). looking at the plot of the two functions, we want to make a new, piecewise linear function that passes through (4,1.5) which is a point between the `exp_fn` and `lin_fn` in the 2-7.5 x-range
 
 ```{r}
 # define a custom function
+my_linear <- function(x){
+    y <- dplyr::case_when(
+      is.na(x) ~ 0.001
+      , x < 0 ~ 0.001
+      , x < 1.5 ~ 1 # (1.5,1) is connection for the next piece
+      # next piece:
+        # we want it to pass through ~ (4.0,1.5)
+        # m = (y2-y1)/(x2-x1) >> m = (1.5-1)/(4.0-1.5) = 0.20
+        # b = y-(m*x) >> b = 1-(0.20*1.5) = 0.70
+      , x < 4.0 ~ 0.70 + x*0.20 
+      # next piece:
+        # at x=4.0, first segment y = 0.70+4.0*0.20 = 1.5 >> (4.0,1.5)
+        # connect to (20,2.85)
+        # m = (2.85-1.5)/(20-4.0) = 0.084375
+        # b = 1.5-(0.084375*4.0) = 1.1625
+      , x < 20 ~ 1.1625 + x*0.084375
+      # upper limit starts at (65,5)
+      , x > 55 ~ 5
+      # next piece:
+        # at x=20, first segment y = 1.1625 + 20*0.084375 = 2.85 >> (20,2.85)
+        # connect to (55,5)
+        # m = (5-2.85)/(55-20) = 0.06142857
+        # b = 2.85-(0.06142857*20) = 1.621429
+      , T ~ 1.621429 + x*0.06142857
+    )
+    return(y)
+}
+```
+
+```{r, include = F, eval = F}
 my_linear <- function(x){
     y <- dplyr::case_when(
       is.na(x) ~ 0.001
@@ -241,6 +272,7 @@ my_linear <- function(x){
     )
     return(y)
 }
+
 ```
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
@@ -250,7 +282,7 @@ ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
   ggplot2::geom_function(fun = my_linear, aes(color = "my_linear"), lwd = 1) +
-  ggplot2::xlim(-5,42) +
+  ggplot2::xlim(-5,35) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
   ggplot2::theme_light()
 ```
@@ -286,7 +318,7 @@ ggplot2::ggsave(filename = "../data/itd_tuning_plot_samples2.jpg", height = 11, 
 knitr::include_graphics("../data/itd_tuning_plot_samples2.jpg")
 ```
 
-the `lin_fn` (linear function) and our custom `my_linear` function yield similar tree segmentation results for sample 1 which is what we expected since that area consists primarily of taller trees and the biggest change we made to `my_linear` function was to expand the search window for shorter trees so that less were detected compared to the default `lin_fn`. Compared to the `exp_fn` (exponential function), both linear functions identify fewer tall trees with the difference most noticeable in the top central portion of the plot of sample 1, just below the center point of sample 2, and the top center of sample 4. Our custom `my_linear` function yields fewer small trees than the default `lin_fn` since we allowed a window size at lower portions of the CHM with this effect most clear for the short trees (purple CHM regions) on samples 2 and 3. The small tree detection results between `my_linear` and `exp_fn` are similar. At this point, we are leaning toward our custom `my_linear` function since the `exp_fn` may be over-segmenting taller trees (i.e. splitting one tree into many trees improperly).
+Our custom `my_linear` function appears to do a good job striking a balance between the default `lin_fn` which tended to undersegment taller trees an the `exp_fn` which tended to undersegment shorter trees. The custom function and the `exp_fn` yield similar tree segmentation results for sample 1 which is what we expected since that area consists primarily of taller trees and the biggest change we made to `my_linear` function was to limit the search window at the taller range and expand the search window for shorter trees so that less were detected compared to the default `lin_fn`. One notable difference with the `exp_fn` (exponential function) in sample 1 is in the lower left corner where the custom function limited crown sprawl for one of the taller objects in the scene an yielded more realistic crown shapes. Our custom `my_linear` function yields fewer small trees than the default `lin_fn` (but more than the `exp_fn`) since we allowed a larger window size at lower portions of the CHM with this effect most clear for the short trees (purple CHM regions) on sample 2.
 
 let's check out the resulting tree distribution of the different window functions over these sample areas
 
@@ -304,8 +336,6 @@ knitr::include_graphics("../data/itd_tuning_plot_sample_summary2.jpg")
 itd_tuning_ans2 <- list(crowns = NULL)
 itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = T)
 ```
-
-the scatter plots of tree height and crown diameter show that there are some shorter or intermediate trees that our custom `my_linear` function predicts to have unrealistic broad crowns where the crown diameter is greater than the tree height (e.g. sample 2 and 4). This conflicts with our intuition based on the visual inspection of the crowns overlaid on the CHM. Are these trees at the edges of the sample area where we may be getting edge effects? are the other window functions tested predicting similar segments in these areas?
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
@@ -333,7 +363,7 @@ itd_tuning_ans2$crowns %>%
   dplyr::count(sample_number,ws_fn)
 ```
 
-both our custom `my_linear` function and the `exp_fn` predict a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
+the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
 ```{r}
 itd_tuning_ans2$crowns %>% 
@@ -344,8 +374,6 @@ itd_tuning_ans2$crowns %>%
   dplyr::select(sample_number,ws_fn,tree_height_m,crown_diameter_m,tree_x,tree_y)
 ```
 
-note that these are both `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly conected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, caclulate the diameter of the new, simplified geometries, and look at these problem trees again
-
 let's check the geometry types
 
 ```{r}
@@ -354,7 +382,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
   table()
 ```
 
-everything is `MULTIPOLYGON` so this geometric simplification will be helpful at removing disjoint predicted tree segments
+note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
 ```{r}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
@@ -630,20 +658,20 @@ ggplot2::ggsave(filename = "../data/itd_tuning2_rgb_crowns_sample2.jpg", height 
 knitr::include_graphics("../data/itd_tuning2_rgb_crowns_sample2.jpg")
 ```
 
-plot the trees detected in sample 4 on the RGB
+plot the trees detected in sample 3 on the RGB
 
 ```{r, include=T, eval=F,purl=FALSE, fig.height=5.5, fig.width=7.5}
 plt_rgb_rast_itd_crowns(
-  sample_nmbr = 4
+  sample_nmbr = 3
   , rgb_rast = rgb_rast
   , itd_crowns = crowns_simplified
-  , my_title = "sample #4"
+  , my_title = "sample #3"
 )
-ggplot2::ggsave(filename = "../data/itd_tuning2_rgb_crowns_sample4.jpg", height = 4, width = 7.5, dpi = "print")
+ggplot2::ggsave(filename = "../data/itd_tuning2_rgb_crowns_sample3.jpg", height = 4, width = 7.5, dpi = "print")
 ```
 
 ```{r, echo=FALSE, out.width="100%", out.height="100%", fig.align='center', fig.show='hold',results='asis'}
-knitr::include_graphics("../data/itd_tuning2_rgb_crowns_sample4.jpg")
+knitr::include_graphics("../data/itd_tuning2_rgb_crowns_sample3.jpg")
 ```
 
 looks good. let's go with our custom `my_linear` function for tree detection over the full stand
@@ -890,6 +918,10 @@ interesting
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 # cloud2trees:::search_dir_final_detected(c2t_process_dir)
 remove(list = ls()[grep("_temp",ls())])
+remove(cloud2trees_ans)
+remove(my_fn_list)
+remove(point_cld_folder)
+remove(rgb_rast)
 gc()
 ```
 
@@ -897,7 +929,7 @@ gc()
 
 We have now processed all of the data sets for this study following the methods outlined in the previous section. Here, we'll review the output data generated by each data set where each data set represents a unique UAS flight plan. Remember, the objective of the study is to compare the tree detection and forest structure outcomes across different UAS-lidar flight plan settings.
 
-## load all the data
+## Tracking
 
 get a list of the data available and parse the folder names to create a data set with all relevant variables for tracking the different flight setting parameters
 
@@ -962,7 +994,7 @@ tracking_df %>%
     )
 ```
 
-### Raster Data and Study Boundary
+## Raster Data and Study Boundary
 
 now, we're going to load in the CHM data for each flight
 
@@ -993,47 +1025,6 @@ stand_boundary %>% dplyr::glimpse()
 ```
 
 plot CHMs
-
-```{r, include = F, eval = F}
-stand_boundary %>% sf::st_union() %>% sf::st_area() %>% as.numeric() %>% `/`(10000)
-validation_plots <-
-  sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/N1.gpkg", quiet = T) %>% 
-  sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
-  dplyr::rename_with(tolower) %>% 
-  dplyr::rename(
-    field_dbh_cm = dbh_cm
-    , field_tree_height_m = ht_m
-  ) %>% 
-  sf::st_set_geometry("geometry") %>% 
-  dplyr::filter(
-    !is.na(field_dbh_cm)
-    & !is.na(field_tree_height_m)
-    & sf::st_is_valid(geometry)
-    # only keep trees that are above height threshold used for uas processing
-    & field_tree_height_m >= 1.37
-    # & field_dbh_cm >= min_tree_dbh_cm # if know min field dbh for field sampling
-  ) %>% 
-  sf::st_intersection(
-    stand_boundary %>% 
-      dplyr::select(stand_area_m2)
-  ) %>% 
-  dplyr::mutate(
-    field_tree_id = dplyr::row_number()
-    , tree_utm_x = sf::st_coordinates(geometry)[,1] #lon
-    , tree_utm_y = sf::st_coordinates(geometry)[,2] #lat
-    # basal area
-    , basal_area_m2 = pi * field_dbh_cm^2 / (4*10000)
-  ) %>% 
-  dplyr::relocate(field_tree_id)
-validation_plots %>% dplyr::glimpse()
-mapview::mapview(stand_boundary, color = "black", lwd = 2, alpha.regions = 0, label = F, legend = F, popup = F) + 
-  mapview::mapview(validation_plots, zcol = "field_tree_height_m")
-terra::plot(chm_rast[[2]])
-stand_boundary %>% 
-  sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
-  terra::vect() %>% 
-  terra::plot(col = NA, border = "blue", add = T)
-```
 
 ```{r, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
 graphics::par(mfrow = c(ceiling(length(chm_rast)/3),3)) # mfrow = c(nr, nc)
@@ -1110,11 +1101,14 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-### Field Trees
+## Field Trees
 
 let's load the field data of stem mapped trees with individual tree measurements for use in validation
 
 ```{r}
+# filter for height to match UAS filtering
+my_tree_ht_m <- 2
+# read and filter
 validation_trees <-
   sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/N1.gpkg", quiet = T) %>% 
   sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
@@ -1129,7 +1123,7 @@ validation_trees <-
     & !is.na(field_tree_height_m)
     & sf::st_is_valid(geometry)
     # only keep trees that are above height threshold used for uas processing
-    & field_tree_height_m >= 1.37
+    & field_tree_height_m >= my_tree_ht_m
     # & field_dbh_cm >= min_tree_dbh_cm # if know min field dbh for field sampling
   ) %>% 
   sf::st_intersection(
@@ -1209,14 +1203,14 @@ validation_trees %>%
     , stand_area_ha = stand_area_ha %>% round(1) %>% scales::comma(accuracy = 0.1)
   ) %>% 
   dplyr::select(
-    stand_area_ha, trees_ha, basal_area_m2_per_ha, ht, dbh
+    stand_area_ha, n_trees, trees_ha, basal_area_m2_per_ha, ht, dbh
   ) %>% 
   kableExtra::kbl(
     caption = "Stand Summary of Field Data"
     , escape = F
     , digits = 1
     , col.names = c(
-      "Hectares"
+      "Hectares", "# trees"
       , "Trees<br>ha<sup>-1</sup>"
       , "Basal Area<br>m<sup>2</sup> ha<sup>-1</sup>"
       , "Height (m)", "DBH (cm)"
@@ -1259,7 +1253,47 @@ mapview::mapview(ctg_temp@data$geometry, layer.name = "ptcld")
 
 ```
 
-### UAS Predicted Trees
+## UAS Predicted Trees
+
+```{r, include=FALSE, eval=FALSE, results=F}
+# chm_rast %>% 
+tracking_df$folder %>% 
+  purrr::map(function(nm){
+    of_temp <- tracking_df %>% 
+      dplyr::filter(folder==nm) %>% 
+      dplyr::pull(path) %>% 
+      file.path("point_cloud_processing_delivery")
+    # raster2trees
+    ans_temp <- cloud2trees::raster2trees(
+      chm_rast = chm_rast[[nm]]
+      , outfolder = of_temp
+      , ws = my_linear
+      , min_height = 1.37
+    )
+    # ans_temp %>% dplyr::glimpse()
+    # dbh
+    dbh_ans_temp <- cloud2trees::trees_dbh(ans_temp, outfolder = of_temp)
+    # dbh_ans_temp %>% dplyr::glimpse()
+    nm_temp <- base::setdiff(names(dbh_ans_temp), names(ans_temp))
+    # join
+    ans_temp <- 
+      ans_temp %>% 
+      dplyr::left_join(
+        dbh_ans_temp %>% 
+          sf::st_drop_geometry() %>% 
+          dplyr::select(dplyr::all_of(c(
+            "treeID"
+            , nm_temp
+          )))
+        , by = "treeID"
+      )
+    # write
+    cloud2trees:::write_raster2trees_ans(ans_temp,dir = of_temp)
+    # sf::st_read(file.path(of_temp,"final_detected_crowns.gpkg")) %>% dplyr::glimpse()
+    # sf::st_read(file.path(of_temp,"final_detected_tree_tops.gpkg")) %>% dplyr::glimpse()
+
+  })
+```
 
 let's load the UAS predicted trees
 
@@ -1270,8 +1304,24 @@ predicted_trees <-
     \(i)
     file.path(i, "point_cloud_processing_delivery", "final_detected_tree_tops.gpkg") %>% 
       sf::st_read(quiet=F) %>% 
+      dplyr::filter(tree_height_m >= my_tree_ht_m) %>% 
       # clip to study boundary
-      sf::st_intersection(stand_boundary)
+      sf::st_intersection(
+        stand_boundary %>% 
+          dplyr::select(stand_area_m2)
+      ) %>% 
+      dplyr::mutate(
+        basal_area_m2 = pi * dbh_cm^2 / (4*10000)
+        , las_overlap_stand_area_m2 = 
+          file.path(i, "point_cloud_processing_delivery", "raw_las_ctg_info.gpkg") %>% 
+            sf::st_read(quiet=T) %>% 
+            sf::st_union() %>% 
+            # sf::st_area() %>% as.numeric()
+            # clip to study boundary
+            sf::st_intersection(stand_boundary) %>% 
+            sf::st_area() %>% as.numeric() %>% 
+            sum()
+      )
   )
 names(predicted_trees) <- tracking_df$folder
 ```
@@ -1284,6 +1334,13 @@ predicted_trees %>%
   tidyr::pivot_longer(dplyr::everything()) %>% 
   dplyr::rename(folder=name) %>% 
   dplyr::inner_join(tracking_df, by="folder") %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "On"
+      , !flight_tf ~ "Off"
+      , T ~ "error"
+    )
+  ) %>% 
   dplyr::select(tidyselect::starts_with("flight_"), value) %>% 
   dplyr::arrange(flight_agl) %>% 
   kableExtra::kbl(
@@ -1297,7 +1354,7 @@ predicted_trees %>%
   kableExtra::collapse_rows(columns = c(1:2), valign = "top")
 ```
 
-check the DBH distribution for each data set
+check the DBH and height distribution for each data set
 
 ```{r}
 predicted_trees %>% 
@@ -1338,7 +1395,102 @@ predicted_trees %>%
 
 both the count of trees and the height and DBH distributions look very similar across the different flight settings...this may be an early indication of limited influence of the flight settings on tree detection and forest structure quantification
 
+let's check out very high-level stand summary metrics
+
+```{r}
+predicted_trees %>% 
+  purrr::map_dfr(
+    \(x)
+    x %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::group_by(las_overlap_stand_area_m2) %>% 
+      dplyr::summarise(
+        dplyr::across(
+          c(tree_height_m, dbh_cm)
+          , .fns = list(mean = mean, sd = sd)
+        )
+        , n_trees = dplyr::n()
+        , basal_area_m2 = sum(basal_area_m2)
+      ) %>% 
+      # add area
+      dplyr::mutate(stand_area_ha = las_overlap_stand_area_m2/10000) %>% 
+      dplyr::mutate(
+        ht = paste0(
+          tree_height_m_mean %>% 
+            round(1) %>% 
+            scales::comma(accuracy = 0.1)
+          , "<br>("
+          , tree_height_m_sd %>% 
+              round(1) %>% 
+              scales::comma(accuracy = 0.1)
+          , ")"
+        )
+        , dbh = paste0(
+          dbh_cm_mean %>% round(1) %>% scales::comma(accuracy = 0.1)
+          , "<br>("
+          , dbh_cm_sd %>% round(1) %>% scales::comma(accuracy = 0.1)
+          , ")"
+        )
+        , trees_ha = n_trees/stand_area_ha
+        , basal_area_m2_per_ha = basal_area_m2/stand_area_ha
+        , stand_area_ha = stand_area_ha %>% round(1) %>% scales::comma(accuracy = 0.1)
+      ) %>% 
+      dplyr::select(
+        stand_area_ha, n_trees, trees_ha, basal_area_m2_per_ha, ht, dbh
+      )
+    , .id = "folder"
+  ) %>% 
+  dplyr::glimpse()
+  
+  # add area
+  dplyr::mutate(stand_area_ha = stand_area_m2/10000) %>% 
+  dplyr::mutate(
+    ht = paste0(
+      field_tree_height_m_mean %>% 
+        round(1) %>% 
+        scales::comma(accuracy = 0.1)
+      , "<br>("
+      , field_tree_height_m_sd %>% 
+          round(1) %>% 
+          scales::comma(accuracy = 0.1)
+      , ")"
+    )
+    , dbh = paste0(
+      field_dbh_cm_mean %>% round(1) %>% scales::comma(accuracy = 0.1)
+      , "<br>("
+      , field_dbh_cm_sd %>% round(1) %>% scales::comma(accuracy = 0.1)
+      , ")"
+    )
+    , trees_ha = n_trees/stand_area_ha
+    , basal_area_m2_per_ha = basal_area_m2/stand_area_ha
+    , stand_area_ha = stand_area_ha %>% round(1) %>% scales::comma(accuracy = 0.1)
+  ) %>% 
+  dplyr::select(
+    stand_area_ha, n_trees, trees_ha, basal_area_m2_per_ha, ht, dbh
+  ) %>% 
+  kableExtra::kbl(
+    caption = "Stand Summary of Field Data"
+    , escape = F
+    , digits = 1
+    , col.names = c(
+      "Hectares", "# trees"
+      , "Trees<br>ha<sup>-1</sup>"
+      , "Basal Area<br>m<sup>2</sup> ha<sup>-1</sup>"
+      , "Height (m)", "DBH (cm)"
+    )
+  ) %>% 
+  kableExtra::kable_styling()
+```
+
+
 ```{r, results=F, include=F, eval = F}
+ggplot(mapping=aes(x = tree_height_m)) +
+  geom_histogram(data = validation_trees %>% dplyr::rename(tree_height_m=field_tree_height_m)
+    , binwidth = 2, fill = "blue", alpha = 0.6, color = "gray"
+  ) +
+  geom_histogram(data = predicted_trees[[2]], binwidth = 2, fill = "red", alpha = 0.6, color = "gray") +
+  scale_x_continuous(breaks = scales::breaks_extended(12)) +
+  theme_light()
 # plot of crowns
 predicted_crows <- 
   1:length(tracking_df$path) %>% 
