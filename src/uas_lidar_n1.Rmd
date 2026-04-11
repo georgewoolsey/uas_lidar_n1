@@ -1015,7 +1015,7 @@ chm_rast[1:min(length(chm_rast),2)]
 and we'll load in the stand boundary to get an idea of how our UAS data relates
 
 ```{r}
-stand_boundary <- sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/ref_data_Boundary.shp", quiet = T) %>% 
+stand_boundary <- sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/field_data_Boundary.shp", quiet = T) %>% 
   dplyr::rename_with(tolower) %>% 
   dplyr::filter(site=="N1") %>% 
   sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
@@ -1572,169 +1572,221 @@ we'll make a function that uses the following input data parameters to match pre
 we'll use the `RANN` [package](https://jefferislab.github.io/RANN/) which enables KD-tree searching/processing to build the tree which is a super-fast way to find the `x` number of near neighbors for each point in an input dataset (see `RANN::nn2()`).
 
 ```{r}
-reference_prediction_match <- function(variables) {
-  if(
-    is.na(clump_dist_m) || 
-    is.null(clump_dist_m) || 
-    !inherits(as.numeric(clump_dist_m),"numeric")
-  ){
-    stop("`clump_dist_m` must be numeric and not missing")
-  }else{clump_dist_m <- as.numeric(clump_dist_m)[1]}
-  if(
-    any(is.na(clump_breaks)) || 
-    any(is.null(clump_breaks)) || 
-    !inherits(as.numeric(clump_breaks),"numeric")
-  ){
-    stop("`clump_breaks` must be numeric and not missing")
-  }else{clump_breaks <- as.numeric(clump_breaks)}
+# check df function
+validate_df_fn <- function(data, required_cols = c("tree_height_m"), check_numeric = F) {
   # check data
-  if(!inherits(stand_sf,"sf") && !inherits(stand_sf,"sfc")){stop("`stand_sf` requires polygon sf data")}
+  if(!inherits(data,"sf") && !inherits(data,"sfc")){stop("all input data requires POINT sf data")}
   if(
-    !all( sf::st_is(stand_sf, c("POLYGON","MULTIPOLYGON")) )
+    !all( sf::st_is(data, c("POINT")) )
   ){
-    stop("`stand_sf` requires POLYGON sf data")
-  }else{
-    stand_sf <- sf::st_union(stand_sf)
+    stop("all input data requires POINT sf data")
   }
-  if(!inherits(trees_sf,"sf")){stop("`trees_sf` requires polygon sf data")}
-  if(
-    !all( sf::st_is(trees_sf, c("POINT","MULTIPOINT")) )
-  ){
-    stop("`trees_sf` requires POINT sf data")
-  }
-}
-
-pred_data <- predicted_trees[[2]] %>% 
-  dplyr::arrange(desc(tree_height_m)) #### should sort first
-ref_data <- validation_trees %>% 
-  dplyr::arrange(desc(field_tree_height_m)) #### should sort first
-max_dist_m <- 3
-max_height_error_m <- 2
-
-# build a 2D kd-tree from the partitioned point cloud
-# Use the X and Y coordinates of the predicted to build the tree.
-pred_coords_temp <- 
-  pred_data %>% 
-  dplyr::mutate(
-    X = sf::st_coordinates(.)[,1] %>% as.numeric()
-    , Y = sf::st_coordinates(.)[,2] %>% as.numeric()
-  ) %>% 
-  dplyr::select(X,Y) %>% 
-  sf::st_drop_geometry()
-# build a 2D kd-tree from the partitioned point cloud
-# Use the X and Y coordinates of the reference to build the tree.
-ref_coords_temp <- 
-  ref_data %>% 
-  dplyr::mutate(
-    X = sf::st_coordinates(.)[,1] %>% as.numeric()
-    , Y = sf::st_coordinates(.)[,2] %>% as.numeric()
-  ) %>% 
-  dplyr::select(X,Y) %>% 
-  sf::st_drop_geometry()
-
-# perform a fixed-radius search using RANN::nn2
-nn_ans_temp <- RANN::nn2(
-  # the point cloud xy data (builds the kd-tree on this)
-  data = pred_coords_temp
-  # the seed point xy data (number of columns must be the same as data)
-  , query = ref_coords_temp
-  # maximum number of neighbors to find per query
-  , k = min(nrow(pred_coords_temp),nrow(ref_coords_temp))
-  # the search radius (rcyl)
-  , radius = max_dist_m
-  , searchtype = "radius"
-)
-# huh?
-# nn_ans_temp %>% dplyr::glimpse()
-# nn_ans_temp %>% class()
-# nn_ans_temp %>% length()
-# nn_ans_temp %>% names()
-# nn_ans_temp$nn.idx %>% length()
-# nn_ans_temp$nn.dists[1:11,] %>% dplyr::as_tibble() %>% dplyr::glimpse()
-# !!!!!!!! testing
-# ferp <- 1
-# cyl_pts <- nn_ans_temp$nn.idx[ferp, ]
-# (cyl_pts <- cyl_pts[cyl_pts > 0] )
-# pred_match_temp <- c()
-# (cyl_pts <- cyl_pts[!(cyl_pts %in% pred_match_temp)] )
-# 
-# ggplot() + 
-#   geom_sf(data = ref_data %>% dplyr::slice(ferp), color = "cyan") +
-#   geom_sf(data = ref_data %>% dplyr::slice(ferp) %>% sf::st_buffer(3), color = "cyan", fill = NA) +
-#   geom_sf(data = pred_data %>% 
-#             sf::st_intersection(
-#               ref_data %>% dplyr::slice(ferp) %>% sf::st_buffer(3)
-#             )
-#             , color = "black", size = 2.5) +
-#   geom_sf(data = pred_data %>% dplyr::slice(cyl_pts), color = "magenta", size = 1) +
-#   theme_void()
-# 
-# # get heights
-# # ref_data %>% dplyr::select(field_tree_id, field_tree_height_m) %>% dplyr::glimpse()
-# # ref_data$field_tree_height_m[ferp]
-# # pred_data$tree_height_m[cyl_pts]
-# 
-# (ht_diffs <- abs(ref_data$field_tree_height_m[ferp]-pred_data$tree_height_m[cyl_pts]) )
-# # get the minimum value among elements below the threshold
-# min_val <- min(ht_diffs[ht_diffs <= max_height_error_m], na.rm = T)
-# is.infinite(min_val)
-# # the index of that value in the original full vector
-# (cyl_idx <- which(ht_diffs == min_val))
-# (match_idx <- cyl_pts[cyl_idx])
-
-# iterate through the results to make matches
-# add pred match tracker
-ref_data$pred_match_idx <- 0
-ref_data$min_height_diff_m <- as.numeric(NA)
-for(i in 1:nrow(ref_coords_temp)){
-  # get indices of points in the current cylinder (0 means no point found)
-  cyl_pts <- nn_ans_temp$nn.idx[i, ]
-  cyl_pts <- cyl_pts[cyl_pts > 0] 
-  # remove already matched
-  cyl_pts <- cyl_pts[!(cyl_pts %in% ref_data$pred_match_idx)] 
+  # names
+  # uses base::setdiff and base::names
+  missing_cols <- setdiff(required_cols, names(data))
   
-  if (dplyr::coalesce(length(cyl_pts),0) < 1) {
-    ref_data$min_height_diff_m[i] <- as.numeric(NA)
-  }else{
-    # get heights
-    # ref_data %>% dplyr::select(field_tree_id, field_tree_height_m) %>% dplyr::glimpse()
-    # ref_data$field_tree_height_m[ferp]
-    # pred_data$tree_height_m[cyl_pts]
-    ht_diffs <- abs(ref_data$field_tree_height_m[ferp]-pred_data$tree_height_m[cyl_pts])
-    # get the minimum value among elements below the threshold
-    min_val <- min(ht_diffs[ht_diffs <= max_height_error_m], na.rm = T)
-    # if none within threshold
-    if(is.infinite(min_val)){
-      ref_data$min_height_diff_m[i] <- as.numeric(NA)
-    }else{
-      # the index of that value in the original full vector
-      cyl_idx <- which(ht_diffs == min_val)[1] # if multiple matches, takes the nearest
-      match_idx <- cyl_pts[cyl_idx]
-    
-      # update match
-      ref_data$min_height_diff_m[i] <- min_val
-      ref_data$pred_match_idx[i] <- match_idx
+  if(length(missing_cols) > 0){
+    stop("all input data requires columns: ", paste(missing_cols, collapse = ", "))
+  }
+  
+  # numeric
+  if(check_numeric){
+    non_numeric <- data %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::select(dplyr::all_of(required_cols)) %>%
+      dplyr::summarise(dplyr::across(dplyr::everything(), ~ !is.numeric(.x))) %>%
+      tidyr::pivot_longer(dplyr::everything()) %>%
+      dplyr::filter(value == TRUE)
+
+    if (nrow(non_numeric) > 0) {
+      stop("columns must be numeric: ", paste(non_numeric$name, collapse = ", "))
     }
   }
-}
-pred_data %>% dplyr::glimpse()
-ref_data %>% dplyr::glimpse()
-ref_data %>% 
-  dplyr::select(field_tree_id, field_tree_height_m, field_dbh_cm, pred_match_idx, min_height_diff_m) %>% 
-  dplyr::left_join(
-    pred_data %>% 
-      sf::st_drop_geometry() %>% 
-      dplyr::select(treeID, tree_height_m, dbh_cm) %>% 
-      dplyr::mutate(pred_match_idx = dplyr::row_number())
-    , by = "pred_match_idx"
-  ) %>% 
-  dplyr::glimpse()
   
-# huh?
-# nrow(ref_coords_temp)
-# nrow(cyl_max_ht_diff_temp)
-# cyl_max_ht_diff_temp %>% dplyr::glimpse()
+  # is.na() catches both NA and NaN; is.infinite() catches Inf
+  invalid_dta <- data %>%
+    sf::st_drop_geometry() %>% 
+    dplyr::summarise(
+      dplyr::across(
+        dplyr::all_of(required_cols)
+        , ~ sum(is.na(.x) | is.infinite(.x))
+      )
+    ) %>%
+    tidyr::pivot_longer(
+      cols = dplyr::everything()
+      , names_to = "column"
+      , values_to = "count"
+    ) %>%
+    dplyr::filter(count > 0)
 
+  if (nrow(invalid_dta) > 0) {
+    bad_cols <- paste(invalid_dta$column, collapse = ", ")
+    stop("invalid values (NA, NaN, or Inf) found in: ", bad_cols)
+  }
+  return(TRUE)
+}
+# match function
+reference_prediction_match <- function(
+  pred_data
+  , ref_data
+  , max_dist_m
+  , max_height_error_m
+) {
+  #######################################################################
+  # threshold checks
+  #######################################################################
+  if(
+    any(is.na(max_dist_m)) || 
+    any(is.null(max_dist_m)) || 
+    !inherits(as.numeric(max_dist_m),"numeric")
+  ){
+    stop("`max_dist_m` must be numeric and not missing")
+  }else{max_dist_m <- as.numeric(max_dist_m)[1]}
+  if(
+    any(is.na(max_height_error_m)) || 
+    any(is.null(max_height_error_m)) || 
+    !inherits(as.numeric(max_height_error_m),"numeric")
+  ){
+    stop("`max_height_error_m` must be numeric and not missing")
+  }else{max_height_error_m <- as.numeric(max_height_error_m)[1]}
+  #######################################################################
+  # data checks
+  #######################################################################
+  validate_df_fn(data = pred_data, required_cols = c("tree_height_m"), check_numeric = T)
+  validate_df_fn(data = ref_data, required_cols = c("tree_height_m"), check_numeric = T)
+  # proj
+  if(!identical(
+    sf::st_crs(pred_data, parameters = T)[["epsg"]]
+    , sf::st_crs(ref_data, parameters = T)[["epsg"]]
+  )){stop("data must have same projection. see `sf::st_crs()`")}
+  # sort to start with largest
+  pred_data <- pred_data %>% dplyr::arrange(desc(tree_height_m))
+  ref_data <- ref_data %>% dplyr::arrange(desc(tree_height_m))
+  #######################################################################
+  # build a 2D kd-tree
+  #######################################################################
+    # Use the X and Y coordinates of the predicted to build the tree.
+    pred_coords_temp <- 
+      pred_data %>% 
+      dplyr::mutate(
+        X = sf::st_coordinates(.)[,1] %>% as.numeric()
+        , Y = sf::st_coordinates(.)[,2] %>% as.numeric()
+      ) %>% 
+      dplyr::select(X,Y) %>% 
+      sf::st_drop_geometry()
+    # Use the X and Y coordinates of the reference to build the tree.
+    ref_coords_temp <- 
+      ref_data %>% 
+      dplyr::mutate(
+        X = sf::st_coordinates(.)[,1] %>% as.numeric()
+        , Y = sf::st_coordinates(.)[,2] %>% as.numeric()
+      ) %>% 
+      dplyr::select(X,Y) %>% 
+      sf::st_drop_geometry()
+    
+    # perform a fixed-radius search using RANN::nn2
+    nn_ans_temp <- RANN::nn2(
+      # the point cloud xy data (builds the kd-tree on this)
+      data = pred_coords_temp
+      # the seed point xy data (number of columns must be the same as data)
+      , query = ref_coords_temp
+      # maximum number of neighbors to find per query
+      , k = min(nrow(pred_coords_temp),nrow(ref_coords_temp))
+      # the search radius (rcyl)
+      , radius = max_dist_m
+      , searchtype = "radius"
+    )
+    # huh?
+    # nn_ans_temp %>% class()
+    # nn_ans_temp %>% names()
+    # nn_ans_temp$nn.idx %>% nrow()
+    # nrow(ref_coords_temp)
+    # nn_ans_temp$nn.idx %>% ncol()
+    # nrow(pred_coords_temp)
+    # nn_ans_temp$nn.dists %>% nrow()
+    # nrow(ref_coords_temp)
+    # nn_ans_temp$nn.dists %>% ncol()
+    # nrow(pred_coords_temp)
+    # nn_ans_temp$nn.dists[1:11,] %>% dplyr::as_tibble() %>% dplyr::glimpse()
+  #######################################################################  
+  # iterate through the kd-tree to make matches
+  #######################################################################
+    if(nrow(ref_coords_temp)!=nrow(ref_data)){stop("bad kd-tree")}
+    # add pred match tracker
+    ref_data$pred_match_idx <- 0
+    ref_data$pred_min_height_diff_m <- as.numeric(NA)
+    ref_data$pred_tree_height_m <- as.numeric(NA)
+    ref_data$pred_match_dist_m <- as.numeric(NA)
+    for(i in 1:nrow(ref_coords_temp)){
+      # get indices of points in the current cylinder (0 means no point found)
+      nn_idx_pts <- nn_ans_temp$nn.idx[i, ]
+      cyl_pts <- nn_idx_pts[nn_idx_pts > 0] 
+      # remove already matched
+      cyl_pts <- cyl_pts[!(cyl_pts %in% ref_data$pred_match_idx)] 
+      # if available matches
+      if(dplyr::coalesce(length(cyl_pts),0) >= 1) {
+        # get heights
+        # ref_data %>% dplyr::select(field_tree_id, tree_height_m) %>% dplyr::glimpse()
+        # ref_data$tree_height_m[i]
+        # pred_data$tree_height_m[cyl_pts]
+        ht_diffs <- abs(ref_data$tree_height_m[i]-pred_data$tree_height_m[cyl_pts])
+        # get the minimum value among elements below the threshold
+        min_val <- min(ht_diffs[ht_diffs <= max_height_error_m], na.rm = T)
+        # if not none within threshold
+        if(!is.infinite(min_val)){
+          # the index of that value in the original full vector
+          cyl_idx <- which(ht_diffs == min_val)[1] # if multiple matches, takes the nearest
+          match_idx <- cyl_pts[cyl_idx]
+          # distance
+          nn_dist_idx <- which(nn_idx_pts == match_idx)
+          nn_dist <- nn_ans_temp$nn.dists[i,nn_dist_idx]
+          # update match
+          ref_data$pred_min_height_diff_m[i] <- min_val
+          ref_data$pred_tree_height_m[i] <- pred_data$tree_height_m[match_idx]
+          ref_data$pred_match_idx[i] <- match_idx
+          ref_data$pred_match_dist_m[i] <- nn_dist
+          
+        }
+      }
+    }
+  #######################################################################
+  # add ref id to pred and return
+  #######################################################################
+  # pred_data %>% dplyr::glimpse()
+  # ref_data %>% dplyr::glimpse()
+  pred_data <- pred_data %>% 
+    # get rid of columns we'll create
+    dplyr::select( -dplyr::any_of(c(
+      "hey_xxxxxxxxxx"
+      , "pred_match_idx"
+      , "pred_min_height_diff_m"
+      , "pred_match_dist_m"
+      , "ref_tree_height_m"
+      , "ref_match_idx"
+    ))) %>% 
+    dplyr::mutate(pred_match_idx = dplyr::row_number()) %>% 
+    dplyr::left_join(
+      ref_data %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::select(pred_match_idx, pred_min_height_diff_m, pred_match_dist_m, tree_height_m) %>% 
+        dplyr::mutate(ref_match_idx = dplyr::row_number()) %>% 
+        dplyr::rename(ref_tree_height_m=tree_height_m)
+      , by = "pred_match_idx"
+    )
+  return(list(
+    ref_data = ref_data
+    , pred_data = pred_data
+  ))
+}
+
+reference_prediction_match_ans_temp <- reference_prediction_match(
+  pred_data = predicted_trees[[2]]
+  , ref_data = validation_trees %>% dplyr::rename(tree_height_m=field_tree_height_m)
+  , max_dist_m = 3
+  , max_height_error_m = 2
+)
+sf::st_crs(predicted_trees[[2]], parameters = T)[["epsg"]]
+sf::st_crs(validation_trees, parameters = T)[["epsg"]]
 ```
 
 
