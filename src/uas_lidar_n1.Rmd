@@ -1660,8 +1660,12 @@ reference_prediction_match <- function(
     , sf::st_crs(ref_data, parameters = T)[["epsg"]]
   )){stop("data must have same projection. see `sf::st_crs()`")}
   # sort to start with largest
-  pred_data <- pred_data %>% dplyr::arrange(desc(tree_height_m))
-  ref_data <- ref_data %>% dplyr::arrange(desc(tree_height_m))
+  pred_data <- pred_data %>% 
+    dplyr::arrange(desc(tree_height_m)) %>% 
+    dplyr::mutate(pred_match_idx = dplyr::row_number())
+  ref_data <- ref_data %>% 
+    dplyr::arrange(desc(tree_height_m)) %>% 
+    dplyr::mutate(ref_match_idx = dplyr::row_number())
   #######################################################################
   # build a 2D kd-tree
   #######################################################################
@@ -1714,7 +1718,7 @@ reference_prediction_match <- function(
     if(nrow(ref_coords_temp)!=nrow(ref_data)){stop("bad kd-tree")}
     # add pred match tracker
     ref_data$pred_match_idx <- 0
-    ref_data$pred_min_height_diff_m <- as.numeric(NA)
+    ref_data$pred_match_height_diff_m <- as.numeric(NA)
     ref_data$pred_tree_height_m <- as.numeric(NA)
     ref_data$pred_match_dist_m <- as.numeric(NA)
     for(i in 1:nrow(ref_coords_temp)){
@@ -1741,7 +1745,7 @@ reference_prediction_match <- function(
           nn_dist_idx <- which(nn_idx_pts == match_idx)
           nn_dist <- nn_ans_temp$nn.dists[i,nn_dist_idx]
           # update match
-          ref_data$pred_min_height_diff_m[i] <- min_val
+          ref_data$pred_match_height_diff_m[i] <- min_val
           ref_data$pred_tree_height_m[i] <- pred_data$tree_height_m[match_idx]
           ref_data$pred_match_idx[i] <- match_idx
           ref_data$pred_match_dist_m[i] <- nn_dist
@@ -1758,18 +1762,15 @@ reference_prediction_match <- function(
     # get rid of columns we'll create
     dplyr::select( -dplyr::any_of(c(
       "hey_xxxxxxxxxx"
-      , "pred_match_idx"
-      , "pred_min_height_diff_m"
+      , "pred_match_height_diff_m"
       , "pred_match_dist_m"
       , "ref_tree_height_m"
       , "ref_match_idx"
     ))) %>% 
-    dplyr::mutate(pred_match_idx = dplyr::row_number()) %>% 
     dplyr::left_join(
       ref_data %>% 
         sf::st_drop_geometry() %>% 
-        dplyr::select(pred_match_idx, pred_min_height_diff_m, pred_match_dist_m, tree_height_m) %>% 
-        dplyr::mutate(ref_match_idx = dplyr::row_number()) %>% 
+        dplyr::select(ref_match_idx, pred_match_idx, pred_match_height_diff_m, pred_match_dist_m, tree_height_m) %>% 
         dplyr::rename(ref_tree_height_m=tree_height_m)
       , by = "pred_match_idx"
     )
@@ -1785,8 +1786,8 @@ reference_prediction_match_ans_temp <- reference_prediction_match(
   , max_dist_m = 3
   , max_height_error_m = 2
 )
-sf::st_crs(predicted_trees[[2]], parameters = T)[["epsg"]]
-sf::st_crs(validation_trees, parameters = T)[["epsg"]]
+reference_prediction_match_ans_temp[[1]] %>% dplyr::glimpse()
+reference_prediction_match_ans_temp[[2]] %>% dplyr::glimpse()
 ```
 
 
