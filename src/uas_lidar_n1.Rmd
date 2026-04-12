@@ -1572,7 +1572,15 @@ we'll make a function that uses the following input data parameters to match pre
 we'll use the `RANN` [package](https://jefferislab.github.io/RANN/) which enables KD-tree searching/processing to build the tree which is a super-fast way to find the `x` number of near neighbors for each point in an input dataset (see `RANN::nn2()`).
 
 ```{r}
+###############################################################
+###############################################################
+###############################################################
+###############################################################
 # check df function
+###############################################################
+###############################################################
+###############################################################
+###############################################################
 validate_df_fn <- function(data, required_cols = c("tree_height_m"), check_numeric = F) {
   # check data
   if(!inherits(data,"sf") && !inherits(data,"sfc")){stop("all input data requires POINT sf data")}
@@ -1625,7 +1633,15 @@ validate_df_fn <- function(data, required_cols = c("tree_height_m"), check_numer
   }
   return(TRUE)
 }
+###############################################################
+###############################################################
+###############################################################
+###############################################################
 # match function
+###############################################################
+###############################################################
+###############################################################
+###############################################################
 reference_prediction_match <- function(
   pred_data
   , ref_data
@@ -1779,17 +1795,219 @@ reference_prediction_match <- function(
     , pred_data = pred_data
   ))
 }
+###############################################################
+###############################################################
+###############################################################
+###############################################################
+# combine match to classify reference/predictions
+###############################################################
+###############################################################
+###############################################################
+###############################################################
+ground_truth_prediction_match <- function(
+  reference_prediction_match_ans
+  , comp_cols = c("tree_height_m")
+) {
+  # check for comparison cols
+  comp_cols <- 
+    comp_cols %>% 
+    # remove whitespace
+    stringr::str_trim() %>% 
+    # keep only those with a value
+    stringr::str_subset(".")
+  if(inherits(comp_cols, "character") && length(comp_cols) > 0){
+    validate_df_fn(data = reference_prediction_match_ans$ref_data, required_cols = comp_cols, check_numeric = T)
+    validate_df_fn(data = reference_prediction_match_ans$pred_data, required_cols = comp_cols, check_numeric = T)
+  }
+  # tp matches
+  return_df <-
+    reference_prediction_match_ans$ref_data %>%
+    dplyr::filter(pred_match_idx!=0 & !is.na(pred_match_idx)) %>% 
+    dplyr::select(dplyr::all_of(c(
+      "ref_match_idx"
+      , "pred_match_idx"
+      , "pred_match_dist_m"
+      # , "pred_tree_height_m"
+      # , "tree_height_m"
+      , comp_cols
+    ))) %>% 
+    dplyr::rename_with(
+      .cols = dplyr::all_of(comp_cols)
+      , .fn = ~paste0("ref_", .x, recycle0 = T)
+    ) %>% 
+    sf::st_set_geometry("ref_geometry") %>% 
+    # add on pred geom
+    dplyr::inner_join(
+      reference_prediction_match_ans$pred_data %>% 
+        dplyr::select(dplyr::all_of(c(
+          "ref_match_idx"
+          , comp_cols
+        ))) %>% 
+        dplyr::rename_with(
+          .cols = dplyr::all_of(comp_cols)
+          , .fn = ~paste0("pred_", .x, recycle0 = T)
+        ) %>% 
+        dplyr::mutate(pred_geometry = sf::st_geometry(.)) %>%
+        sf::st_drop_geometry()
+      , by = "ref_match_idx"
+    ) %>% 
+    dplyr::mutate(match_grp = "true positive")
+  
+  # add omissions
+  return_df <-
+    return_df %>% 
+    dplyr::bind_rows(
+      reference_prediction_match_ans$ref_data %>%
+        dplyr::filter(pred_match_idx==0 | is.na(pred_match_idx)) %>% 
+        dplyr::select(dplyr::all_of(c(
+          "ref_match_idx"
+          , "pred_match_idx"
+          , "pred_match_dist_m"
+          # , "pred_tree_height_m"
+          # , "tree_height_m"
+          , comp_cols
+        ))) %>% 
+        dplyr::rename_with(
+          .cols = dplyr::all_of(comp_cols)
+          , .fn = ~paste0("ref_", .x, recycle0 = T)
+        ) %>% 
+        sf::st_set_geometry("ref_geometry") %>% 
+        dplyr::mutate(match_grp = "omission")
+    )
+    
+  # add commissions
+  return_df <-
+    return_df %>% 
+    dplyr::bind_rows(
+      reference_prediction_match_ans$pred_data %>%
+        dplyr::filter(ref_match_idx==0 | is.na(ref_match_idx)) %>% 
+        dplyr::select(dplyr::all_of(c(
+          "ref_match_idx"
+          , "pred_match_idx"
+          , "pred_match_dist_m"
+          # , "pred_tree_height_m"
+          # , "tree_height_m"
+          , comp_cols
+        ))) %>% 
+        dplyr::rename_with(
+          .cols = dplyr::all_of(comp_cols)
+          , .fn = ~paste0("pred_", .x, recycle0 = T)
+        ) %>% 
+        dplyr::mutate(pred_geometry = sf::st_geometry(.)) %>%
+        sf::st_drop_geometry() %>% 
+        dplyr::mutate(match_grp = "commission")
+    )
+  
+  # make match_grp factor
+  return_df <- return_df %>% 
+    dplyr::mutate(
+      match_grp = factor(
+        match_grp
+        , ordered = T
+        , levels = c(
+          "true positive"
+          , "commission"
+          , "omission"
+        )
+      ) %>% forcats::fct_rev()
+    )
+  
+  
+  if(inherits(comp_cols, "character") && length(comp_cols) > 0){
+    return_df <- 
+      return_df %>% 
+      dplyr::mutate(
+        # 'diff_' columns are calculated as the predicted value minus the actual value
+        dplyr::across(
+          .cols = paste0("ref_", c("tree_height_m", "dbh_cm"), recycle0 = T)
+          , .fns = ~ base::get(stringr::str_replace(dplyr::cur_column(), "^ref_", "pred_")) - .x
+          , .names = "diff_{stringr::str_remove(.col, '^ref_')}"
+        )
+        # 'pct_diff_' columns are calculated as the actual value minus the predicted value divided by the actual value
+        , dplyr::across(
+          .cols = paste0("ref_", c("tree_height_m", "dbh_cm"), recycle0 = T)
+          , .fns = ~ (.x-base::get(stringr::str_replace(dplyr::cur_column(), "^ref_", "pred_")))/.x
+          , .names = "pct_diff_{stringr::str_remove(.col, '^ref_')}"
+        )
+      ) 
+  }
+  # return
+  if(nrow(return_df)==0){
+    warning("no records found for ground truth to predition matching")
+    return(NULL)
+  }else{
+    return(return_df)
+  }
+  
+}
 
+# xxx_temp <- reference_prediction_match(
+#   pred_data = predicted_trees[[2]]
+#   , ref_data = validation_trees %>% dplyr::rename(tree_height_m=field_tree_height_m, dbh_cm=field_dbh_cm)
+#   , max_dist_m = 3
+#   , max_height_error_m = 2
+# )
+# gt_temp <- ground_truth_prediction_match(xxx_temp, comp_cols = c("tree_height_m", "dbh_cm"))
+# gt_temp %>% dplyr::glimpse()
+# gt_temp %>% class()
+# gt_temp %>% ggplot() + geom_sf()
+
+
+# remove(return_df, reference_prediction_match_ans)
+# gc()
+```
+
+```{r, include=F, eval=F}
 reference_prediction_match_ans_temp <- reference_prediction_match(
   pred_data = predicted_trees[[2]]
   , ref_data = validation_trees %>% dplyr::rename(tree_height_m=field_tree_height_m)
   , max_dist_m = 3
   , max_height_error_m = 2
 )
-reference_prediction_match_ans_temp[[1]] %>% dplyr::glimpse()
-reference_prediction_match_ans_temp[[2]] %>% dplyr::glimpse()
-```
+reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::glimpse()
+reference_prediction_match_ans_temp[["ref_data"]] %>% sf::st_drop_geometry() %>% View()
+reference_prediction_match_ans_temp[["pred_data"]] %>% dplyr::glimpse()
+# plot check
+huh_temp <- 67
+ggplot2::ggplot() +
+  ggplot2::geom_sf(
+    data = reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::slice(huh_temp) %>% sf::st_buffer(3)
+    , color = "black", fill = NA
+  ) +
+  ggplot2::geom_sf_text(
+    data = reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::slice(huh_temp)
+    , mapping = aes(label = scales::comma(tree_height_m,accuracy=0.1))
+    , hjust = 0.01, vjust = -0.8
+  )+
+  ggplot2::geom_sf(
+    data = reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::slice(huh_temp)
+    , color = "black", fill = NA, size = 4
+  ) +
+  ggplot2::geom_sf_text(
+    data = predicted_trees[[2]] %>% 
+      sf::st_intersection(
+        reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::slice(huh_temp) %>% sf::st_buffer(3)
+      )
+    , mapping = aes(label = scales::comma(tree_height_m,accuracy=0.1))
+    , hjust = 0.01, vjust = -0.8
+  ) +
+  ggplot2::geom_sf(
+    data = predicted_trees[[2]] %>% 
+      sf::st_intersection(
+        reference_prediction_match_ans_temp[["ref_data"]] %>% dplyr::slice(huh_temp) %>% sf::st_buffer(3)
+      )
+    , color = "magenta", fill = NA, size = 4
+  )+
+  ggplot2::geom_sf(
+    data = reference_prediction_match_ans_temp[["pred_data"]] %>% dplyr::filter(ref_match_idx==huh_temp)
+    , color = "blue", fill = NA
+  ) +
+  theme_void()
 
+# cloud2trees:::search_dir_final_detected(c2t_process_dir)
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
 
 ```{r, results='hide'}
 ## BUFFER THE UAS TREES AND SPATIALLY MATCH FIELD TREES BASED ON THAT BUFFER
