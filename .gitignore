@@ -41,5 +41,5 @@ vignettes/*.pdf
 .Renviron
 
 data/*
-!data/*.jpg
+!data/itd_tuning*.jpg
 

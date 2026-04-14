@@ -2407,7 +2407,7 @@ ground_truth_prediction_match_ans <-
 #   dplyr::glimpse()
 ```
 
-we'll plot each result
+we'll plot each result spatially
 
 ```{r, fig.height = 9.2, fig.width = 8.5}
 ground_truth_prediction_match_ans %>%
@@ -2532,7 +2532,7 @@ agg_ground_truth_match_ans %>%
   ) %>% 
   kableExtra::kable_styling() %>% 
   kableExtra::column_spec(c(3), border_right = TRUE, include_thead = TRUE) %>% 
-  kableExtra::collapse_rows(columns = 1, valign = "top")
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
 ```
 
 and plot it
@@ -2576,7 +2576,7 @@ agg_ground_truth_match_ans %>%
       , fill = metric
     )
   ) +
-  ggplot2::geom_col(width = 0.7) +
+  ggplot2::geom_col(width = 0.5) +
   ggplot2::geom_text(
     mapping = ggplot2::aes(label = value_lab, fontface = "bold")
     , color = "black"
@@ -2608,5 +2608,363 @@ agg_ground_truth_match_ans %>%
   ggplot2::guides(
     color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1))
   )
+```
+
+### Quantification Accuracy Results
+
+let's table those
+
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    ref_trees = tp_n+fn_n
+    , det_trees = tp_n+fp_n
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # , site_area_m2
+    # detection
+    , ref_trees
+    , det_trees
+    , tp_n
+    , omission_rate,commission_rate,recall,precision,f_score
+    # quantification
+    , tidyselect::ends_with("_mean")
+    , tidyselect::ends_with("_rmse")
+    , tidyselect::ends_with("_mape")
+  ) %>% 
+  # second select to arrange pile_metric
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # , site_area_m2
+    # detection
+    , ref_trees
+    , det_trees
+    , tp_n
+    , omission_rate,commission_rate,recall,precision,f_score
+    # quantification
+    # , c(tidyselect::contains("volume") & !tidyselect::contains("paraboloid"))
+    , tidyselect::contains("area")
+    , tidyselect::contains("height")
+    , tidyselect::contains("diameter")
+    , tidyselect::contains("dbh")
+  ) %>% 
+  # names()
+  dplyr::mutate(
+    dplyr::across(
+      .cols = c(
+        f_score, recall, precision, tidyselect::ends_with("_mape")
+        , tidyselect::ends_with("_rate")
+      )
+      , .fn = ~ scales::percent(.x, accuracy = 1)
+    )
+    , dplyr::across(
+      .cols = c(tidyselect::ends_with("_mean"))
+      , .fn = ~ scales::comma(.x, accuracy = 0.01)
+    )
+    , dplyr::across(
+      .cols = c(tidyselect::ends_with("_rmse"))
+      , .fn = ~ scales::comma(.x, accuracy = 0.01)
+    )
+  ) %>% 
+  dplyr::select(
+    !tidyselect::contains("_area_")
+    & !tidyselect::contains("diff_diameter_")
+    & !tidyselect::ends_with("_trees")
+    # & !tidyselect::ends_with("_n")
+    & !tidyselect::ends_with("_rate")
+  ) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    -c(
+      recall,precision,f_score
+      , dataset_factor
+    )
+  ) %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "On"
+      , !flight_tf ~ "Off"
+      , T ~ "error"
+    )
+    , dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
+    )
+  ) %>% 
+  # dplyr::glimpse()
+  
+  kableExtra::kbl(
+    caption = "Quantification Accuracy"
+    , col.names = c(
+      "AGL", "MPH", "Terrain Follow"
+      , "TP predictions"
+      , rep(c("ME","RMSE","MAPE"), times = 2)
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11.5) %>% 
+  kableExtra::add_header_above(c(
+    " "=4
+    # , "Detection" = 3
+    # , "Area" = 3
+    , "Height (m)" = 3
+    , "DBH (cm)" = 3
+  )) %>% 
+  kableExtra::column_spec(seq(4,9,by=3), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+```
+
+and plot predicted versus reference values for correct predictions (TP)
+
+```{r}
+####################################
+# area scatter
+####################################
+dta_temp <-
+  ground_truth_prediction_match_ans %>% 
+  purrr::compact() %>% 
+  purrr::imap(
+    \(x,nm) 
+    dplyr::filter(x,match_grp=="true positive") %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::mutate(folder = nm)
+  )%>% 
+  dplyr::bind_rows() %>% 
+  dplyr::left_join(
+    agg_ground_truth_match_ans %>% 
+      dplyr::select(folder, dataset_factor, tidyselect::ends_with("_rmse") , tidyselect::ends_with("_mape") )
+    , by = "folder"
+  )
+  # dplyr::glimpse()
+# plt fn temp
+plt_fn_temp <- function(
+    x
+    , which_col = "dbh_cm"
+    , title_lab = "DBH"
+    , x_lab = "reference DBH (cm)" # latex2exp::TeX("reference area ($m^2$)")
+    , y_lab = "predicted DBH (cm)" # latex2exp::TeX("predicted area ($m^2$)")
+){
+    d <- dta_temp %>% 
+      dplyr::filter(folder==x)
+    # construct the formula: "y_var ~ x_var"
+    y_var <- paste0("pred_",which_col)
+    x_var <- paste0("ref_",which_col)
+    formula_obj <- stats::as.formula(
+      paste( 
+        y_var
+        , "~"
+        , x_var 
+      )
+    )
+    lm_temp <- lm(
+      formula = formula_obj
+      , data = d
+    )
+    # summary(lm_temp)
+    # scales::percent(summary(lm_temp)$r.squared, accuracy = 0.1)
+    lmf_temp <- paste0(
+      "y = "
+      , scales::number(summary(lm_temp)$coefficients[2,1], accuracy = 0.01) #slope
+      , "x"
+      , ifelse(summary(lm_temp)$coefficients[1,1]<0," - ", " + ")
+      , scales::number(abs(summary(lm_temp)$coefficients[1,1]), accuracy = 0.01) #intercept
+    )
+    # scale limits
+    max_val <- max( 
+      max(dta_temp[[y_var]],na.rm=T)
+      , max(dta_temp[[x_var]],na.rm=T)
+    )
+    
+    # plot
+    d %>% 
+      ggplot2::ggplot(mapping = ggplot2::aes(y = .data[[y_var]], x = .data[[x_var]])) +
+      ggplot2::geom_abline(color = "gray33", lwd = 1) +
+      ggplot2::geom_point(color = "navy", alpha = 0.7, size = 1.1) +
+      ggplot2::geom_smooth(lwd = 0.8, method = "lm", se=F, color = "gray", linetype = "dashed") +
+      ggplot2::annotate(
+        "text", 
+        x = -Inf, y = Inf # Top Left
+        , label = 
+          # paste0(
+          #   "R^2 == "
+          #   , scales::number((summary(lm_temp)$r.squared)*100, accuracy = 0.1)
+          #   , "*'%'"
+          # )
+          paste0(
+            "RMSE = "
+            , d %>% 
+              dplyr::slice(1) %>% 
+              dplyr::select(dplyr::all_of(paste0("diff_",which_col, "_rmse"))) %>% 
+              dplyr::pull(1) %>% 
+              unique() %>% 
+              scales::number(accuracy = 0.1, suffix = " (m²)")
+            , "\nMAPE = "
+            , d %>% 
+              dplyr::select(dplyr::all_of(paste0("pct_diff_",which_col, "_mape"))) %>% 
+              dplyr::pull(1) %>% 
+              unique() %>% 
+              scales::percent(accuracy = 0.1)
+            , "\n"
+            , lmf_temp
+            , "\n R² = "
+            # , scales::number((summary(lm_temp)$r.squared)*100, accuracy = 0.1, suffix = "%")
+            , scales::number((summary(lm_temp)$r.squared), accuracy = 0.01)
+          )
+        , hjust = -0.1, vjust = 1.1
+        , parse = F
+        , size = 3
+      ) +
+      ggplot2::facet_wrap(
+        facets = dplyr::vars(dataset_factor), scales = "free", axis.labels = "all"
+        # , labeller = ggplot2::labeller(class = ggplot2::label_wrap_gen(width = 10))
+      ) +
+      ggplot2::scale_x_continuous(limits = c(0, max_val ), expand = ggplot2::expansion(mult = c(0,0.1))) +
+      ggplot2::scale_y_continuous(limits = c(0, max_val ), expand = ggplot2::expansion(mult = c(0,0.1))) +
+      ggplot2::labs(
+        x = x_lab
+        , y = y_lab
+        # , color = "image-field\ndiameter diff."
+        # , subtitle = latex2exp::TeX("bulk volume ($m^3$) comparison")
+        # , subtitle = paste("Predicted", title_lab,"versus Reference", title_lab)
+      ) +
+      ggplot2::theme_light() +
+      ggplot2::theme(
+        strip.text = ggplot2::element_text(face = "bold", color = "black")
+      ) 
+  }
+# get the plottttttttttttttttttt
+dbh_plts_temp <- 
+  unique(dta_temp$folder) %>% 
+  purrr::map(
+    \(z)
+    plt_fn_temp(x=z, which_col = "dbh_cm", title_lab = "DBH", x_lab = "reference DBH (cm)", y_lab = "predicted DBH (cm)")
+  )
+# dbh_plts_temp[[1]]
+dbh_plt_temp <- 
+  patchwork::wrap_plots(dbh_plts_temp, ncol = 3) + 
+  patchwork::plot_annotation(
+    subtitle = "Predicted DBH versus Reference DBH"
+    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_text(face = "bold"))
+  ) &
+  ggplot2::theme(
+    axis.title = ggplot2::element_text(size = 6)
+    , axis.text = ggplot2::element_text(size = 6)
+  )
+# dbh_plt_temp
+# get the plottttttttttttttttttt
+ht_plts_temp <- 
+  unique(dta_temp$folder) %>% 
+  purrr::map(
+    \(z)
+    plt_fn_temp(x=z, which_col = "tree_height_m", title_lab = "Height", x_lab = "reference Height (m)", y_lab = "predicted Height (m)")
+  )
+# ht_plts_temp[[1]]
+ht_plt_temp <- 
+  patchwork::wrap_plots(ht_plts_temp, ncol = 3) + 
+  patchwork::plot_annotation(
+    subtitle = "Predicted Height versus Reference Height"
+    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_text(face = "bold"))
+  ) &
+  ggplot2::theme(
+    axis.title = ggplot2::element_text(size = 6)
+    , axis.text = ggplot2::element_text(size = 6)
+  )
+# ht_plt_temp
+# ggplot2::ggsave(plot = ht_plt_temp, filename = "../data/heyhtscatter.jpg", height = 9, width = 8.95, dpi = "print")
+```
+
+DBH
+
+```{r, fig.height = 9, fig.width = 8.95}
+dbh_plt_temp
+```
+
+height
+
+```{r, fig.height = 9, fig.width = 8.95}
+ht_plt_temp
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+full distribution of predicted and reference values irrespective of correct or incorrect prediction match
+
+```{r, fig.height = 10.5, fig.width = 8}
+ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  sf::st_drop_geometry() %>%
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , ref_tree_height_m, pred_tree_height_m
+    , ref_dbh_cm, pred_dbh_cm
+  ) %>% 
+  tidyr::pivot_longer(
+    cols = -c(dataset_factor)
+    , names_to = "metric"
+    , values_to = "value"
+    , values_drop_na = T
+  ) %>% 
+  dplyr::mutate(
+    which_data = dplyr::case_when(
+        stringr::str_starts(metric,"field_") | stringr::str_starts(metric,"ref_") ~ "field"
+        , stringr::str_starts(metric,"pred_") ~ "prediction"
+        , T ~ "error"
+      ) %>% 
+      ordered()
+    , tree_metric = metric %>% 
+      stringr::str_remove("(_rmse|_rrmse|_mean|_mape)$") %>% 
+      stringr::str_extract("(height|dbh)") %>% 
+      factor(
+        ordered = T
+        , levels = c(
+          "height"
+          , "dbh"
+        )
+        , labels = c(
+          "Height (m)"
+          , "DBH (cm)"
+        )
+      )
+  ) %>% 
+  dplyr::mutate(
+    dataset_factor = dataset_factor %>% forcats::fct_relabel(~ str_replace_all(.x, "\\|", "\n"))
+  ) %>% 
+  # dplyr::glimpse()
+# plot dist
+  ggplot2::ggplot(mapping = ggplot2::aes(x = value, color = which_data, fill = which_data)) +
+  ggplot2::geom_density(mapping = ggplot2::aes(y=ggplot2::after_stat(scaled)), alpha = 0.7) +
+  ggplot2::facet_grid(
+    rows = dplyr::vars(dataset_factor)
+    , cols = dplyr::vars(tree_metric)
+    , scales = "free_x", axes = "all_x"
+    , switch = "y"
+  ) +
+  harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  harrypotter::scale_fill_hp_d(option = "hermionegranger") +
+  ggplot2::scale_y_continuous(NULL,breaks=NULL) +
+  ggplot2::scale_x_continuous(breaks=scales::breaks_extended(n=6)) +
+  ggplot2::labs(
+    color="",fill="",x=""
+    # , subtitle = "comparison of height and DBH distributions"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text.x = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , strip.text.y.left =  ggplot2::element_text(size = 10, angle = 0, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 6)
+    , panel.grid = ggplot2::element_blank()
+  )
+# ggplot2::ggsave(filename = "../data/heydist.jpg", height = 10.5, width = 8, dpi = "print")
 ```
 
