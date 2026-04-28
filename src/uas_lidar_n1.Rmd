@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=T
+##```{r,eval=F
 ################################################
 # clean session
 remove(list = ls())
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r, include=F, eval=T, echo=F}
+```{r,eval=F, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r}
+```{r,eval=F}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r}
+```{r,eval=F}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,7 +204,7 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r}
+```{r,eval=F}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
@@ -277,7 +277,7 @@ my_linear <- function(x){
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r}
+```{r,eval=F}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
@@ -339,13 +339,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -353,7 +353,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -365,7 +365,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -376,7 +376,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r}
+```{r,eval=F}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -384,7 +384,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r}
+```{r,eval=F}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -401,7 +401,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r}
+```{r,eval=F}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -410,7 +410,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r}
+```{r,eval=F}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -418,7 +418,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -430,7 +430,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -496,7 +496,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -549,7 +549,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -1110,13 +1110,33 @@ let's load the field data of stem mapped trees with individual tree measurements
 my_tree_ht_m <- 2
 # read and filter
 validation_trees <-
-  sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/N1.gpkg", quiet = T) %>% 
-  sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
-  dplyr::rename_with(tolower) %>% 
-  dplyr::rename(
-    field_dbh_cm = dbh_cm
-    , field_tree_height_m = ht_m
+  # sf::st_read("c:/data/usfs/uas_sfm_tree_detection/data/field_validation/N1.gpkg", quiet = T) %>%
+  readxl::read_excel("../data/N1_2024_Field_Trees.xlsx") %>% 
+  dplyr::rename_with(
+    ~ tolower(.x) %>% 
+      stringr::str_squish() %>% 
+      make.names() %>% 
+      stringr::str_replace_all( "\\.{2,}", ".") %>% 
+      stringr::str_remove( "\\.$") %>% 
+      stringr::str_replace_all( "\\.", "_")
   ) %>% 
+  sf::st_as_sf(
+    coords = c("easting", "northing")
+    , crs = 26913
+    , remove=F
+  ) %>% 
+  dplyr::rename(
+    # field_dbh_cm = dbh_cm
+    # , field_tree_height_m = ht_m
+    field_dbh_in = dbh_24
+    , field_tree_height_ft = ht_24
+  ) %>% 
+  # dplyr::select(field_dbh_in, field_tree_height_ft) %>% summary()
+  dplyr::mutate(
+    field_dbh_cm = field_dbh_in/0.394
+    , field_tree_height_m = field_tree_height_ft/3.281
+  ) %>% 
+  # dplyr::select(field_dbh_cm, field_tree_height_m) %>% summary()
   sf::st_set_geometry("geometry") %>% 
   dplyr::filter(
     !is.na(field_dbh_cm)
@@ -1126,10 +1146,11 @@ validation_trees <-
     & field_tree_height_m >= my_tree_ht_m
     # & field_dbh_cm >= min_tree_dbh_cm # if know min field dbh for field sampling
   ) %>% 
+  sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
   sf::st_intersection(
-    stand_boundary %>% 
+    stand_boundary %>%
       dplyr::select(stand_area_m2)
-  ) %>% 
+  ) %>%
   dplyr::mutate(
     field_tree_id = dplyr::row_number()
     , tree_utm_x = sf::st_coordinates(geometry)[,1] #lon
@@ -1258,6 +1279,7 @@ mapview::mapview(ctg_temp@data$geometry, layer.name = "ptcld")
 ```{r, include=FALSE, eval=FALSE, results=F}
 # chm_rast %>% 
 tracking_df$folder %>% 
+  # .[1] %>% 
   purrr::map(function(nm){
     of_temp <- tracking_df %>% 
       dplyr::filter(folder==nm) %>% 
@@ -1300,6 +1322,7 @@ let's load the UAS predicted trees
 ```{r, results=F}
 predicted_trees <- 
   tracking_df$path %>% 
+  # .[1:2] %>%
   purrr::map(function(i){
     dta <- 
       file.path(i, "point_cloud_processing_delivery", "final_detected_tree_tops.gpkg") %>% 
@@ -2043,6 +2066,106 @@ ggplot2::ggplot() +
   ggplot2::theme(legend.position = "top", legend.title = ggplot2::element_blank()) 
 ```
 
+```{r, include=F, eval=FALSE}
+gt_temp %>% 
+  dplyr::filter(match_grp %in% c("omission")) %>% 
+  mapview::mapview(layer.name = "FN")
+# aoi_temp
+aoi_temp <- gt_temp %>% 
+  dplyr::filter(match_grp %in% c("omission")) %>% 
+  dplyr::filter(
+    # ref_match_idx %in% c(115,324,270,289,182,345)
+    # ref_match_idx %in% c(797,872,1036,700,764)
+    ref_match_idx %in% c(679,859,540,649)
+  ) %>% 
+  sf::st_union() %>% 
+  sf::st_buffer(3) %>% 
+  sf::st_bbox() %>% 
+  sf::st_as_sfc()
+
+gt_temp %>% 
+  dplyr::filter(match_grp=="commission") %>% 
+  sf::st_drop_geometry() %>% 
+  sf::st_set_geometry("pred_geometry") %>% 
+  sf::st_intersection(aoi_temp) %>% 
+  mapview::mapview(layer.name="sadf") + mapview::mapview(aoi_temp)
+
+huh_temp <-
+  gt_temp %>% 
+  dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+  sf::st_intersection(aoi_temp) %>% 
+  dplyr::bind_rows(
+    gt_temp %>% 
+      dplyr::filter(match_grp=="commission") %>% 
+      dplyr::inner_join(
+        gt_temp %>% 
+        dplyr::filter(match_grp=="commission") %>% 
+        sf::st_drop_geometry() %>% 
+        sf::st_set_geometry("pred_geometry") %>% 
+        sf::st_intersection(aoi_temp) %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::select(pred_match_idx)
+      )
+  )
+dplyr::glimpse(huh_temp)
+
+ggplot2::ggplot() +
+  ggplot2::geom_sf(
+    data = huh_temp %>% dplyr::filter(match_grp %in% c("true positive","omission"))
+    , mapping = ggplot2::aes(geometry = ref_geometry, color = match_grp)
+    , size = 5, alpha = 0.8
+  ) +
+  ggplot2::geom_sf(
+    data = huh_temp %>% dplyr::filter(match_grp=="commission")
+    , mapping = ggplot2::aes(geometry = pred_geometry, color = match_grp)
+    , size = 5, alpha = 0.8
+  ) +
+  ggplot2::scale_color_manual(values = pal_match_grp) +
+  ggplot2::theme_void() +
+  ggplot2::theme(legend.position = "top", legend.title = ggplot2::element_blank()) 
+
+chm_rast[[1]] %>% 
+  terra::crop(
+    aoi_temp %>% sf::st_buffer(3) %>% terra::vect()
+    , mask = T
+  ) %>% 
+  terra::plot(col = viridis::plasma(n=111), axes = F)
+terra::plot(
+  huh_temp %>% dplyr::filter(match_grp %in% c("true positive")) %>% terra::vect()
+  , col = "yellow", border = "yellow"
+  , add = T
+)
+terra::plot(
+  huh_temp %>% dplyr::filter(match_grp %in% c("omission")) %>% terra::vect()
+  , col = "navy", border = "navy"
+  , add = T
+)
+terra::plot(
+  huh_temp %>% 
+        dplyr::filter(match_grp=="commission") %>% 
+        sf::st_drop_geometry() %>% 
+        sf::st_set_geometry("pred_geometry") %>% terra::vect()
+  , col = "gray", border = "gray"
+  , add = T
+)
+
+mapview::mapview(
+  huh_temp %>% dplyr::filter(match_grp %in% c("true positive")), layer.name = "tp"
+  , color = "yellow", col.regions = "yellow"
+) +
+mapview::mapview(
+  huh_temp %>% dplyr::filter(match_grp %in% c("omission")), layer.name = "fn"
+  , color = "navy", col.regions = "navy"
+) +
+mapview::mapview(
+  huh_temp %>% 
+        dplyr::filter(match_grp=="commission") %>% 
+        sf::st_drop_geometry() %>% 
+        sf::st_set_geometry("pred_geometry"), layer.name = "fp"
+  , color = "gray", col.regions = "gray"
+)
+```
+
 ### Example: Detection Accuracy
 
 let's make a function to calculate the [detection accuracy metrics](#detect_metrics_form) based on aggregated TP, FP, and FN counts
@@ -2061,8 +2184,8 @@ confusion_matrix_scores_fn <- function(df) {
   df %>% 
   dplyr::mutate(
     omission_rate = dplyr::case_when(
-      dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) == 0 ~ 0 # if there are no actual piles, there is nothing to miss
-      , dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) > 0 ~ 1 # every single actual pile was missed
+      dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) == 0 ~ 0 # if there are no actual trees, there is nothing to miss
+      , dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) > 0 ~ 1 # every single actual tree was missed
       , dplyr::coalesce(fn_n,0) == 0 & dplyr::coalesce(tp_n,0) > 0 ~ 0
       , T ~ fn_n/(tp_n+fn_n)
     ) # False Negative Rate or Miss Rate
@@ -2077,8 +2200,8 @@ confusion_matrix_scores_fn <- function(df) {
       , T ~ tp_n/(tp_n+fp_n)
     )
     , recall = dplyr::case_when(
-      dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) == 0 ~ 1 # if there are no actual piles, there is nothing to miss
-      , dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) > 0 ~ 0 # every single actual pile was missed
+      dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) == 0 ~ 1 # if there are no actual trees, there is nothing to miss
+      , dplyr::coalesce(tp_n,0) == 0 & dplyr::coalesce(fn_n,0) > 0 ~ 0 # every single actual tree was missed
       , T ~ tp_n/(tp_n+fn_n)
     )
     , f_score = dplyr::case_when(
@@ -2316,11 +2439,11 @@ gc()
 
 ## Quantification Accuracy Metrics{#quant_metrics_form}
 
-Quantification accuracy metrics such as RMSE, MAPE, and Mean Error of pile form measurements (e.g. height, diameter) are calculated by aggregating the differences between the estimated pile attributes and the ground truth values for instances classified as True Positives. These metrics tell us about the method's ability to accurately quantify the form of the piles it successfully identified.
+Quantification accuracy metrics such as RMSE, MAPE, and Mean Error of tree form measurements (e.g. height, diameter) are calculated by aggregating the differences between the estimated tree attributes and the ground truth values for instances classified as True Positives. These metrics tell us about the method's ability to accurately quantify the form of the trees it successfully identified.
 
-We only have field-collected slash pile height and diameter measurements from a single study site, the PSINF Mixed Conifer Site. Data from this one study site will be used to test the slash pile quantification accuracies acheived by the proposed methodology, while data from all study sites will be used to validate the slash pile detection methodology.  
+We only have field-collected slash tree height and diameter measurements from a single study site, the PSINF Mixed Conifer Site. Data from this one study site will be used to test the slash tree quantification accuracies acheived by the proposed methodology, while data from all study sites will be used to validate the slash tree detection methodology.  
 
-to prepare our results for analysis, we will develop a function that aggregates the pile-level data into a single record for each metric-error measurement combination. this function will calculate detection performance metrics such as F-score, precision, and recall (using the `confusion_matrix_scores_fn()` we defined above), as well as quantification accuracy metrics including Root Mean Squared Error (RMSE), Mean Error (ME), and Mean Absolute Percentage Error (MAPE) to assess the accuracy of our pile form measurements. this could be a valuable function for any future analysis comparing predictions to ground truth data.
+to prepare our results for analysis, we will develop a function that aggregates the tree-level data into a single record for each metric-error measurement combination. this function will calculate detection performance metrics such as F-score, precision, and recall (using the `confusion_matrix_scores_fn()` we defined above), as well as quantification accuracy metrics including Root Mean Squared Error (RMSE), Mean Error (ME), and Mean Absolute Percentage Error (MAPE) to assess the accuracy of our tree form measurements. this could be a valuable function for any future analysis comparing predictions to ground truth data.
 
 here are the quantification accuracy metric formulas:
 
@@ -2338,7 +2461,7 @@ $$
 \textrm{MAPE} = \frac{1}{N} \sum_{i=1}^{N} \left| \frac{y_{i} - \hat{y_{i}}}{y_{i}} \right|
 $$
 
-Where $N$ is equal to the total number of correctly matched piles, $y_i$ is the ground truth measured value and $\hat{y_i}$ is the predicted value of $i$
+Where $N$ is equal to the total number of correctly matched trees, $y_i$ is the ground truth measured value and $\hat{y_i}$ is the predicted value of $i$
 
 There is a lot going on in our `agg_ground_truth_match()` function but it's application is straightforward enough:
 
@@ -2596,7 +2719,7 @@ agg_ground_truth_match_ans %>%
     # , axes = "all"
   ) +
   ggplot2::labs(
-    color="",x="",y=""
+    x="",y=""
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
@@ -2609,6 +2732,209 @@ agg_ground_truth_match_ans %>%
     color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1))
   )
 ```
+
+```{r, include = F, eval=F}
+# plot 
+dta_temp <- 
+  ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  # dplyr::glimpse()
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_height_ft_bin = ggplot2::cut_width(ref_tree_height_m, width = 2, boundary = 0)
+    , is_detected = match_grp %in% c("true positive")
+    , is_detected = as.numeric(is_detected)
+  ) 
+dta_temp %>% 
+  dplyr::count(dataset_factor, match_grp, tree_height_ft_bin) %>% 
+  dplyr::group_by(dataset_factor, tree_height_ft_bin) %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.02
+      , paste0(scales::percent(pct,accuracy=1) )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_height_ft_bin)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = match_grp)
+    , width = 0.6
+    , color = NA, alpha = 0.8
+  ) +
+  # ggplot2::geom_text(
+  #   mapping = ggplot2::aes(label = lab,group = match_grp)
+  #   , color = "black"
+  #   , size = 2
+  #   # , vjust = -0.2
+  # ) +
+  ggplot2::scale_fill_manual(values = pal_match_grp) +
+  # ggplot2::scale_x_discrete(drop = F) + 
+  ggplot2::scale_y_continuous(
+    # breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    # , expand = ggplot2::expansion(mult = c(0,0.1))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "tree height", y = "", fill = ""
+    # , subtitle = "Trees per acre by tree height bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 6, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    # , axis.text.x = ggplot2::element_text(size = 12)
+    # , axis.text.y = ggplot2::element_blank()
+    # , axis.ticks.y = ggplot2::element_blank()
+  )
+ggplot2::ggsave("c:/users/georg/Downloads/n1validation_by_htbin.jpg", height = 8, width = 10)
+
+
+dta_temp %>% 
+  dplyr::group_by(dataset_factor) %>% 
+  dplyr::summarise(is_detected=mean(is_detected))
+
+dta_temp %>% 
+  dplyr::filter(dataset_factor!="AGL: 300 | MPH: 20 | TF: on") %>% 
+  dplyr::glimpse()
+fit_logit_temp <- brms::brm(
+  # is_detected ~ 1 + ref_tree_height_m + (1 + ref_tree_height_m | dataset_factor) # simple
+  # is_detected ~ poly(ref_tree_height_m, 3) + (1 + poly(ref_tree_height_m, 3) | dataset_factor) # polynomial
+  brms::bf( 
+      is_detected ~ s(ref_tree_height_m, dataset_factor, bs = "fs")
+    ) # splines / GAM
+  , data = dta_temp %>% dplyr::filter(dataset_factor!="AGL: 300 | MPH: 20 | TF: on")
+  , family = brms::bernoulli("logit")
+  # , prior = 
+  #     prior(normal(0, 3), class = "Intercept") +
+  #     prior(normal(0, 3), class = "b")
+  , iter = 6000, warmup = 3000, chains = 4
+  , cores = lasR::half_cores()
+  , file = "c:/users/georg/Downloads/n1fit_logit_temp"
+)
+
+fit_logit_temp
+summary(fit_logit_temp)
+# posterior::summary_table(fit_logit_temp)
+brms::conditional_effects(fit_logit_temp)
+brms::conditional_effects(fit_logit_temp, "dataset_factor")
+
+
+# tidybayes
+dta_temp %>% 
+  dplyr::distinct(dataset_factor) %>% 
+  tidyr::crossing(
+    dplyr::tibble(
+      ref_tree_height_m = seq(
+        from = min(dta_temp$ref_tree_height_m)*0.95
+        , to = max(dta_temp$ref_tree_height_m)*1.05
+        , length.out = 122
+      )
+    )  
+  ) %>% 
+  dplyr::filter(dataset_factor!="AGL: 300 | MPH: 20 | TF: on") %>% 
+  dplyr::mutate(dataset_factor=forcats::fct_drop(dataset_factor,only="AGL: 300 | MPH: 20 | TF: on")) %>% 
+  # dplyr::count(dataset_factor) %>% 
+  tidybayes::add_epred_draws(fit_logit_temp, re_formula = NA) %>% 
+  ggplot2::ggplot(ggplot2::aes(x = ref_tree_height_m, y = .epred)) +
+  tidybayes::stat_lineribbon(.width = c(.95, .80, .50), alpha = 0.25) +
+  ggplot2::scale_fill_brewer(palette = "Greys") +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=11)) +
+  ggplot2::scale_y_continuous(labels = scales::percent) +
+  ggplot2::labs(
+    title = "population-level average trend"
+    , y = "Pr(detection)"
+    , x = "ht (m)"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(legend.position = "top")
+  
+ggplot2::ggsave("c:/users/georg/Downloads/n1validation_prdetect_population.jpg", height = 8, width = 10)
+
+# Create a grid for every site in the dataset
+dta_temp %>% 
+  dplyr::distinct(dataset_factor) %>% 
+  tidyr::crossing(
+    dplyr::tibble(
+      ref_tree_height_m = seq(
+        from = min(dta_temp$ref_tree_height_m)*0.95
+        , to = max(dta_temp$ref_tree_height_m)*1.05
+        , length.out = 122
+      )
+    )  
+  ) %>% 
+  dplyr::filter(dataset_factor!="AGL: 300 | MPH: 20 | TF: on") %>% 
+  dplyr::mutate(dataset_factor=forcats::fct_drop(dataset_factor,only="AGL: 300 | MPH: 20 | TF: on")) %>% 
+  tidybayes::add_epred_draws(fit_logit_temp) %>%  # Includes flight-specific 'wiggles'
+  ggplot2::ggplot(ggplot2::aes(x = ref_tree_height_m, y = .epred, fill = dataset_factor)) +
+  tidybayes::stat_lineribbon(.width = 0.95, alpha = 0.3) +
+  ggplot2::facet_wrap(facets = dplyr::vars(dataset_factor), axes = "all") +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=11)) +
+  ggplot2::scale_y_continuous(labels = scales::percent) +
+  ggplot2::scale_fill_brewer(palette = "Set2") +
+  ggplot2::labs(
+    title = "flight-specific predictions"
+    , y = "Pr(detection)"
+    , x = "ht (m)"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(legend.position = "none")
+ggplot2::ggsave("c:/users/georg/Downloads/n1validation_prdetect_flight.jpg", height = 10.5, width = 8)
+
+
+dta_temp %>% 
+  dplyr::distinct(dataset_factor) %>% 
+  tidyr::crossing(
+    dplyr::tibble(
+      ref_tree_height_m = seq(
+        from = min(dta_temp$ref_tree_height_m)*0.95
+        , to = max(dta_temp$ref_tree_height_m)*1.05
+        , length.out = 122
+      )
+    )  
+  ) %>% 
+  dplyr::filter(dataset_factor!="AGL: 300 | MPH: 20 | TF: on") %>% 
+  dplyr::mutate(dataset_factor=forcats::fct_drop(dataset_factor,only="AGL: 300 | MPH: 20 | TF: on")) %>% 
+  tidybayes::add_epred_draws(fit_logit_temp, ndraws = 100) %>% 
+  ggplot2::ggplot(ggplot2::aes(x = ref_tree_height_m, y = .epred, group = interaction(dataset_factor, .draw))) +
+  ggplot2::geom_line(alpha = 0.05, color = "navy") +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=11)) +
+  ggplot2::scale_y_continuous(labels = scales::percent) +
+  ggplot2::labs(
+    title = "site variation overlap"
+    , subtitle = "100 posterior draws per site"
+    , y = "Pr(detection)"
+    , x = "ht (m)"
+  ) +
+  ggplot2::theme_light()
+
+
+
+```
+
+
 
 ### Quantification Accuracy Results
 
@@ -2633,7 +2959,7 @@ agg_ground_truth_match_ans %>%
     , tidyselect::ends_with("_rmse")
     , tidyselect::ends_with("_mape")
   ) %>% 
-  # second select to arrange pile_metric
+  # second select to arrange tree_metric
   dplyr::select(
     dataset_factor, tidyselect::starts_with("flight_")
     # , site_area_m2
@@ -2966,5 +3292,44 @@ ground_truth_prediction_match_ans %>%
     , panel.grid = ggplot2::element_blank()
   )
 # ggplot2::ggsave(filename = "../data/heydist.jpg", height = 10.5, width = 8, dpi = "print")
+```
+
+## Statistical Analysis
+
+```{r, include = F, eval = F}
+# Since you are varying one setting per flight to see how they interact, the interaction model is the correct way to handle this. It treats each unique combination (e.g., 200m + 20mph + Terrain Follow ON) as a specific experimental cell.
+library(brms)
+
+# Version 1: Metric variables treated as continuous
+fit_metric <- brm(
+  formula = f_score ~ altitude * mph * terrain_follow,
+  # formula = f_score ~ 0 + Intercept + altitude * mph * terrain_follow, # no intercept for faster centering?
+  data = your_data,
+  family = Beta(), # Use zero_one_inflated_beta() if data has exact 0s or 1s
+  prior = c(
+    prior(normal(0, 1), class = "b"),      # Weekly informative priors for coefficients
+    prior(gamma(0.01, 0.01), class = "phi") # Prior for the precision parameter
+  ),
+  chains = 4, 
+  iter = 2000, 
+  backend = "cmdstanr" # Faster estimation
+)
+
+# Version 2: Metric variables treated as factors
+# Ensure altitude and mph are factors before running
+your_data_factored <- your_data
+your_data_factored$altitude <- as.factor(your_data_factored$altitude)
+your_data_factored$mph <- as.factor(your_data_factored$mph)
+
+fit_factor <- brm(
+  formula = f_score ~ altitude * mph * terrain_follow,
+  data = your_data_factored,
+  family = Beta(),
+  prior = prior(normal(0, 1), class = "b"),
+  chains = 4,
+  iter = 2000,
+  backend = "cmdstanr"
+)
+
 ```
 
