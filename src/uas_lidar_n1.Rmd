@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=F
+##```{r,eval=T
 ################################################
 # clean session
 remove(list = ls())
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r,eval=F, include=F, echo=F}
+```{r,eval=T, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r,eval=F}
+```{r,eval=T}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,10 +204,11 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r,eval=F}
+```{r,eval=T}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
+  ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$log_fn, aes(color = "log_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
   ggplot2::xlim(-5,42) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
@@ -223,66 +224,116 @@ let's make a custom linear function that expands the search window for shorter t
 my_linear <- function(x){
     y <- dplyr::case_when(
       is.na(x) ~ 0.001
-      , x < 0 ~ 0.001
-      , x < 1.5 ~ 1 # (1.5,1) is connection for the next piece
+      , x < 0.01 ~ 0.001
       # next piece:
-        # we want it to pass through ~ (4.0,1.5)
-        # m = (y2-y1)/(x2-x1) >> m = (1.5-1)/(4.0-1.5) = 0.20
-        # b = y-(m*x) >> b = 1-(0.20*1.5) = 0.70
-      , x < 4.0 ~ 0.70 + x*0.20 
+        # we want it to pass through ~ (1.5,0.75)
+        # m = (y2-y1)/(x2-x1) >> m = (0.75-0.001)/(1.5-0.01) = 0.5026846
+        # b = y-(m*x) >> b = 0.001-(0.5026846*0.01) = -0.004026846
+      , x < 1.5 ~ -0.004026846 + x*0.5026846
       # next piece:
-        # at x=4.0, first segment y = 0.70+4.0*0.20 = 1.5 >> (4.0,1.5)
-        # connect to (20,2.85)
-        # m = (2.85-1.5)/(20-4.0) = 0.084375
-        # b = 1.5-(0.084375*4.0) = 1.1625
-      , x < 20 ~ 1.1625 + x*0.084375
-      # upper limit starts at (65,5)
-      , x > 55 ~ 5
+        # at x=1.5, first segment y = -0.004026846+1.5*0.5026846 = 0.75 >> (1.5,0.75)
+        # connect to (4.0,1.33)
+        # m = (1.33-0.75)/(4.0-1.5) = 0.232
+        # b = 0.75-(0.232*1.5) = 0.402
+      , x < 4.0 ~ 0.402 + x*0.232 
       # next piece:
-        # at x=20, first segment y = 1.1625 + 20*0.084375 = 2.85 >> (20,2.85)
-        # connect to (55,5)
-        # m = (5-2.85)/(55-20) = 0.06142857
-        # b = 2.85-(0.06142857*20) = 1.621429
-      , T ~ 1.621429 + x*0.06142857
+        # at x=4.0, first segment y = 0.402+4.0*0.232 = 1.33 >> (4.0,1.33)
+        # connect to (18,2.25)
+        # m = (2.25-1.33)/(18-4.0) = 0.06571429
+        # b = 1.33-(0.06571429*4.0) = 1.067143
+      , x < 18 ~ 1.067143 + x*0.06571429
+      # upper limit starts at (32.5,5)
+      , x > 32.5 ~ 5
+      # next piece:
+        # at x=18, first segment y = 1.067143 + 18*0.06571429 = 2.25 >> (18,2.25)
+        # connect to (32.5,5)
+        # m = (5-2.25)/(32.5-18) = 0.1896552
+        # b = 2.25-(0.1896552*18) = -1.163794
+      , T ~ -1.163794 + x*0.1896552
     )
     return(y)
 }
+# my_linear
 ```
 
 ```{r, include = F, eval = F}
-my_linear <- function(x){
+# Young et al. 2022: https://doi.org/10.1111/2041-210X.13860
+# "Across all of these combinations, methods vwf_121 and vwf_196 most consistently achieved the highest (or within 0.005 of the highest) F scores for tree detection accuracy (for trees >10 m tall)..." (p.1456)
+# define a custom function
+young2022_vwf_121 <- function(x){
     y <- dplyr::case_when(
       is.na(x) ~ 0.001
-      , x < 0 ~ 0.001
-      , x < 1.5 ~ 1 # (1.5,1) is connection for the next piece
+      , x < 0.01 ~ 0.001
       # next piece:
-        # we want it to pass through ~ (3.5,1.5)
-        # m = (y2-y1)/(x2-x1) >> m = (1.5-1)/(3.5-1.5) = 0.25
-        # b = y-(m*x) >> b = 1-(0.25*1.5) = 0.625
-      , x < 7 ~ 0.625 + x*0.25 
-      # upper limit starts at (35,5)
-      , x > 35 ~ 5
+        # we want it to pass through (10,y) >> 0.1 + 10*0.04 = 0.5 = y = (10,0.5)
+        # m = (y2-y1)/(x2-x1) >> m = (0.5-0.001)/(10.0-0.01) = 0.04994994994
+        # b = y-(m*x) >> b = 0.001-(0.04994994994*0.01) = 0.0005005005
+      , x < 10 ~ 0.0005005005 + x*0.04994994994
+      , x > 122.5 ~ 5 # 5 = 0.1 + x*0.04 >> (5-0.1)/0.04 = 122.5
+      , T ~ 0.1 + x*0.04 # y = a + bx
+    )
+    return(y)
+}
+young2022_vwf_196 <- function(x){
+    y <- dplyr::case_when(
+      is.na(x) ~ 0.001
+      , x < 0.01 ~ 0.001
       # next piece:
-        # at x=7, first segment y = 0.625+7*0.25 = 2.375 >> (7,2.375)
-        # connect to (35,5)
-        # m = (5-2.375)/(35-7) = 0.09375
-        # b = 2.375-(0.09375*7) = 1.71875
-        # 7 <= x < 35
-      , T ~ 1.71875 + x*0.09375
+        # we want it to pass through (10,y) >> 0.0 + 10*0.04 = 0.4 = y = (10,0.4)
+        # m = (y2-y1)/(x2-x1) >> m = (0.4-0.001)/(10.0-0.01) = 0.03993994
+        # b = y-(m*x) >> b = 0.001-(0.03993994*0.01) = 0.0006006006
+      , x < 10 ~ 0.0006006006 + x*0.03993994
+      , x > 125 ~ 5 # 5 = 0.0 + x*0.04 >> (5-0.0)/0.04 = 125
+      , T ~ 0.0 + x*0.04 # y = a + bx
     )
     return(y)
 }
 
+# define a custom function
+# define a custom function
+my_linear <- function(x){
+    y <- dplyr::case_when(
+      is.na(x) ~ 0.001
+      , x < 0.01 ~ 0.001
+      # next piece:
+        # we want it to pass through ~ (1.5,0.75)
+        # m = (y2-y1)/(x2-x1) >> m = (0.75-0.001)/(1.5-0.01) = 0.5026846
+        # b = y-(m*x) >> b = 0.001-(0.5026846*0.01) = -0.004026846
+      , x < 1.5 ~ -0.004026846 + x*0.5026846
+      # next piece:
+        # at x=1.5, first segment y = -0.004026846+1.5*0.5026846 = 0.75 >> (1.5,0.75)
+        # connect to (4.0,1.33)
+        # m = (1.33-0.75)/(4.0-1.5) = 0.232
+        # b = 0.75-(0.232*1.5) = 0.402
+      , x < 4.0 ~ 0.402 + x*0.232 
+      # next piece:
+        # at x=4.0, first segment y = 0.402+4.0*0.232 = 1.33 >> (4.0,1.33)
+        # connect to (18,2.25)
+        # m = (2.25-1.33)/(18-4.0) = 0.06571429
+        # b = 1.33-(0.06571429*4.0) = 1.067143
+      , x < 18 ~ 1.067143 + x*0.06571429
+      # upper limit starts at (32.5,5)
+      , x > 32.5 ~ 5
+      # next piece:
+        # at x=18, first segment y = 1.067143 + 18*0.06571429 = 2.25 >> (18,2.25)
+        # connect to (32.5,5)
+        # m = (5-2.25)/(32.5-18) = 0.1896552
+        # b = 2.25-(0.1896552*18) = -1.163794
+      , T ~ -1.163794 + x*0.1896552
+    )
+    return(y)
+}
+# my_linear
 ```
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r,eval=F}
+```{r,eval=T}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
   ggplot2::geom_function(fun = my_linear, aes(color = "my_linear"), lwd = 1) +
-  ggplot2::xlim(-5,35) +
+  ggplot2::xlim(-5,60) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
   ggplot2::theme_light()
 ```
@@ -339,13 +390,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -353,7 +404,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -365,7 +416,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -376,7 +427,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r,eval=F}
+```{r,eval=T}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -384,7 +435,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -401,7 +452,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r,eval=F}
+```{r,eval=T}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -410,7 +461,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r,eval=F}
+```{r,eval=T}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -418,7 +469,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -430,7 +481,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -496,7 +547,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -549,7 +600,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -714,7 +765,6 @@ c2t_process_dir <- file.path(c2t_output_dir, "point_cloud_processing_delivery")
 ##############################################################
 # cloud2trees::cloud2trees
 ##############################################################
-file.exists( file.path(c2t_process_dir, "final_detected_tree_tops.gpkg") )
 if(
   !file.exists( file.path(c2t_process_dir, "chm_0.25m.tif") )
   || !file.exists( file.path(c2t_process_dir, "dtm_0.5m.tif") )
@@ -2890,7 +2940,7 @@ dta_temp %>%
   tidybayes::add_epred_draws(fit_logit_temp) %>%  # Includes flight-specific 'wiggles'
   ggplot2::ggplot(ggplot2::aes(x = ref_tree_height_m, y = .epred, fill = dataset_factor)) +
   tidybayes::stat_lineribbon(.width = 0.95, alpha = 0.3) +
-  ggplot2::facet_wrap(facets = dplyr::vars(dataset_factor), axes = "all") +
+  ggplot2::facet_wrap(facets = dplyr::vars(dataset_factor), ncol = 4, axes = "all") +
   ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=11)) +
   ggplot2::scale_y_continuous(labels = scales::percent) +
   ggplot2::scale_fill_brewer(palette = "Set2") +
@@ -2900,8 +2950,8 @@ dta_temp %>%
     , x = "ht (m)"
   ) +
   ggplot2::theme_light() +
-  ggplot2::theme(legend.position = "none")
-ggplot2::ggsave("c:/users/georg/Downloads/n1validation_prdetect_flight.jpg", height = 10.5, width = 8)
+  ggplot2::theme(legend.position = "none", axis.text = ggplot2::element_text(size=6), axis.title = ggplot2::element_text(size=6))
+ggplot2::ggsave("c:/users/georg/Downloads/n1validation_prdetect_flight.jpg", width = 10.5, height = 8)
 
 
 dta_temp %>% 
@@ -2933,7 +2983,6 @@ dta_temp %>%
 
 
 ```
-
 
 
 ### Quantification Accuracy Results
