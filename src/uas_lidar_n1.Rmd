@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=T
+##```{r,eval=F
 ################################################
 # clean session
 remove(list = ls())
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r,eval=T, include=F, echo=F}
+```{r,eval=F, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r,eval=T}
+```{r,eval=F}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,7 +204,7 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r,eval=T}
+```{r,eval=F}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
@@ -232,24 +232,23 @@ my_linear <- function(x){
       , x < 1.5 ~ -0.004026846 + x*0.5026846
       # next piece:
         # at x=1.5, first segment y = -0.004026846+1.5*0.5026846 = 0.75 >> (1.5,0.75)
-        # connect to (4.0,1.33)
-        # m = (1.33-0.75)/(4.0-1.5) = 0.232
-        # b = 0.75-(0.232*1.5) = 0.402
-      , x < 4.0 ~ 0.402 + x*0.232 
+        # connect to (3.0,1.0)
+        # m = (1.0-0.75)/(3.0-1.5) = 0.1666667
+        # b = 0.75-(0.1666667*1.5) = 0.4999999
+      , x < 3.0 ~ 0.4999999 + x*0.1666667 
       # next piece:
-        # at x=4.0, first segment y = 0.402+4.0*0.232 = 1.33 >> (4.0,1.33)
-        # connect to (18,2.25)
-        # m = (2.25-1.33)/(18-4.0) = 0.06571429
-        # b = 1.33-(0.06571429*4.0) = 1.067143
-      , x < 18 ~ 1.067143 + x*0.06571429
+        # at x=3.0, first segment y = 0.4999999+3.0*0.1666667 = 1.0 >> (3.0,1.0)
+        # connect to (25,3.75)
+        # m = (3.75-1.0)/(25-3.0) = 0.125
+        # b = 1.0-(0.125*3.0) = 0.625
+      , x < 25 ~ 0.625 + x*0.125
       # upper limit starts at (32.5,5)
       , x > 32.5 ~ 5
       # next piece:
-        # at x=18, first segment y = 1.067143 + 18*0.06571429 = 2.25 >> (18,2.25)
         # connect to (32.5,5)
-        # m = (5-2.25)/(32.5-18) = 0.1896552
-        # b = 2.25-(0.1896552*18) = -1.163794
-      , T ~ -1.163794 + x*0.1896552
+        # m = (5-3.75)/(32.5-25) = 0.1666667
+        # b = 3.75-(0.1666667*25) = -0.4166675
+      , T ~ -0.4166675 + x*0.1666667
     )
     return(y)
 }
@@ -290,8 +289,7 @@ young2022_vwf_196 <- function(x){
 }
 
 # define a custom function
-# define a custom function
-my_linear <- function(x){
+my_linear3 <- function(x){
     y <- dplyr::case_when(
       is.na(x) ~ 0.001
       , x < 0.01 ~ 0.001
@@ -324,16 +322,55 @@ my_linear <- function(x){
     return(y)
 }
 # my_linear
+
+# define a custom function
+my_linear2 <- function(x){
+    y <- dplyr::case_when(
+      is.na(x) ~ 0.001
+      , x < 0.01 ~ 0.001
+      # next piece:
+        # we want it to pass through ~ (1.5,0.75)
+        # m = (y2-y1)/(x2-x1) >> m = (0.75-0.001)/(1.5-0.01) = 0.5026846
+        # b = y-(m*x) >> b = 0.001-(0.5026846*0.01) = -0.004026846
+      , x < 1.5 ~ -0.004026846 + x*0.5026846
+      # next piece:
+        # at x=1.5, first segment y = -0.004026846+1.5*0.5026846 = 0.75 >> (1.5,0.75)
+        # connect to (3.0,1.0)
+        # m = (1.0-0.75)/(3.0-1.5) = 0.1666667
+        # b = 0.75-(0.1666667*1.5) = 0.4999999
+      , x < 3.0 ~ 0.4999999 + x*0.1666667 
+      # next piece:
+        # at x=3.0, first segment y = 0.4999999+3.0*0.1666667 = 1.0 >> (3.0,1.0)
+        # connect to (15,2.25)
+        # m = (2.25-1.0)/(15-3.0) = 0.1041667
+        # b = 1.0-(0.1041667*3.0) = 0.6874999
+      , x < 15 ~ 0.6874999 + x*0.1041667
+      # next piece:
+        # connect to (25,3.75)
+        # m = (3.75-2.25)/(25-15) = 0.15
+        # b = 2.25-(0.15*15) = 0.0
+      , x < 25 ~ 0.0 + x*0.15
+      # upper limit starts at (32.5,5)
+      , x > 32.5 ~ 5
+      # next piece:
+        # connect to (32.5,5)
+        # m = (5-3.75)/(32.5-25) = 0.1666667
+        # b = 3.75-(0.1666667*25) = -0.4166675
+      , T ~ -0.4166675 + x*0.1666667
+    )
+    return(y)
+}
+
 ```
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r,eval=T}
+```{r,eval=F}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
   ggplot2::geom_function(fun = my_linear, aes(color = "my_linear"), lwd = 1) +
-  ggplot2::xlim(-5,60) +
+  ggplot2::xlim(-5,40) +
   ggplot2::labs(x = "heights", y = "ws", color = "") +
   ggplot2::theme_light()
 ```
@@ -390,13 +427,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -404,7 +441,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -416,7 +453,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -427,7 +464,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -435,7 +472,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -452,7 +489,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r,eval=T}
+```{r,eval=F}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -461,7 +498,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -469,7 +506,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -481,7 +518,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -547,7 +584,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -600,7 +637,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -1004,7 +1041,7 @@ tracking_df <-
     dataset_factor = 
       stringr::str_glue("AGL: {agl} | MPH: {mph} | TF: {tf}") %>%
       forcats::as_factor() %>%
-      forcats::fct_inorder()
+      forcats::fct_inorder(ordered = T)
     , tf = tf=="on"
   ) %>% 
   dplyr::rename_with(.cols = -c(path,folder,dataset_factor), .fn = ~paste0("flight_",.x,recycle0 = T) )
@@ -1142,6 +1179,18 @@ purrr::iwalk(
 })
 # reset graphics::par
 graphics::par(mfrow = c(1, 1))
+```
+
+because the "300 AGL, 20 MPH, TF on" flight is missing most of the plot area we'll remove it from further analysis. It began to rain during this flight which cut the flight short and the water content in the air likely impacted the laser scanning sensor results
+
+```{r}
+# remove from tracking
+tracking_df <- 
+  tracking_df %>% 
+  dplyr::filter(folder != "processed_n1_300agl_20mph_tfon")
+# remove from chm
+chm_rast <- chm_rast %>% 
+  purrr::discard_at("processed_n1_300agl_20mph_tfon")
 ```
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
@@ -2809,7 +2858,7 @@ dta_temp %>%
   dplyr::ungroup() %>% 
   dplyr::mutate(
     lab = ifelse(
-      pct>0.02
+      pct>0.095
       , paste0(scales::percent(pct,accuracy=1) )
       , ""
     )
@@ -2984,6 +3033,276 @@ dta_temp %>%
 
 ```
 
+It doesn't look like there is much variation in detection accuracy across the different flight settings. Furthermore, since we have exactly one observation per flight (e.g. no repeated measures with these flight settings such as from different study sites) we do not have any variation within the flight groups and have measured the "truth" for the particular flight settings. As such, we cannot statistically test one flight (with those exact settings) against another. However, we can calculate the raw differnces.
+
+```{r}
+# calc pairwise diffs
+# dplyr::glimpse(agg_ground_truth_match_ans)
+pairwise_diffs_temp <-
+  tidyr::crossing(
+    agg_ground_truth_match_ans %>% 
+      dplyr::select(dataset_factor,f_score) %>% 
+      dplyr::rename_with(~paste0(.x,"_1",recycle0 = T))
+    , agg_ground_truth_match_ans %>% 
+      dplyr::select(dataset_factor,f_score) %>% 
+      dplyr::rename_with(~paste0(.x,"_2",recycle0 = T))
+  ) %>% 
+  # filter to remove self-joins and duplicates
+  dplyr::filter(dataset_factor_1 < dataset_factor_2) %>%
+  dplyr::mutate(
+    diff = f_score_1 - f_score_2
+    , abs_diff = abs(diff)
+    , comp = paste(dataset_factor_1, "vs", dataset_factor_2)
+  )
+```
+
+pairwise difference table
+
+```{r}
+pairwise_diffs_temp %>%
+  dplyr::select(dataset_factor_1, dataset_factor_2, f_score_1, f_score_2, diff) %>%
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~scales::percent(.x,accuracy=0.1) )) %>% 
+  kableExtra::kbl(
+    caption = "Pairwise Differences in F-Score between Flights"
+    , col.names = c(
+      "Flight"
+      , "Comparison Flight"
+      , "F-score"
+      , "Comparison F-score"
+      , "F-score Difference"
+    )
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling() %>% 
+  kableExtra::collapse_rows(columns = 1, valign = "top")
+```
+
+pairwise difference plot
+
+```{r}
+ggplot2::ggplot(
+  data = pairwise_diffs_temp
+  , mapping = ggplot2::aes(y = reorder(comp, diff), x = diff)
+) +
+  ggplot2::geom_vline(xintercept = 0, color = "black") +
+  ggplot2::geom_segment(
+    mapping = ggplot2::aes(yend = comp, xend = 0)
+    , color = "gray44"
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = diff > 0)
+    , size = 3
+  ) +
+  ggplot2::scale_color_manual(values = c("firebrick","navy")) +
+  ggplot2::scale_x_continuous(
+    limits = c(-0.05,0.05)
+    , labels = scales::percent
+    , breaks = scales::breaks_extended(n=10)
+    , sec.axis = ggplot2::dup_axis()
+  ) +
+  ggplot2::labs(
+    y = "" # "comparison"
+    , x = "difference F-score"
+    , subtitle = "positive = first flight in pair scored higher"
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "none", plot.subtitle = ggplot2::element_text(hjust = 1))
+
+```
+
+so, the difference in F-score is no more than `scales::percent( max( abs(pairwise_diffs_temp$diff) ), accuracy = 0.01)` across all flights. yes, that is less than `paste0( ceiling( max( abs(pairwise_diffs_temp$diff) )*100 ), "%")` on a percentage point basis
+
+let's see the relationship between tree detection (recall rate) and tree height within each flight. we'll look at true positive and omissions (FN) and use the field-measured tree height to quantify the proportion of trees within a height bin that were detected by the UAS-lidar
+
+```{r, fig.height=9.5}
+# make ggplot2::cut_* bins pretty
+make_bins_pretty <- function(bin_factor, suffix = "") {
+  # convert factor to character and remove brackets and parens
+  clean_labels <- bin_factor %>%
+    as.character() %>%
+    stringr::str_replace_all(c("\\[" = "", "\\(" = "", "\\]" = "", "\\)" = "")) %>%
+    stringr::str_replace(",", "-")
+  
+  # suffix
+  if(stringr::str_squish(suffix) != "" && inherits(suffix,"character")){
+    clean_labels <- stringr::str_c(clean_labels, " ", suffix) %>% stringr::str_squish()
+  }
+  
+  # reorder based on the original factor levels 
+  forcats::fct_reorder(factor(clean_labels), as.numeric(bin_factor))
+}
+
+dta_temp <-
+  ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  # dplyr::glimpse()
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_height_m_bin = ggplot2::cut_width(ref_tree_height_m, width = 5, boundary = 0) %>% 
+      make_bins_pretty(suffix = "m") %>% 
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
+    , is_detected = match_grp %in% c("true positive")
+    , is_detected = as.numeric(is_detected)
+  )
+dta_temp %>% 
+  dplyr::count(dataset_factor, match_grp, tree_height_m_bin) %>% 
+  dplyr::group_by(dataset_factor, tree_height_m_bin) %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.095
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_height_m_bin)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = match_grp)
+    , width = 0.6
+    , color = NA, alpha = 0.9
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, group = match_grp, fontface = "bold", color = match_grp)
+    # , color = "black"
+    , size = 2.5
+    , position = ggplot2::position_stack(vjust = 0.5)
+  ) +
+  ggplot2::scale_fill_manual(values = pal_match_grp) +
+  ggplot2::scale_color_manual(values = c("white","black"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.02))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "tree height", y = "", fill = ""
+    , subtitle = "Recall rate by tree height bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+# ggplot2::ggsave("c:/users/georg/Downloads/n1_recall_by_htbin.jpg", height = 10, width = 8)
+```
+
+the trend of increasing detection rate with tree height demonstrated with this data aligns well with prior work using aerial point cloud data for single-tree forest inventories
+
+let's look at the commission rate (commission error) by tree height using the UAS-detected tree heights to determine if our ITD variable window function could be improved
+
+```{r, fig.height=9.5}
+dta_temp <-
+  ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  # dplyr::glimpse()
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_height_m_bin = ggplot2::cut_width(pred_tree_height_m, width = 5, boundary = 0) %>% 
+      make_bins_pretty(suffix = "m") %>% 
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
+    , is_detected = match_grp %in% c("true positive")
+    , is_detected = as.numeric(is_detected)
+  )
+dta_temp %>% 
+  dplyr::count(dataset_factor, match_grp, tree_height_m_bin) %>% 
+  dplyr::group_by(dataset_factor, tree_height_m_bin) %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.095
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+    , match_grp = forcats::fct_rev(match_grp)
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_height_m_bin)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = match_grp)
+    , width = 0.6
+    , color = NA, alpha = 0.9
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, group = match_grp, fontface = "bold", color = match_grp)
+    , color = "black"
+    , size = 2.5
+    , position = ggplot2::position_stack(vjust = 0.5)
+  ) +
+  ggplot2::scale_fill_manual(values = pal_match_grp) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.02))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "tree height", y = "", fill = ""
+    , subtitle = "Commission rate by tree height bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+# ggplot2::ggsave("c:/users/georg/Downloads/n1_commission_by_htbin.jpg", height = 10, width = 8)
+```
+
+the commission error (percentage shown in the gray bar) is highest for the intermediate trees which suggests we could potentially improve our ITD window function to decrease the number of trees detected in this middle height range. However, going back to the detection rate above, this same height range also had the lowest detection rate which would suggest we increase the number of trees identified in this height range. This conflict suggests that the trees in this height range are likely difficult to detect for the study area using the data and ITD methods used in this study. For example, they may be subordinate to directly adjacent taller trees with the crowns interlocking, so they are often grouped with the taller tree during the CHM-based ITD.
 
 ### Quantification Accuracy Results
 
@@ -3174,7 +3493,8 @@ plt_fn_temp <- function(
               dplyr::select(dplyr::all_of(paste0("diff_",which_col, "_rmse"))) %>% 
               dplyr::pull(1) %>% 
               unique() %>% 
-              scales::number(accuracy = 0.1, suffix = " (m²)")
+              # scales::number(accuracy = 0.1, suffix = " (m²)")
+              scales::number(accuracy = 0.1, suffix = ifelse(which_col=="dbh_cm"," (cm)"," (m)") )
             , "\nMAPE = "
             , d %>% 
               dplyr::select(dplyr::all_of(paste0("pct_diff_",which_col, "_mape"))) %>% 
@@ -3345,6 +3665,38 @@ ground_truth_prediction_match_ans %>%
 
 ## Statistical Analysis
 
+### Quick Frequentist Approach
+
+We'll quickly use a frequentist approach to test for differences across the flights in the detection (F-score) and quantification (DBH RMSE) accuracy. In this approach, we'll treat the unique factorial combination of flight altitude, speed (MPH), and terrain following setting as distinct factor levels. We'll perform [pairwise comparisons](https://rvlenth.github.io/emmeans/articles/comparisons.html) between the different flights using the Tukey HSD adjustment.
+
+```{r}
+library(emmeans)
+
+# 1. Fit Model
+fit_lm <- stats::lm(f_score ~ altitude * mph * terrain_follow, data = your_data)
+
+# 2. Main Effects Comparisons
+# This averages over the other variables to see the effect of one
+me_alt <- emmeans::emmeans(fit_lm, specs = pairwise ~ altitude)
+me_mph <- emmeans::emmeans(fit_lm, specs = pairwise ~ mph)
+me_tf  <- emmeans::emmeans(fit_lm, specs = pairwise ~ terrain_follow)
+
+# 3. Interaction Comparisons
+# How does terrain_follow effect change at specific altitudes/speeds?
+int_comp <- emmeans::emmeans(fit_lm, specs = pairwise ~ terrain_follow | altitude * mph)
+
+# 4. Presentation (Table)
+as.data.frame(int_comp$contrasts) %>%
+  kableExtra::kbl(caption = "Interaction: Effect of Terrain Follow across Alt/MPH") %>%
+  kableExtra::kable_styling()
+
+# 5. Presentation (Plot)
+emmeans::emmip(fit_lm, terrain_follow ~ mph | altitude) + 
+  ggplot2::labs(title = "Interaction Plot: Speed vs Terrain Follow by Altitude")
+
+```
+
+
 ```{r, include = F, eval = F}
 # Since you are varying one setting per flight to see how they interact, the interaction model is the correct way to handle this. It treats each unique combination (e.g., 200m + 20mph + Terrain Follow ON) as a specific experimental cell.
 library(brms)
@@ -3379,6 +3731,50 @@ fit_factor <- brm(
   iter = 2000,
   backend = "cmdstanr"
 )
+
+
+
+library(brms)
+library(tidybayes)
+
+# 1. Fit Bayesian Model
+fit_bayes <- brms::brm(
+  formula = f_score ~ altitude * mph * terrain_follow,
+  data = your_data,
+  family = brms::Beta(),
+  prior = brms::prior(normal(0, 1), class = "b"),
+  backend = "cmdstanr"
+)
+
+# 2. Main Effects: Compare Levels of Terrain Follow
+# This gives the posterior distribution of the difference
+tf_diff <- fit_bayes %>%
+  tidybayes::recover_types(your_data) %>%
+  tidybayes::epred_draws(newdata = expand.grid(
+    terrain_follow = c("Level1", "Level2"), # Replace with your actual levels
+    altitude = mean(your_data$altitude),
+    mph = mean(your_data$mph)
+  )) %>%
+  tidybayes::compare_levels(.epred, by = terrain_follow)
+
+# 3. Interaction Effects: Compare MPH across Altitude
+# Checking if the 'speed' effect is different at 200m vs 300m
+int_diff <- fit_bayes %>%
+  tidybayes::epred_draws(newdata = expand.grid(
+    altitude = c(200, 300),
+    mph = c(20, 30),
+    terrain_follow = "Level1"
+  )) %>%
+  tidybayes::compare_levels(.epred, by = mph) # Compare speeds within each altitude
+
+# 4. Visualization
+ggplot2::ggplot(int_diff, ggplot2::aes(x = .epred, y = as.factor(altitude))) +
+  tidybayes::stat_halfeye() +
+  ggplot2::geom_vline(xintercept = 0, linetype = "dashed") +
+  ggplot2::labs(title = "Posterior Difference (30mph - 20mph) by Altitude",
+                x = "Difference in F-Score")
+
+
 
 ```
 
