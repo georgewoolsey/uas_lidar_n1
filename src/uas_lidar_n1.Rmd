@@ -3079,7 +3079,7 @@ pairwise_diffs_temp %>%
 
 pairwise difference plot
 
-```{r}
+```{r,fig.height=9.5}
 ggplot2::ggplot(
   data = pairwise_diffs_temp
   , mapping = ggplot2::aes(y = reorder(comp, diff), x = diff)
