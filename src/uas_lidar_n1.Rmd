@@ -1050,37 +1050,6 @@ dplyr::glimpse(tracking_df)
 # View(tracking_df)
 ```
 
-let's see what data we have
-
-```{r}
-# quality
-tracking_df %>% 
-  dplyr::mutate(
-    flight_tf = dplyr::case_when(
-        flight_tf ~ "Terrain Follow: On"
-        , !flight_tf ~ "Terrain Follow: Off"
-        , T ~ "error"
-      )
-    , dplyr::across(tidyselect::starts_with("flight_"), as.factor)
-    , flight_mph = forcats::fct_rev(flight_mph)
-  ) %>% 
-  ggplot2::ggplot(
-    mapping = ggplot2::aes(x = flight_agl, y = flight_mph, label = flight_tf)
-  ) +
-    ggplot2::geom_tile(fill = NA, color = "black") +
-    ggrepel::geom_text_repel(color = "gray33") +
-    ggplot2::labs() +
-    ggplot2::scale_x_discrete(position = "top") +
-    ggplot2::coord_cartesian(expand = F) +
-    ggplot2::theme_light() +
-    ggplot2::theme(
-      panel.grid = ggplot2::element_blank()
-      , axis.text = ggplot2::element_text(size = 11, color = "black")
-      , axis.title = ggplot2::element_text(size = 12, face = "bold", color = "black")
-      , panel.border = ggplot2::element_rect(color = "black")
-    )
-```
-
 ## Raster Data and Study Boundary
 
 now, we're going to load in the CHM data for each flight
@@ -1193,12 +1162,54 @@ chm_rast <- chm_rast %>%
   purrr::discard_at("processed_n1_300agl_20mph_tfon")
 ```
 
+let's see what data we are left with for evaluation
+
+```{r}
+# quality
+tracking_df %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+        flight_tf ~ "Terrain Follow: On"
+        , !flight_tf ~ "Terrain Follow: Off"
+        , T ~ "error"
+      )
+    , dplyr::across(tidyselect::starts_with("flight_"), as.factor)
+    , flight_mph = forcats::fct_rev(flight_mph)
+  ) %>% 
+  dplyr::arrange(flight_tf,desc(flight_mph),desc(flight_agl)) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = flight_agl, y = flight_mph, label = flight_tf, color = flight_tf, fontface = "bold")
+  ) +
+    ggplot2::geom_tile(fill = NA, color = "black") +
+    ggrepel::geom_text_repel(direction="y",nudge_x = 0,seed=1) +
+    ggplot2::labs() +
+    ggplot2::scale_x_discrete(position = "top") +
+    ggplot2::coord_cartesian(expand = F) +
+    ggplot2::scale_color_manual(values = c("gray44","gray11"), guide = "none") +
+    ggplot2::theme_light() +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_blank()
+      , axis.text = ggplot2::element_text(size = 11, color = "black")
+      , axis.title = ggplot2::element_text(size = 12, face = "bold", color = "black")
+      , panel.border = ggplot2::element_rect(color = "black")
+    )
+```
+
+the structure of the data (unbalanced) we have available means statistical testing of the flight settings using frequentist methods will be limited. we only have variation in the terrain following at the 20 mph speed, thus we will not be able to test for the impact of terrain following at different speeds.
+
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 # cloud2trees:::search_dir_final_detected(c2t_process_dir)
 remove(dtm_rast)
 remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
+
+```{r, include=F, eval = F}
+chm_rast <- terra::rast(
+  cloud2trees:::search_dir_final_detected( file.path(tracking_df$path[1],"point_cloud_processing_delivery") )$chm_flist
+)
+```
+
 
 ## Field Trees
 
@@ -2689,7 +2700,7 @@ ground_truth_prediction_match_ans %>%
 
 interesting
 
-## Get Aggregated Accuracy
+## Accuracy Results
 
 aggregate the instance matching to get detection and quantification accuracy for each data set
 
@@ -3111,6 +3122,54 @@ ggplot2::ggplot(
 ```
 
 so, the difference in F-score is no more than `scales::percent( max( abs(pairwise_diffs_temp$diff) ), accuracy = 0.01)` across all flights. yes, that is less than `paste0( ceiling( max( abs(pairwise_diffs_temp$diff) )*100 ), "%")` on a percentage point basis
+
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = flight_mph, y = f_score, color = as.factor(flight_agl))
+  ) +
+  ggplot2::geom_point(size = 5,alpha=0.9) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(group = flight_agl)
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = scales::percent(f_score,accuracy=0.1))
+    , color = "black"
+    , vjust = -1
+  ) +
+  ggplot2::facet_grid(cols = dplyr::vars(flight_tf)) +
+  ggplot2::scale_y_continuous(
+    # limits = c(0,1)
+    # , breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , expand = ggplot2::expansion(mult = 0.4)
+  ) +
+  ggplot2::scale_color_viridis_d(option = "mako", end = 0.88, direction = -1) +
+  ggplot2::labs(
+    subtitle = "comparison of speed and altitude across terrain follow"
+    , x = "speed (mph)"
+    , y = "F-score"
+    , color = "altitude (ft)"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, size = 6))
+  )
+
+```
+
+note that y-axis range ::laugh_cry_emoji::
 
 let's see the relationship between tree detection (recall rate) and tree height within each flight. we'll look at true positive and omissions (FN) and use the field-measured tree height to quantify the proportion of trees within a height bin that were detected by the UAS-lidar
 
@@ -3667,34 +3726,225 @@ ground_truth_prediction_match_ans %>%
 
 ### Quick Frequentist Approach
 
-We'll quickly use a frequentist approach to test for differences across the flights in the detection (F-score) and quantification (DBH RMSE) accuracy. In this approach, we'll treat the unique factorial combination of flight altitude, speed (MPH), and terrain following setting as distinct factor levels. We'll perform [pairwise comparisons](https://rvlenth.github.io/emmeans/articles/comparisons.html) between the different flights using the Tukey HSD adjustment.
+We'll quickly use a frequentist approach to test for differences in the detection (F-score) and quantification (e.g. DBH RMSE) accuracy at different levels of the flight setting variables. Due to the limited data, we'll test if the effect of speed changes with altitude (interaction) while controlling for terrain following (intercept) using multiple linear regression.
 
 ```{r}
-library(emmeans)
-
-# 1. Fit Model
-fit_lm <- stats::lm(f_score ~ altitude * mph * terrain_follow, data = your_data)
-
-# 2. Main Effects Comparisons
-# This averages over the other variables to see the effect of one
-me_alt <- emmeans::emmeans(fit_lm, specs = pairwise ~ altitude)
-me_mph <- emmeans::emmeans(fit_lm, specs = pairwise ~ mph)
-me_tf  <- emmeans::emmeans(fit_lm, specs = pairwise ~ terrain_follow)
-
-# 3. Interaction Comparisons
-# How does terrain_follow effect change at specific altitudes/speeds?
-int_comp <- emmeans::emmeans(fit_lm, specs = pairwise ~ terrain_follow | altitude * mph)
-
-# 4. Presentation (Table)
-as.data.frame(int_comp$contrasts) %>%
-  kableExtra::kbl(caption = "Interaction: Effect of Terrain Follow across Alt/MPH") %>%
+# lm
+lm_temp <- lm(
+  # f_score ~ 0 + flight_agl * flight_mph * flight_tf # full three and two-way interactions
+  f_score ~ 0 + flight_tf + flight_agl*flight_mph # metric interactions only
+  , data = agg_ground_truth_match_ans
+)
+# summary(lm_temp)
+broom::tidy(lm_temp) %>%
+  dplyr::mutate(
+    term = term %>% 
+      stringr::str_replace_all("flight_tf","terrain follow") %>% 
+      stringr::str_replace_all("flight_agl","altitude") %>% 
+      stringr::str_replace_all("flight_mph","mph") %>% 
+      stringr::str_replace_all("FALSE"," = off") %>% 
+      stringr::str_replace_all("TRUE"," = on")
+  ) %>% 
+  kableExtra::kbl(
+    caption = "MLR: influence of flight setting parameters on F-score"
+    , digits = 4
+  ) %>%
   kableExtra::kable_styling()
 
-# 5. Presentation (Plot)
-emmeans::emmip(fit_lm, terrain_follow ~ mph | altitude) + 
-  ggplot2::labs(title = "Interaction Plot: Speed vs Terrain Follow by Altitude")
+```
+
+I don't think we can make many inferences from this model other than "there is no impact (or no evidence of impact) of the various flight settings on overall tree detection accuracy." because the terrain following was only tested at 20 mph, the model might be attributing some of the speed effect (mph) to the terrain following effect because they are essentially tied together in the data.
+
+```{r,include=FALSE, eval=F}
+# verify if terrain follow is truly the only significant driver
+stats::drop1(lm_temp, test = "F") %>%
+  kableExtra::kbl(caption = "Marginal Significance Tests (drop1)") %>%
+  kableExtra::kable_styling()
+```
+
+### Pr(tree detected): Frequentist
+
+Let's shift to the tree-level detection data to statistically analyze the influence of the flight settings (and tree characteristics) on the probability of individual tree detection. We'll use logistic multiple linear regression
+
+here is our analysis data that includes only the reference trees (TP and FN) and whether or not they were detected during a flight
+
+```{r}
+# agg_ground_truth_match_ans %>% dplyr::glimpse()
+# ground_truth_prediction_match_ans[[1]] %>% dplyr::glimpse()
+tree_detect_df <- ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>% 
+  dplyr::mutate(
+    is_detected = match_grp=="true positive"
+    , is_detected = as.numeric(is_detected)
+  )
+# dplyr::glimpse(tree_detect_df)
+tree_detect_df %>% 
+  dplyr::group_by(dataset_factor) %>% 
+  dplyr::summarise(
+    n = dplyr::n()
+    , n_detected = sum(is_detected)
+    , prop_detected = mean(is_detected)
+  ) %>% 
+  dplyr::mutate(
+    n = scales::comma(n,accuracy=1)
+    , n_detected = scales::comma(n_detected,accuracy=1)
+    , prop_detected = scales::percent(prop_detected,accuracy=0.1)
+  ) %>% 
+  kableExtra::kbl(
+    caption = "summary of single tree dataset for Pr(detection) analysis"
+    , col.names = c("flight", "reference trees", "detected trees","% detected<br>(recall)")
+    , escape = F
+  ) %>%
+  kableExtra::kable_styling()
+```
+
+note, this aggregation is exactly how recall (detection rate) is calculated
+
+fit the logistic model on this data without interacting the flight parameters of speed and altitude with terrain following since we don't have the data to estimate the influence of terrain following by speed or altitude
+
+```{r}
+# logistic
+mod_glm_temp <- stats::glm(
+  is_detected ~ 
+    # main effects
+    0 + flight_tf + flight_agl + flight_mph + ref_tree_height_m +     
+    # two-way interactions
+    flight_agl:flight_mph +
+    ref_tree_height_m:flight_agl +
+    ref_tree_height_m:flight_mph
+    # ref_tree_height_m:flight_tf
+  , data = tree_detect_df
+  , family = stats::binomial(link = "logit")
+)
+# summary(mod_glm_temp)
+```
+
+logistic model of Pr(tree detected) coefficient table 
+
+```{r}
+broom::tidy(mod_glm_temp) %>%
+  dplyr::select(term,estimate,std.error,p.value) %>% 
+  dplyr::mutate(
+    odds_ratio = exp(estimate)
+    , term = term %>% 
+      stringr::str_replace_all("flight_tf","terrain follow") %>% 
+      stringr::str_replace_all("flight_agl","altitude") %>% 
+      stringr::str_replace_all("flight_mph","mph") %>% 
+      stringr::str_replace_all("ref_tree_height_m","tree ht") %>% 
+      stringr::str_replace_all("FALSE"," = off") %>% 
+      stringr::str_replace_all("TRUE"," = on")
+  ) %>%
+  kableExtra::kbl(
+    caption = "GLM Coefficients and Odds Ratios"
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling()
+```
+
+```{r, include = F, eval=TRUE, echo=F, warning=F, results=F}
+huh_temp <- broom::tidy(mod_glm_temp) %>% dplyr::filter(term=="ref_tree_height_m") %>% dplyr::mutate(odds_ratio = exp(estimate))
+# huh_temp
+# ifelse(huh_temp$odds_ratio < 1, scales::percent(1-huh_temp$odds_ratio,accuracy=0.1), scales::percent(huh_temp$odds_ratio-1,accuracy=0.1))
+```
+
+the tree height is the only coefficient estimated to influence the probability of tree detection in a meaningful (and statistically significant with a p-value of `r ifelse(huh_temp$p.value < 0.001, "< 0.001",scales::comma(huh_temp$p.value, accuracy = 0.001))`) way. the odds ratio on reference tree height of `scales::comma(huh_temp$odds_ratio,accuracy = 0.001)` means that for every one unit increase in tree height, the odds of UAS-lidar detection `r ifelse(huh_temp$odds_ratio < 1, "decrease", "increase")` by `r ifelse(huh_temp$odds_ratio < 1, scales::percent(1-huh_temp$odds_ratio,accuracy=0.1), scales::percent(huh_temp$odds_ratio-1,accuracy=0.1))`
+
+```{r}
+# stats::anova(mod_glm_temp, test = "Chisq") %>%
+#   as.data.frame() %>%
+#   kableExtra::kbl(caption = "sequential analysis of deviance") %>%
+#   kableExtra::kable_styling()
+# 'type = "response"' converts the log-odds back into 0-1 probabilities
+
+preds_temp <-
+  emmeans::emmeans(
+    mod_glm_temp
+    , ~ ref_tree_height_m + flight_agl + flight_mph
+    , at = list(
+      ref_tree_height_m = seq(
+        floor( min(tree_detect_df$ref_tree_height_m) )
+        , floor( max(tree_detect_df$ref_tree_height_m)*1.05 )
+        , by = 1
+      )
+      , flight_agl = seq(
+        floor( min(tree_detect_df$flight_agl) )
+        , floor( max(tree_detect_df$flight_agl) )
+        , by = 100
+      )
+      , flight_mph = seq(
+        floor( min(tree_detect_df$flight_mph) )
+        , floor( max(tree_detect_df$flight_mph) )
+        , by = 5
+      )
+    )
+    , type = "response"
+  ) %>% 
+  dplyr::as_tibble()
+# dplyr::glimpse(preds_temp)
+# # table
+# preds_temp %>%
+#   dplyr::filter(ref_tree_height_m %in% c(5, 15, 25)) %>%
+#   dplyr::select(ref_tree_height_m, flight_agl, flight_mph, prob, asymp.LCL, asymp.UCL) %>%
+#   kableExtra::kbl(
+#     caption = "detection probability by flight setting"
+#     , digits = 3
+#   ) %>%
+#   kableExtra::kable_styling()
+
+ggplot2::ggplot(
+  preds_temp
+  , mapping = ggplot2::aes(
+    x = ref_tree_height_m, y = prob, color = as.factor(flight_agl)
+  )
+) +
+  ggplot2::geom_line(size = 1.2) +
+  ggplot2::geom_ribbon(ggplot2::aes(ymin = asymp.LCL, ymax = asymp.UCL, fill = as.factor(flight_agl)), alpha = 0.1, color = NA) +
+  ggplot2::facet_grid(cols = dplyr::vars(flight_mph), labeller = label_both) +
+  ggplot2::scale_y_continuous(labels = scales::percent) +
+  ggplot2::labs(
+    title = "Detection Probability Curves across 8 Flight Settings",
+    subtitle = "Higher lines = Better detection. Steeper lines = Higher sensitivity to tree height.",
+    x = "Tree Height (m)", y = "Probability of Detection", color = "Altitude", fill = "Altitude"
+  ) +
+  ggplot2::theme_light()
+
+
+ggplot2::ggplot(preds_temp, ggplot2::aes(x = ref_tree_height_m, y = prob, linetype = as.factor(flight_tf), color = as.factor(flight_tf))) +
+  ggplot2::geom_line(size = 1) +
+  ggplot2::facet_wrap(~flight_agl + flight_mph, labeller = label_both) +
+  ggplot2::labs(
+    title = "Impact of Terrain Follow on Detection Curves",
+    subtitle = "Comparing Mode 0 (Off) vs Mode 1 (On) within specific Alt/MPH cells",
+    x = "Tree Height (m)", y = "Prob(Detected)", color = "Terrain Follow", linetype = "Terrain Follow"
+  ) +
+  ggplot2::theme_light()
+
+# Find the height where probability first crosses 0.90
+threshold_90 <- preds_temp %>%
+  dplyr::group_by(flight_agl, flight_mph, flight_tf) %>%
+  dplyr::filter(prob >= 0.90) %>%
+  dplyr::slice(1) # Keep only the smallest height that meets the criteria
+
+ggplot2::ggplot(threshold_90, ggplot2::aes(x = as.factor(mph), y = ref_tree_height_m, fill = as.factor(flight_tf))) +
+  ggplot2::geom_col(position = "dodge") +
+  ggplot2::facet_wrap(~flight_agl) +
+  ggplot2::labs(
+    title = "Tree Height Threshold for 90% Detection",
+    subtitle = "Lower bars are better (means you can detect smaller trees with 90% certainty)",
+    x = "Speed (mph)", y = "Min Tree Height (m)", fill = "Terrain Follow"
+  ) +
+  ggplot2::theme_minimal()
+
 
 ```
+
 
 
 ```{r, include = F, eval = F}
@@ -3703,8 +3953,8 @@ library(brms)
 
 # Version 1: Metric variables treated as continuous
 fit_metric <- brm(
-  formula = f_score ~ altitude * mph * terrain_follow,
-  # formula = f_score ~ 0 + Intercept + altitude * mph * terrain_follow, # no intercept for faster centering?
+  formula = f_score ~ flight_agl * flight_mph * flight_tf,
+  # formula = f_score ~ 0 + Intercept + flight_agl * flight_mph * flight_tf, # no intercept for faster centering?
   data = your_data,
   family = Beta(), # Use zero_one_inflated_beta() if data has exact 0s or 1s
   prior = c(
@@ -3717,13 +3967,13 @@ fit_metric <- brm(
 )
 
 # Version 2: Metric variables treated as factors
-# Ensure altitude and mph are factors before running
+# Ensure flight_agl and flight_mph are factors before running
 your_data_factored <- your_data
-your_data_factored$altitude <- as.factor(your_data_factored$altitude)
+your_data_factored$flight_agl <- as.factor(your_data_factored$flight_agl)
 your_data_factored$mph <- as.factor(your_data_factored$mph)
 
 fit_factor <- brm(
-  formula = f_score ~ altitude * mph * terrain_follow,
+  formula = f_score ~ flight_agl * flight_mph * flight_tf,
   data = your_data_factored,
   family = Beta(),
   prior = prior(normal(0, 1), class = "b"),
@@ -3739,7 +3989,7 @@ library(tidybayes)
 
 # 1. Fit Bayesian Model
 fit_bayes <- brms::brm(
-  formula = f_score ~ altitude * mph * terrain_follow,
+  formula = f_score ~ flight_agl * flight_mph * flight_tf,
   data = your_data,
   family = brms::Beta(),
   prior = brms::prior(normal(0, 1), class = "b"),
@@ -3751,24 +4001,24 @@ fit_bayes <- brms::brm(
 tf_diff <- fit_bayes %>%
   tidybayes::recover_types(your_data) %>%
   tidybayes::epred_draws(newdata = expand.grid(
-    terrain_follow = c("Level1", "Level2"), # Replace with your actual levels
-    altitude = mean(your_data$altitude),
-    mph = mean(your_data$mph)
+    flight_tf = c("Level1", "Level2"), # Replace with your actual levels
+    flight_agl = mean(your_data$flight_agl),
+    flight_mph = mean(your_data$mph)
   )) %>%
-  tidybayes::compare_levels(.epred, by = terrain_follow)
+  tidybayes::compare_levels(.epred, by = flight_tf)
 
 # 3. Interaction Effects: Compare MPH across Altitude
 # Checking if the 'speed' effect is different at 200m vs 300m
 int_diff <- fit_bayes %>%
   tidybayes::epred_draws(newdata = expand.grid(
-    altitude = c(200, 300),
-    mph = c(20, 30),
-    terrain_follow = "Level1"
+    flight_agl = c(200, 300),
+    flight_mph = c(20, 30),
+    flight_tf = "Level1"
   )) %>%
-  tidybayes::compare_levels(.epred, by = mph) # Compare speeds within each altitude
+  tidybayes::compare_levels(.epred, by = flight_mph) # Compare speeds within each flight_agl
 
 # 4. Visualization
-ggplot2::ggplot(int_diff, ggplot2::aes(x = .epred, y = as.factor(altitude))) +
+ggplot2::ggplot(int_diff, ggplot2::aes(x = .epred, y = as.factor(flight_agl))) +
   tidybayes::stat_halfeye() +
   ggplot2::geom_vline(xintercept = 0, linetype = "dashed") +
   ggplot2::labs(title = "Posterior Difference (30mph - 20mph) by Altitude",
