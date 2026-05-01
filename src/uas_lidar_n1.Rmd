@@ -3121,7 +3121,7 @@ ggplot2::ggplot(
 
 ```
 
-so, the difference in F-score is no more than `scales::percent( max( abs(pairwise_diffs_temp$diff) ), accuracy = 0.01)` across all flights. yes, that is less than `paste0( ceiling( max( abs(pairwise_diffs_temp$diff) )*100 ), "%")` on a percentage point basis
+so, the difference in F-score is no more than `r scales::percent( max( abs(pairwise_diffs_temp$diff) ), accuracy = 0.01)` across all flights. yes, that is less than `r paste0( ceiling( max( abs(pairwise_diffs_temp$diff) )*100 ), "%")` on a percentage point basis
 
 ```{r}
 agg_ground_truth_match_ans %>% 
