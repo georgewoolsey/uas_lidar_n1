@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=F
+##```{r,eval=T
 ################################################
 # clean session
 remove(list = ls())
@@ -32,7 +32,7 @@ knitr::opts_chunk$set(
   , message = FALSE
   # , results = 'hide'
   , fig.width = 10.5
-  , fig.height = 7
+  , fig.height = 7.6
 )
 # option to put satellite imagery as base layer of mapview maps
   mapview::mapviewOptions(
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r,eval=F, include=F, echo=F}
+```{r,eval=T, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r,eval=F}
+```{r,eval=T}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,7 +204,7 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r,eval=F}
+```{r,eval=T}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
@@ -365,7 +365,7 @@ my_linear2 <- function(x){
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r,eval=F}
+```{r,eval=T}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
@@ -427,13 +427,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -441,7 +441,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -453,7 +453,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r,eval=F}
+```{r,eval=T}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -464,7 +464,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r,eval=F}
+```{r,eval=T}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -472,7 +472,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -489,7 +489,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r,eval=F}
+```{r,eval=T}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -498,7 +498,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r,eval=F}
+```{r,eval=T}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -506,7 +506,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -518,7 +518,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -584,7 +584,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r,eval=F}
+```{r,eval=T}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -637,7 +637,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=F,purl=FALSE}
+```{r,eval=T,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -3857,7 +3857,7 @@ huh_temp <- broom::tidy(mod_glm_temp) %>% dplyr::filter(term=="ref_tree_height_m
 # ifelse(huh_temp$odds_ratio < 1, scales::percent(1-huh_temp$odds_ratio,accuracy=0.1), scales::percent(huh_temp$odds_ratio-1,accuracy=0.1))
 ```
 
-the tree height is the only coefficient estimated to influence the probability of tree detection in a meaningful (and statistically significant with a p-value of `r ifelse(huh_temp$p.value < 0.001, "< 0.001",scales::comma(huh_temp$p.value, accuracy = 0.001))`) way. the odds ratio on reference tree height of `scales::comma(huh_temp$odds_ratio,accuracy = 0.001)` means that for every one unit increase in tree height, the odds of UAS-lidar detection `r ifelse(huh_temp$odds_ratio < 1, "decrease", "increase")` by `r ifelse(huh_temp$odds_ratio < 1, scales::percent(1-huh_temp$odds_ratio,accuracy=0.1), scales::percent(huh_temp$odds_ratio-1,accuracy=0.1))`
+the tree height is the only coefficient estimated to influence the probability of tree detection in a meaningful (and statistically significant with a p-value of `r ifelse(huh_temp$p.value < 0.001, "< 0.001",scales::comma(huh_temp$p.value, accuracy = 0.001))`) way. the odds ratio on reference tree height of `r scales::comma(huh_temp$odds_ratio,accuracy = 0.001)` means that for every one unit increase in tree height, the odds of UAS-lidar detection `r ifelse(huh_temp$odds_ratio < 1, "decrease", "increase")` by `r ifelse(huh_temp$odds_ratio < 1, scales::percent(1-huh_temp$odds_ratio,accuracy=0.1), scales::percent(huh_temp$odds_ratio-1,accuracy=0.1))`
 
 let's look at the marginal effects at different levels of the metric variables in the model (tree height, flight altitude, flight speed) using the `emmeans` [package](https://rvlenth.github.io/emmeans/articles/interactions.html#covariates) to plot the predicted detection probabilities
 
@@ -4103,7 +4103,7 @@ ggplot2::ggplot(th_temp, ggplot2::aes(x = as.factor(flight_mph), y = ref_tree_he
 
 let's do some contrasts of the probability of detection while holding the tree height constant at the median (`r scales::comma(median(tree_detect_df$ref_tree_height_m),accuracy=0.1)` m) to test an altitude level against every other altitude and each speed against every other speed.
 
-```{r, include=F, eval=FALSE}
+```{r}
 em_temp <- 
   emmeans::emmeans(
     mod_glm_temp
@@ -4336,7 +4336,7 @@ em_temp %>%
 
 ```
 
-yeah, no difference in the detection accuracy across the flight settings tested for this forst stand
+yeah, no difference in the detection accuracy across the flight settings tested for this forest stand
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 remove(list = ls()[grep("_temp",ls())])
