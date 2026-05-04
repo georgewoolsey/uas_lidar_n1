@@ -3798,55 +3798,7 @@ agg_ground_truth_match_ans %>%
     , tidyselect::ends_with("_basal_area_m2_per_ha")
     , tidyselect::ends_with("_trees_per_ha")
   ) %>% 
-  dplyr::glimpse()
-  # second select to arrange tree_metric
-  dplyr::select(
-    dataset_factor, tidyselect::starts_with("flight_")
-    # , site_area_m2
-    # detection
-    , ref_trees
-    , det_trees
-    , tp_n
-    , omission_rate,commission_rate,recall,precision,f_score
-    # quantification
-    # , c(tidyselect::contains("volume") & !tidyselect::contains("paraboloid"))
-    , tidyselect::contains("area")
-    , tidyselect::contains("height")
-    , tidyselect::contains("diameter")
-    , tidyselect::contains("dbh")
-  ) %>% 
   # names()
-  dplyr::mutate(
-    dplyr::across(
-      .cols = c(
-        f_score, recall, precision, tidyselect::ends_with("_mape")
-        , tidyselect::ends_with("_rate")
-      )
-      , .fn = ~ scales::percent(.x, accuracy = 1)
-    )
-    , dplyr::across(
-      .cols = c(tidyselect::ends_with("_mean"))
-      , .fn = ~ scales::comma(.x, accuracy = 0.01)
-    )
-    , dplyr::across(
-      .cols = c(tidyselect::ends_with("_rmse"))
-      , .fn = ~ scales::comma(.x, accuracy = 0.01)
-    )
-  ) %>% 
-  dplyr::select(
-    !tidyselect::contains("_area_")
-    & !tidyselect::contains("diff_diameter_")
-    & !tidyselect::ends_with("_trees")
-    # & !tidyselect::ends_with("_n")
-    & !tidyselect::ends_with("_rate")
-  ) %>% 
-  dplyr::arrange(dataset_factor) %>% 
-  dplyr::select(
-    -c(
-      recall,precision,f_score
-      , dataset_factor
-    )
-  ) %>% 
   dplyr::mutate(
     flight_tf = dplyr::case_when(
       flight_tf ~ "On"
@@ -3854,31 +3806,57 @@ agg_ground_truth_match_ans %>%
       , T ~ "error"
     )
     , dplyr::across(
-      tidyselect::starts_with("flight_")
-      , as.factor
+      .cols = c(
+        tidyselect::starts_with("pct_diff_")
+        , tidyselect::ends_with("_rate")
+      )
+      , .fn = ~ scales::percent(.x, accuracy = .1)
+    )
+    , dplyr::across(
+      .cols = c(flight_agl,flight_mph,tidyselect::ends_with("_trees"))
+      , .fn = ~ scales::comma(.x, accuracy = 1)
+    )
+    , dplyr::across(
+      .cols = dplyr::where(is.numeric)
+      , .fn = ~ scales::comma(.x, accuracy = 0.1)
+    )
+    # # one column for diff/pct
+    , diff_basal_area_m2_per_ha = paste0(diff_basal_area_m2_per_ha, "<br>(", pct_diff_basal_area_m2_per_ha, ")")
+    , diff_trees_per_ha = paste0(diff_trees_per_ha, "<br>(", pct_diff_trees_per_ha, ")")
+  ) %>% 
+  dplyr::select(
+    !tidyselect::starts_with("pct_diff_")
+  ) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    -c(
+      dataset_factor
     )
   ) %>% 
   # dplyr::glimpse()
   
   kableExtra::kbl(
-    caption = "Quantification Accuracy"
+    caption = "Stand-Level Accuracy"
     , col.names = c(
       "altitude (ft)", "speed (mph)", "Terrain Follow"
-      , "TP predictions"
-      , rep(c("ME","RMSE","MAPE"), times = 2)
+      , "reference", "predicted"
+      , rep(c("reference","predicted","difference"), times = 2)
     )
     , escape = F
     # , digits = 2
   ) %>% 
   kableExtra::kable_styling(font_size = 11.5) %>% 
-  kableExtra::add_header_above(c(
-    " "=4
-    # , "Detection" = 3
-    # , "Area" = 3
-    , "Height (m)" = 3
-    , "DBH (cm)" = 3
-  )) %>% 
-  kableExtra::column_spec(seq(4,9,by=3), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=3
+      , "# Trees" = 2
+      # , "Area" = 3
+      , "Basal Area<br />m<sup>2</sup> ha<sup>-1</sup>" = 3
+      , "Trees<br />ha<sup>-1</sup>" = 3
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec( c(3,seq(5,11,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
   kableExtra::collapse_rows(columns = c(1:2), valign = "top")
 ```
 
