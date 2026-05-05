@@ -3676,17 +3676,21 @@ ht_plt_temp <-
 # ggplot2::ggsave(plot = ht_plt_temp, filename = "../data/heyhtscatter.jpg", height = 9, width = 8.95, dpi = "print")
 ```
 
-DBH
+*DBH*
 
 ```{r, fig.height = 9, fig.width = 8.95}
 dbh_plt_temp
 ```
+
+the UAS-predicted DBH values are directionally correct as evidenced by the high correlation coefficient of approximately `r scales::comma(summary(lm(pred_dbh_cm~ref_dbh_cm , data = ground_truth_prediction_match_ans[[1]] %>% dplyr::filter(match_grp=="true positive")))$r.squared, accuracy=0.01)` across all tested flights. there is a size-dependent bias of DBH predictions with the UAS tending to overpredict the diameter of small and intermediate trees while underpredicting the diameter of the largest trees. the total measurement error remains reasonable for forest inventory with the RMSE of approximately `r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse),accuracy = 0.01)` cm (`r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse)/2.54,accuracy = 0.01)` in) and the average magnitude of the DBH prediction error quantified by MAPE is approximately `r scales::percent(median(agg_ground_truth_match_ans$pct_diff_dbh_cm_mape),accuracy = 1)` across the flights
 
 height
 
 ```{r, fig.height = 9, fig.width = 8.95}
 ht_plt_temp
 ```
+
+UAS-predicted height is highly accurate compared to field-measured values, a finding supported by many prior studies. also, remember how we conditionally matched UAS-predicted trees with reference trees based on a maximum height difference threshold of `r my_tree_ht_m` m ?
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 remove(list = ls()[grep("_temp",ls())])
@@ -3778,9 +3782,9 @@ gc()
 
 In addition to the tree-level accuracy metrics (e.g. height RMSE and MAPE), we can also calculate stand-level accuracy metrics by aggregating estimates from the reference (ground truth) and predicted trees irrespective of wheter or not they were matched (i.e. true positive) during instance matching. 
 
-We'll evaluate stand level aggregation accuracy for stand basal area and trees per hectare. For these stand metrics, we calculated the difference ($predicted - reference$) to measure the bias in the original units (e.g., $\frac{m^{2}}{ha}$ for basal area) which indicates the over- or under-estimation of the forest structure. We also calculated the percent difference ($\frac{predicted-reference}{reference}$) to measure the relative bias (scale-independent) to capture the magnitude of the error.
+We'll evaluate stand level aggregation accuracy for stand basal area and trees per hectare. For these stand metrics, we calculated the difference ($predicted - reference$) to measure the bias in the original units (e.g., $\frac{m^{2}}{ha}$ for basal area) which indicates the over- or under-estimation of the stand structure. We also calculated the percent difference ($\frac{predicted-reference}{reference}$) to measure the relative bias (scale-independent) to capture the magnitude of the error.
 
-let's table the tree-level aggregated measurement error
+let's table the stand-level measurement error
 
 ```{r}
 agg_ground_truth_match_ans %>% 
@@ -3860,63 +3864,408 @@ agg_ground_truth_match_ans %>%
   kableExtra::collapse_rows(columns = c(1:2), valign = "top")
 ```
 
-```{r, include=FALSE, eval = F}
-ggplot2::ggplot(df, ggplot2::aes(x = pct_diff, y = stats::reorder(flight_id, pct_diff))) +
-  ggplot2::geom_point(size = 3) +
-  ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  ggplot2::labs(x = "Percent Difference (%)", y = "Flight ID")
+let's plot the percent difference in BA and TPH by flight
 
-ggplot2::ggplot(df, ggplot2::aes(x = flight_id, y = total_diff, color = pct_diff)) +
-  ggplot2::geom_segment(ggplot2::aes(x = flight_id, xend = flight_id, y = 0, yend = total_diff)) +
-  ggplot2::geom_point(size = 4) +
-  ggplot2::scale_color_viridis_c()
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::select(
+    dataset_factor
+    , pct_diff_basal_area_m2_per_ha
+    , pct_diff_trees_per_ha
+  ) %>% 
+  dplyr::mutate(
+    tot = -1* (abs(pct_diff_basal_area_m2_per_ha) + abs(pct_diff_trees_per_ha))
+  ) %>% 
+  tidyr::pivot_longer(cols = -c(dataset_factor,tot)) %>% 
+  dplyr::mutate(
+    name = dplyr::recode_values(
+      name
+      , "pct_diff_basal_area_m2_per_ha" ~ latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
+      , "pct_diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
+    )
+    , value_lab = scales::percent(value,accuracy=0.1)
+  ) %>% 
 
-ggplot2::ggplot(df, ggplot2::aes(x = tph_pct_diff, y = sba_pct_diff, label = flight_id)) +
-  ggplot2::geom_point() +
-  ggplot2::geom_hline(yintercept = 0) +
-  ggplot2::geom_vline(xintercept = 0) +
-  ggrepel::geom_text_repel()
-
-
-# Step 2: Plot
-ggplot2::ggplot(plot_data, ggplot2::aes(x = Metric, y = Value, group = flight_id)) +
-  # Draw the connecting lines
-  ggplot2::geom_line(ggplot2::aes(color = flight_id), size = 1) +
-  # Add points at the ends
-  ggplot2::geom_point(ggplot2::aes(color = flight_id), size = 3) +
-  # Add text labels for each flight next to the lines
-  ggplot2::geom_text(data = subset(plot_data, Metric == "SBA_pct"),
-                     ggplot2::aes(label = flight_id), 
-                     hjust = 1.2, size = 3) +
-  # Aesthetic clean up
-  ggplot2::theme_minimal() +
-  ggplot2::labs(title = "Flight Consistency: SBA vs TPH Percent Difference",
-                y = "Percent Difference (%)",
-                x = "") +
-  ggplot2::geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5)
-
-ggplot2::ggplot(flights) +
-  # Draw the bar between the two points
-  ggplot2::geom_segment(ggplot2::aes(x = Ref_SBA, xend = Pred_SBA, 
-                                     y = flight_id, yend = flight_id),
-                        color = "grey70", size = 1.5) +
-  # Draw the Reference point
-  ggplot2::geom_point(ggplot2::aes(x = Ref_SBA, y = flight_id, color = "Reference"), 
-                      size = 4) +
-  # Draw the Predicted point
-  ggplot2::geom_point(ggplot2::aes(x = Pred_SBA, y = flight_id, color = "Predicted"), 
-                      size = 4) +
-  # Styling
-  ggplot2::scale_color_manual(values = c("Reference" = "black", "Predicted" = "royalblue")) +
-  ggplot2::theme_minimal() +
-  ggplot2::labs(title = "Absolute Difference: Predicted vs Reference SBA",
-                x = "Basal Area (m2/ha)",
-                y = "Flight ID",
-                color = "Value Type")
+ggplot2::ggplot(
+  mapping = ggplot2::aes(
+    y = reorder(dataset_factor, tot)
+    , x = value
+    , group = name
+  )
+) +
+  ggplot2::geom_vline(xintercept = 0, color = "gray95", lwd = 1.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.05,-0.05), color = "gray77", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.1,-0.1), color = "gray55", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.15,-0.15), color = "gray33", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.2,-0.2), color = "gray11", lwd = 0.5) +
+  ggplot2::geom_segment(
+    mapping = ggplot2::aes(yend = dataset_factor, xend = 0,color = value > 0)
+    # , color = "gray44"
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = value > 0)
+    , size = 3
+  ) +
+  # lhs labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,value<0)}
+    , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
+    # , color = "black"
+    , size = 3
+    , nudge_x = -0.004
+    , hjust = 1
+  ) +
+  # rhs labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,value>=0)}
+    , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
+    # , color = "black"
+    , size = 3
+    , nudge_x = 0.004
+    , hjust = 0
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(name)
+    # , labeller = ggplot2::label_parsed
+    , labeller = ggplot2::as_labeller(
+      function(x) {
+        paste0("atop(", x, ", 'percent error')")
+      }
+      , default = ggplot2::label_parsed
+    )
+  ) +
+  ggplot2::scale_color_manual(values = c("firebrick","navy")) +
+  ggplot2::scale_x_continuous(
+    limits = c(-0.2,0.2)
+    , labels = scales::percent
+    # , breaks = scales::breaks_extended(n=10)
+    # , breaks = function(x) seq(min(x), max(x), by = 0.05)
+  ) +
+  ggplot2::labs(
+    y = "" # "comparison"
+    , x = "percent error"
+    , subtitle = "positive = UAS-measured higher than field-measured\nnegative = UAS-measured lower than field-measured"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "none"
+    # , plot.subtitle = ggplot2::element_text(hjust = 1)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+    , panel.grid.major.x = element_blank()
+    , panel.grid.minor.x = element_blank()
+  )
 
 
 ```
 
+the plot above is ordered by the total absolute percent error and maybe doesn't help us see the impact of different flight settings
+
+let's take a slightly different look to explore the UAS bias in the original units for basal area which indicates the over- or under-estimation
+
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  dplyr::mutate(
+    dataset_factor = forcats::fct_rev(dataset_factor)
+    , lab = paste0(
+      ifelse(diff_basal_area_m2_per_ha>=0,"+","")
+      , scales::comma(diff_basal_area_m2_per_ha,accuracy=0.1)
+      , "\n("
+      , scales::percent(pct_diff_basal_area_m2_per_ha,accuracy=0.1)
+      , ")"
+    )
+  ) %>% 
+  # dplyr::mutate(
+  #   name = dplyr::recode_values(
+  #     name
+  #     , "diff_basal_area_m2_per_ha" ~ latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
+  #     , "diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
+  #   )
+  #   , value_lab = scales::comma(value,accuracy=0.1)
+  # ) %>% 
+ggplot2::ggplot(
+  mapping = ggplot2::aes(
+    y = dataset_factor
+  )
+) +
+  # ref
+  ggplot2::geom_vline(
+    mapping = ggplot2::aes(
+      xintercept = ref_basal_area_m2_per_ha
+      , color = "field"
+    )
+    , lwd = 1.5, alpha = 0.15
+  ) +
+  ggplot2::geom_segment(
+    mapping = ggplot2::aes(
+      x = ref_basal_area_m2_per_ha
+      , xend = pred_basal_area_m2_per_ha
+      , yend = dataset_factor
+    )
+    , color = "grey70", size = 1.5
+  ) +
+  # ref
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(
+      x = ref_basal_area_m2_per_ha
+      , color = "field"
+    )
+    , size = 4
+  ) +
+  # pred
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(
+      x = pred_basal_area_m2_per_ha
+      , color = "prediction"
+    )
+    , size = 4
+  ) +
+  # ref labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(x = ref_basal_area_m2_per_ha, label = scales::comma(ref_basal_area_m2_per_ha, accuracy = 0.1))
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # pred labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(x = pred_basal_area_m2_per_ha, label = scales::comma(pred_basal_area_m2_per_ha, accuracy = 0.1))
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # diff labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(
+      x = (ref_basal_area_m2_per_ha+pred_basal_area_m2_per_ha)/2
+      , label = lab
+    )
+    , size = 2
+    , hjust = 0.5, vjust = -0.5
+    , color = "gray33"
+  ) +
+  harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  ggplot2::scale_x_continuous(
+    limits = c(0,NA)
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=10)
+    , expand = ggplot2::expansion(mult = c(0.02,0.2))
+    , sec.axis = ggplot2::dup_axis()
+  ) +
+  ggplot2::labs(
+    y = "" # "comparison"
+    , x = latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$")
+    , color = ""
+    , subtitle = latex2exp::TeX("Predicted vs Reference Stand Basal Area ($m^{2} \\cdot ha^{-1}$)")
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    # , plot.subtitle = ggplot2::element_text(hjust = 1)
+    , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7)
+    , axis.title.x = ggplot2::element_text(size = 7)
+    , panel.grid.major.x = element_blank()
+    , panel.grid.minor.x = element_blank()
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, size = 5, linetype = 0)
+    )
+  )
+```
+
+now we'll look at the UAS bias in the original units for trees per hectare which indicates the over- or under-estimation
+
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  dplyr::mutate(
+    dataset_factor = forcats::fct_rev(dataset_factor)
+    , lab = paste0(
+      ifelse(diff_trees_per_ha>=0,"+","")
+      , scales::comma(diff_trees_per_ha,accuracy=0.1)
+      , "\n("
+      , scales::percent(pct_diff_trees_per_ha,accuracy=0.1)
+      , ")"
+    )
+  ) %>% 
+  # dplyr::mutate(
+  #   name = dplyr::recode_values(
+  #     name
+  #     , "diff_trees_per_ha" ~ latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
+  #     , "diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
+  #   )
+  #   , value_lab = scales::comma(value,accuracy=0.1)
+  # ) %>% 
+ggplot2::ggplot(
+  mapping = ggplot2::aes(
+    y = dataset_factor
+  )
+) +
+  # ref
+  ggplot2::geom_vline(
+    mapping = ggplot2::aes(
+      xintercept = ref_trees_per_ha
+      , color = "field"
+    )
+    , lwd = 1.5, alpha = 0.15
+  ) +
+  ggplot2::geom_segment(
+    mapping = ggplot2::aes(
+      x = ref_trees_per_ha
+      , xend = pred_trees_per_ha
+      , yend = dataset_factor
+    )
+    , color = "grey70", size = 1.5
+  ) +
+  # ref
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(
+      x = ref_trees_per_ha
+      , color = "field"
+    )
+    , size = 4
+  ) +
+  # pred
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(
+      x = pred_trees_per_ha
+      , color = "prediction"
+    )
+    , size = 4
+  ) +
+  # ref labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(x = ref_trees_per_ha, label = scales::comma(ref_trees_per_ha, accuracy = 0.1))
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # pred labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(
+      x = pred_trees_per_ha
+      , label = ifelse(
+        abs(pct_diff_trees_per_ha)<0.01
+        , ""
+        , scales::comma(pred_trees_per_ha, accuracy = 0.1)  
+      )
+    )
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # diff labs
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(
+      x = (ref_trees_per_ha+pred_trees_per_ha)/2
+      , label = lab
+    )
+    , size = 2
+    , hjust = 0.5, vjust = -0.5
+    , color = "gray33"
+  ) +
+  harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  ggplot2::scale_x_continuous(
+    labels = scales::comma
+    , breaks = scales::breaks_extended(n=10)
+    , expand = ggplot2::expansion(mult = c(0.5,0.2))
+    , sec.axis = ggplot2::dup_axis()
+  ) +
+  ggplot2::labs(
+    y = "" # "comparison"
+    , x = latex2exp::TeX("Trees $ha^{-1}$")
+    , color = ""
+    , subtitle = latex2exp::TeX("Predicted vs Reference Stand Trees $ha^{-1}$")
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    # , plot.subtitle = ggplot2::element_text(hjust = 1)
+    , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7)
+    , axis.title.x = ggplot2::element_text(size = 7)
+    , panel.grid.major.x = element_blank()
+    , panel.grid.minor.x = element_blank()
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, size = 5, linetype = 0)
+    )
+  )
+```
+
+```{r, include=FALSE, eval=FALSE}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    , diff_basal_area_m2_per_ha
+    # , diff_trees_per_ha
+  ) %>% 
+  tidyr::pivot_longer(cols = -c(dataset_factor, tidyselect::starts_with("flight_"))) %>% 
+  dplyr::mutate(
+    name = dplyr::recode_values(
+      name
+      , "diff_basal_area_m2_per_ha" ~ latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
+      , "diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
+    )
+    , value_lab = scales::comma(value,accuracy=0.1)
+  ) %>% 
+  
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = flight_mph, y = value, color = as.factor(flight_agl))
+  ) +
+  ggplot2::geom_point(size = 5,alpha=0.9) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(group = flight_agl)
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = value_lab)
+    , color = "black"
+    , vjust = -1
+  ) +
+  ggplot2::facet_grid(cols = dplyr::vars(flight_tf)) +
+  ggplot2::scale_y_continuous(
+    # limits = c(0,1)
+    # , breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , expand = ggplot2::expansion(mult = 0.4)
+  ) +
+  ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
+  ggplot2::labs(
+    subtitle = "comparison of speed and altitude across terrain follow"
+    , x = "speed (mph)"
+    , y = "F-score"
+    , color = "altitude (ft)"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, size = 6))
+  )
+
+```
+
+stand-level predictions for trees per hectare vary by flight setting but all flights resulted in TPH estimates near the field-measured data. The largest TPH error was a `r scales::percent(max(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` underestimation while the best performing flight resulted in a `r scales::percent(min(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` error (i.e. nearly identical to the reference value). The remaining flights achieved error rates between 1% and 4%. The UAS generally overpredicted the DBH of the largest trees. This bias propagated through to the stand-level basal area. As a result, basal area was overestimated across all flights. These overestimations ranged from 4.9% to 12.7% across the tested configurations.
 
 ## Statistical Analysis
 
