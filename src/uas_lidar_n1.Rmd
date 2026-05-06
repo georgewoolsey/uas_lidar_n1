@@ -1185,7 +1185,7 @@ tracking_df %>%
     ggplot2::labs() +
     ggplot2::scale_x_discrete(position = "top") +
     ggplot2::coord_cartesian(expand = F) +
-    ggplot2::scale_color_manual(values = c("gray44","gray11"), guide = "none") +
+    ggplot2::scale_color_manual(values = c("gray55","gray11"), guide = "none") +
     ggplot2::theme_light() +
     ggplot2::theme(
       panel.grid = ggplot2::element_blank()
@@ -2748,6 +2748,10 @@ agg_ground_truth_match_ans <-
         , diff_trees_per_ha = pred_trees_per_ha-ref_trees_per_ha
         , diff_basal_area_m2 = pred_basal_area_m2-ref_basal_area_m2
         , diff_basal_area_m2_per_ha = pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha
+        # 'abs_diff_' columns are calculated as the predicted value minus the actual value
+        , abs_diff_trees_per_ha = abs(diff_trees_per_ha)
+        , abs_diff_basal_area_m2 = abs(diff_basal_area_m2)
+        , abs_diff_basal_area_m2_per_ha = abs(diff_basal_area_m2_per_ha)
         # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
         , pct_diff_trees_per_ha = (pred_trees_per_ha-ref_trees_per_ha)/ref_trees_per_ha
         , pct_diff_basal_area_m2 = (pred_basal_area_m2-ref_basal_area_m2)/ref_basal_area_m2
@@ -3676,7 +3680,7 @@ ht_plt_temp <-
 # ggplot2::ggsave(plot = ht_plt_temp, filename = "../data/heyhtscatter.jpg", height = 9, width = 8.95, dpi = "print")
 ```
 
-*DBH*
+**DBH**
 
 ```{r, fig.height = 9, fig.width = 8.95}
 dbh_plt_temp
@@ -3684,7 +3688,7 @@ dbh_plt_temp
 
 the UAS-predicted DBH values are directionally correct as evidenced by the high correlation coefficient of approximately `r scales::comma(summary(lm(pred_dbh_cm~ref_dbh_cm , data = ground_truth_prediction_match_ans[[1]] %>% dplyr::filter(match_grp=="true positive")))$r.squared, accuracy=0.01)` across all tested flights. there is a size-dependent bias of DBH predictions with the UAS tending to overpredict the diameter of small and intermediate trees while underpredicting the diameter of the largest trees. the total measurement error remains reasonable for forest inventory with the RMSE of approximately `r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse),accuracy = 0.01)` cm (`r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse)/2.54,accuracy = 0.01)` in) and the average magnitude of the DBH prediction error quantified by MAPE is approximately `r scales::percent(median(agg_ground_truth_match_ans$pct_diff_dbh_cm_mape),accuracy = 1)` across the flights
 
-height
+**height**
 
 ```{r, fig.height = 9, fig.width = 8.95}
 ht_plt_temp
@@ -3802,7 +3806,7 @@ agg_ground_truth_match_ans %>%
     , tidyselect::ends_with("_basal_area_m2_per_ha")
     , tidyselect::ends_with("_trees_per_ha")
   ) %>% 
-  # names()
+  dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
   dplyr::mutate(
     flight_tf = dplyr::case_when(
       flight_tf ~ "On"
@@ -3866,7 +3870,7 @@ agg_ground_truth_match_ans %>%
 
 let's plot the percent difference in BA and TPH by flight
 
-```{r}
+```{r, fig.height=8}
 agg_ground_truth_match_ans %>% 
   dplyr::select(
     dataset_factor
@@ -3912,7 +3916,7 @@ ggplot2::ggplot(
     , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
     # , color = "black"
     , size = 3
-    , nudge_x = -0.004
+    , nudge_x = -0.006
     , hjust = 1
   ) +
   # rhs labs
@@ -3921,7 +3925,7 @@ ggplot2::ggplot(
     , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
     # , color = "black"
     , size = 3
-    , nudge_x = 0.004
+    , nudge_x = 0.006
     , hjust = 0
   ) +
   ggplot2::facet_grid(
@@ -3949,6 +3953,7 @@ ggplot2::ggplot(
   ggplot2::theme_light() +
   ggplot2::theme(
     legend.position = "none"
+    , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
     # , plot.subtitle = ggplot2::element_text(hjust = 1)
     , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
     , panel.grid.major.x = element_blank()
@@ -3958,11 +3963,9 @@ ggplot2::ggplot(
 
 ```
 
-the plot above is ordered by the total absolute percent error and maybe doesn't help us see the impact of different flight settings
-
 let's take a slightly different look to explore the UAS bias in the original units for basal area which indicates the over- or under-estimation
 
-```{r}
+```{r, fig.height=8}
 agg_ground_truth_match_ans %>% 
   dplyr::mutate(
     flight_tf = dplyr::case_when(
@@ -4008,7 +4011,7 @@ ggplot2::ggplot(
       , xend = pred_basal_area_m2_per_ha
       , yend = dataset_factor
     )
-    , color = "grey70", size = 1.5
+    , color = "gray70", lwd = 1.5
   ) +
   # ref
   ggplot2::geom_point(
@@ -4074,14 +4077,17 @@ ggplot2::ggplot(
   ) +
   ggplot2::guides(
     color = ggplot2::guide_legend(
-      override.aes = list(shape = 15, size = 5, linetype = 0)
+      override.aes = list(shape = 15, size = 6, linetype = 0)
     )
   )
+
 ```
 
-now we'll look at the UAS bias in the original units for trees per hectare which indicates the over- or under-estimation
+above we saw that the UAS generally overpredicted the DBH and the figure above shows that this bias propagated through to the stand-level basal area. as a result, basal area was overestimated across all flights with overestimations ranging from `r paste(scales::percent(fivenum(abs(agg_ground_truth_match_ans$pct_diff_basal_area_m2_per_ha))[c(1,5)],accuracy=.1), collapse = " to ")` across the tested flights
 
-```{r}
+now we'll look at the UAS bias in the original units for trees per hectare
+
+```{r, fig.height=8}
 agg_ground_truth_match_ans %>% 
   dplyr::mutate(
     flight_tf = dplyr::case_when(
@@ -4127,7 +4133,7 @@ ggplot2::ggplot(
       , xend = pred_trees_per_ha
       , yend = dataset_factor
     )
-    , color = "grey70", size = 1.5
+    , color = "gray70", lwd = 1.5
   ) +
   # ref
   ggplot2::geom_point(
@@ -4199,12 +4205,18 @@ ggplot2::ggplot(
   ) +
   ggplot2::guides(
     color = ggplot2::guide_legend(
-      override.aes = list(shape = 15, size = 5, linetype = 0)
+      override.aes = list(shape = 15, size = 6, linetype = 0)
     )
   )
 ```
 
-```{r, include=FALSE, eval=FALSE}
+stand-level predictions for trees per hectare vary by flight setting but all flights resulted in TPH estimates near the field-measured data. the largest TPH error was a `r scales::percent(max(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` underestimation while the best performing flight resulted in a `r scales::percent(min(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` error (i.e. nearly identical to the reference value). The remaining flights achieved TPH error rates between `r paste(scales::percent(quantile(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha),c(.2,.8)),accuracy=.1), collapse = " and ")`.
+
+the plots maybe don't help us see the impact of different flight settings, let's attempt that all on a single plot
+
+**basal area**
+
+```{r, fig.height=8.5}
 agg_ground_truth_match_ans %>% 
   dplyr::mutate(
     flight_tf = dplyr::case_when(
@@ -4215,61 +4227,187 @@ agg_ground_truth_match_ans %>%
   ) %>% 
   dplyr::select(
     dataset_factor, tidyselect::starts_with("flight_")
-    , diff_basal_area_m2_per_ha
-    # , diff_trees_per_ha
+    # , diff_basal_area_m2_per_ha
+    , tidyselect::ends_with("_basal_area_m2_per_ha")
   ) %>% 
-  tidyr::pivot_longer(cols = -c(dataset_factor, tidyselect::starts_with("flight_"))) %>% 
+  dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
+  tidyr::pivot_longer(cols = c(ref_basal_area_m2_per_ha, pred_basal_area_m2_per_ha)) %>% 
   dplyr::mutate(
     name = dplyr::recode_values(
       name
-      , "diff_basal_area_m2_per_ha" ~ latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
-      , "diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
+      , "ref_basal_area_m2_per_ha" ~ "field"
+      , "pred_basal_area_m2_per_ha" ~ "prediction"
     )
     , value_lab = scales::comma(value,accuracy=0.1)
   ) %>% 
   
   ggplot2::ggplot(
-    mapping = ggplot2::aes(x = flight_mph, y = value, color = as.factor(flight_agl))
+    mapping = ggplot2::aes(x = name, y = value, group = dataset_factor)
   ) +
-  ggplot2::geom_point(size = 5,alpha=0.9) +
-  ggplot2::geom_line(
-    mapping = ggplot2::aes(group = flight_agl)
-  ) +
+  ggplot2::geom_line(key_glyph = "point", alpha = 0.7, color = "gray", lwd = 1.1) +
+  # ref labs
   ggplot2::geom_text(
-    mapping = ggplot2::aes(label = value_lab)
-    , color = "black"
-    , vjust = -1
+    data = function(x){dplyr::filter(x,name=="field")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 3
+    , hjust = 0.5, vjust = 2.2
   ) +
-  ggplot2::facet_grid(cols = dplyr::vars(flight_tf)) +
+  # pred labs
+  ggrepel::geom_text_repel(
+    data = function(x){dplyr::filter(x,name=="prediction")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = flight_tf)
+    # mapping = ggplot2::aes(color = name)
+    # , alpha = 0.7
+    , size = 4
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(flight_agl)
+    , rows = dplyr::vars(flight_mph)
+    , labeller = ggplot2::labeller( 
+      flight_agl = ~paste("Altitude:", .x, " (ft)") 
+      , flight_mph = ~paste("Speed:", .x, " (mph)") 
+    )
+    , axes = "all_x"
+  ) +
+  # harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  ggplot2::scale_color_manual(values = c("gray55","gray11"), guide = "none") +
   ggplot2::scale_y_continuous(
-    # limits = c(0,1)
-    # , breaks = seq(0,1,by=0.2)
-    labels = scales::percent
-    , expand = ggplot2::expansion(mult = 0.4)
+    limits = c(0,NA)
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=10)
+    , expand = ggplot2::expansion(mult = c(0.01,0.1))
   ) +
-  ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
   ggplot2::labs(
-    subtitle = "comparison of speed and altitude across terrain follow"
-    , x = "speed (mph)"
-    , y = "F-score"
-    , color = "altitude (ft)"
+    x = "" # "comparison"
+    , y = latex2exp::TeX("Basal Area $m^{2} \\cdot ha^{-1}$")
+    , color = ""
+    , subtitle = latex2exp::TeX("Predicted vs Reference Stand Basal Area ($m^{2} \\cdot ha^{-1}$)")
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
     legend.position = "top"
-    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 10, face = "bold", color = "black")
+    , axis.text.y = ggplot2::element_text(size = 7)
+    , axis.title.y = ggplot2::element_text(size = 7)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
   ) +
   ggplot2::guides(
-    color = ggplot2::guide_legend(override.aes = list(shape = 15, size = 6))
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, size = 6, linetype = 0)
+    )
   )
 
 ```
 
-stand-level predictions for trees per hectare vary by flight setting but all flights resulted in TPH estimates near the field-measured data. The largest TPH error was a `r scales::percent(max(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` underestimation while the best performing flight resulted in a `r scales::percent(min(abs(agg_ground_truth_match_ans$pct_diff_trees_per_ha)),accuracy=.1)` error (i.e. nearly identical to the reference value). The remaining flights achieved error rates between 1% and 4%. The UAS generally overpredicted the DBH of the largest trees. This bias propagated through to the stand-level basal area. As a result, basal area was overestimated across all flights. These overestimations ranged from 4.9% to 12.7% across the tested configurations.
+**trees per ha**
+
+```{r, fig.height=8.5}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # , diff_basal_area_m2_per_ha
+    , tidyselect::ends_with("_trees_per_ha")
+  ) %>% 
+  dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
+  tidyr::pivot_longer(cols = c(ref_trees_per_ha, pred_trees_per_ha)) %>% 
+  dplyr::mutate(
+    name = dplyr::recode_values(
+      name
+      , "ref_trees_per_ha" ~ "field"
+      , "pred_trees_per_ha" ~ "prediction"
+    )
+    , value_lab = scales::comma(value,accuracy=0.1)
+  ) %>% 
+  
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = name, y = value, group = dataset_factor)
+  ) +
+  ggplot2::geom_line(key_glyph = "point", alpha = 0.7, color = "gray", lwd = 1.1) +
+  # ref labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,name=="field")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # pred labs
+  ggrepel::geom_text_repel(
+    data = function(x){dplyr::filter(x,name=="prediction")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = flight_tf)
+    # mapping = ggplot2::aes(color = name)
+    # , alpha = 0.7
+    , size = 4
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(flight_agl)
+    , rows = dplyr::vars(flight_mph)
+    , labeller = ggplot2::labeller( 
+      flight_agl = ~paste("Altitude:", .x, " (ft)") 
+      , flight_mph = ~paste("Speed:", .x, " (mph)") 
+    )
+    , axes = "all_x"
+  ) +
+  # harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  ggplot2::scale_color_manual(values = c("gray55","gray11"), guide = "none") +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=10)
+    , expand = ggplot2::expansion(mult = c(0.01,0.1))
+  ) +
+  ggplot2::labs(
+    x = "" # "comparison"
+    , y = latex2exp::TeX("Trees $ha^{-1}$")
+    , color = ""
+    , subtitle = latex2exp::TeX("Predicted vs Reference Stand Trees $ha^{-1}$")
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , axis.text.x = ggplot2::element_text(size = 10, face = "bold", color = "black")
+    , axis.text.y = ggplot2::element_text(size = 7)
+    , axis.title.y = ggplot2::element_text(size = 7)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, size = 6, linetype = 0)
+    )
+  )
+
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
 
 ## Statistical Analysis
 
+### Aggregated Stand-Level
+
 We'll quickly use a frequentist approach to test for differences in the detection (F-score) and quantification (e.g. DBH RMSE) accuracy at different levels of the flight setting variables. Due to the limited data, we'll test if the effect of speed changes with altitude (interaction) while controlling for terrain following (intercept) using multiple linear regression.
+
+#### Tree Detection
+
+influence of flight setting parameters on **F-score**
 
 ```{r}
 # lm
@@ -4304,6 +4442,325 @@ stats::drop1(lm_temp, test = "F") %>%
   kableExtra::kbl(caption = "Marginal Significance Tests (drop1)") %>%
   kableExtra::kable_styling()
 ```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+#### Basal Area
+
+influence of flight setting parameters on **basal area** based on the absolute difference (total error) from the field-measured data
+
+```{r}
+# lm
+lm_temp <- lm(
+  # f_score ~ 0 + flight_agl * flight_mph * flight_tf # full three and two-way interactions
+  abs_diff_basal_area_m2_per_ha ~ 0 + flight_tf + flight_agl*flight_mph # metric interactions only
+  , data = agg_ground_truth_match_ans
+)
+# summary(lm_temp)
+broom::tidy(lm_temp) %>%
+  dplyr::mutate(
+    term = term %>% 
+      stringr::str_replace_all("flight_tf","terrain follow") %>% 
+      stringr::str_replace_all("flight_agl","altitude") %>% 
+      stringr::str_replace_all("flight_mph","mph") %>% 
+      stringr::str_replace_all("FALSE"," = off") %>% 
+      stringr::str_replace_all("TRUE"," = on")
+  ) %>% 
+  kableExtra::kbl(
+    caption = "MLR: influence of flight setting parameters on basal area error"
+    , digits = 4
+  ) %>%
+  kableExtra::kable_styling()
+
+```
+
+altitude alone is significant at the 0.05 level while speed is significant at the 0.1 level. this finding is evidence that the flight settings of altitude and speed influence basal area error but note that the estimated coefficient on those variables is very small.
+
+let's make pairwise contrasts (`emmeans::contrast()`) based on the estimated marginal means (`emmeans::emmeans()`) over the range of possible flight settings for altitude and speed to test if the practical settings (i.e. we cannot fly at 1000 ft or 0.05 mph or 99 mph) are different. if any of these contrasts are statistically significant (i.e. there is not a zero difference in the basal area error), it will help us identify if there is a flight setting that we should use as an operational rule if our objective is to minimize basal area error at the stand level
+
+```{r}
+preds_temp <- emmeans::emmeans(
+  lm_temp
+  , ~ flight_agl * flight_mph
+  , at = list(
+      flight_agl = seq(
+        floor( min(agg_ground_truth_match_ans$flight_agl) )
+        , floor( max(agg_ground_truth_match_ans$flight_agl) )
+        , by = 100
+      )
+      , flight_mph = seq(
+        floor( min(agg_ground_truth_match_ans$flight_mph) )
+        , floor( max(agg_ground_truth_match_ans$flight_mph) )
+        , by = 5
+      )
+    )
+)
+```
+
+contrast of **altitude** levels at different flight speeds (see the table footnote for interpretation) for basal area per hectare error
+
+```{r}
+preds_temp %>% 
+  emmeans::contrast(method = "pairwise", simple = "each", combine = TRUE) %>% 
+  dplyr::as_tibble() %>%
+  dplyr::filter(flight_mph!=".",!is.na(flight_mph)) %>% 
+  dplyr::select(flight_mph, contrast,estimate,SE,t.ratio,p.value) %>%
+  dplyr::arrange(flight_mph) %>% 
+  dplyr::mutate(
+    contrast = contrast %>% 
+      # clean agl
+      stringr::str_replace("flight_agl", "xxx") %>% 
+      stringr::str_remove_all("flight_agl") %>% 
+      stringr::str_replace("xxx", "altitude (ft): ") %>% 
+      # clean mph
+      stringr::str_replace("flight_mph", "xxx") %>% 
+      stringr::str_remove_all("flight_mph") %>% 
+      stringr::str_replace("xxx", "speed (mph): ")
+      # rest
+    , dplyr::across(
+      c(estimate,SE,t.ratio,p.value)
+      , ~scales::comma(.x, accuracy = 0.001)
+    )
+  ) %>% 
+  kableExtra::kbl(
+    caption = "pairwise tests for non-zero differences in basal area error (m2/ha)"
+    , col.names = c(
+      "speed (mph)", "contrast"
+      # , "speed (mph)", "altitude (ft)"
+      , "estimate", "SE", "t.ratio", "p.value"
+    )
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top") %>% 
+  kableExtra::footnote(
+    general_title = "interpretation:"
+    , general = c(
+      "`estimate`: difference in error; positive means the first setting has higher error."
+      , "`SE`: measures the precision of the estimate (smaller values indicate higher precision)"
+      , "`t.ratio`: The test statistic; indicates distance from the null (zero difference)"
+      , "`p.value`: probability of observing this result by chance; values < 0.05 are considered significant"
+    )
+    , footnote_as_chunk = FALSE
+    , escape = F
+  )
+```
+
+contrast of **speed** levels at different flight speeds (see the table footnote for interpretation) for basal area per hectare error
+
+```{r}
+preds_temp %>% 
+  emmeans::contrast(method = "pairwise", simple = "each", combine = TRUE) %>% 
+  dplyr::as_tibble() %>%
+  dplyr::filter(flight_agl!=".",!is.na(flight_agl)) %>% 
+  dplyr::select(flight_agl, contrast,estimate,SE,t.ratio,p.value) %>%
+  dplyr::arrange(flight_agl) %>% 
+  dplyr::mutate(
+    contrast = contrast %>% 
+      # clean agl
+      stringr::str_replace("flight_agl", "xxx") %>% 
+      stringr::str_remove_all("flight_agl") %>% 
+      stringr::str_replace("xxx", "altitude (ft): ") %>% 
+      # clean mph
+      stringr::str_replace("flight_mph", "xxx") %>% 
+      stringr::str_remove_all("flight_mph") %>% 
+      stringr::str_replace("xxx", "speed (mph): ")
+      # rest
+    , dplyr::across(
+      c(estimate,SE,t.ratio,p.value)
+      , ~scales::comma(.x, accuracy = 0.001)
+    )
+  ) %>% 
+  kableExtra::kbl(
+    caption = "pairwise tests for non-zero differences in basal area error (m2/ha)"
+    , col.names = c(
+      "altitude (ft)", "contrast"
+      # , "speed (mph)", "altitude (ft)"
+      , "estimate", "SE", "t.ratio", "p.value"
+    )
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top") %>% 
+  kableExtra::footnote(
+    general_title = "interpretation:"
+    , general = c(
+      "`estimate`: difference in error; positive means the first setting has higher error."
+      , "`SE`: measures the precision of the estimate (smaller values indicate higher precision)"
+      , "`t.ratio`: The test statistic; indicates distance from the null (zero difference)"
+      , "`p.value`: probability of observing this result by chance; values < 0.05 are considered significant"
+    )
+    , footnote_as_chunk = FALSE
+    , escape = F
+  )
+```
+
+the significant linear trends from the MLR indicate that altitude and speed influence basal area error, but the lack of significant pairwise contrasts suggests these settings are practically equivalent within the operationally feasible range of these flight settings. this result implies that the UAS-lidar and point cloud processing framework is not meaningfully influenced by changes in the flight settings over the range tested here. additionally, given the small sample size with no cross-site replication these findings should be viewed with caution as the lack of significance may reflect low statistical power rather than absence of effect.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+#### Trees per hectare
+
+influence of flight setting parameters on **trees per hectare** based on the absolute difference (total error) from the field-measured data
+
+```{r}
+# agg_ground_truth_match_ans$diff_trees_per_ha
+# lm
+lm_temp <- lm(
+  # f_score ~ 0 + flight_agl * flight_mph * flight_tf # full three and two-way interactions
+  abs_diff_trees_per_ha ~ 0 + flight_tf + flight_agl*flight_mph # metric interactions only
+  , data = agg_ground_truth_match_ans
+)
+# summary(lm_temp)
+broom::tidy(lm_temp) %>%
+  dplyr::mutate(
+    term = term %>% 
+      stringr::str_replace_all("flight_tf","terrain follow") %>% 
+      stringr::str_replace_all("flight_agl","altitude") %>% 
+      stringr::str_replace_all("flight_mph","mph") %>% 
+      stringr::str_replace_all("FALSE"," = off") %>% 
+      stringr::str_replace_all("TRUE"," = on")
+  ) %>% 
+  kableExtra::kbl(
+    caption = "MLR: influence of flight setting parameters on trees per hectare error"
+    , digits = 4
+  ) %>%
+  kableExtra::kable_styling()
+
+```
+
+speed alone is significant at the 0.05 level while altitude alone and the interaction between speed and altitude are significant at the 0.1 level. this finding is evidence that the flight settings of altitude and speed influence tree density error but note that the estimated coefficient on those variables is very small.
+
+let's make pairwise contrasts (`emmeans::contrast()`) based on the estimated marginal means (`emmeans::emmeans()`) over the range of possible flight settings for altitude and speed to test if the practical settings (i.e. we cannot fly at 1000 ft or 0.05 mph or 99 mph) are different. if any of these contrasts are statistically significant (i.e. there is not a zero difference in the trees per hectare error), it will help us identify if there is a flight setting that we should use as an operational rule if our objective is to minimize trees per hectare error at the stand level
+
+```{r}
+preds_temp <- emmeans::emmeans(
+  lm_temp
+  , ~ flight_agl * flight_mph
+  , at = list(
+      flight_agl = seq(
+        floor( min(agg_ground_truth_match_ans$flight_agl) )
+        , floor( max(agg_ground_truth_match_ans$flight_agl) )
+        , by = 100
+      )
+      , flight_mph = seq(
+        floor( min(agg_ground_truth_match_ans$flight_mph) )
+        , floor( max(agg_ground_truth_match_ans$flight_mph) )
+        , by = 5
+      )
+    )
+)
+```
+
+contrast of **altitude** levels at different flight speeds (see the table footnote for interpretation) for trees per hectare per hectare error
+
+```{r}
+preds_temp %>% 
+  emmeans::contrast(method = "pairwise", simple = "each", combine = TRUE) %>% 
+  dplyr::as_tibble() %>%
+  dplyr::filter(flight_mph!=".",!is.na(flight_mph)) %>% 
+  dplyr::select(flight_mph, contrast,estimate,SE,t.ratio,p.value) %>%
+  dplyr::arrange(flight_mph) %>% 
+  dplyr::mutate(
+    contrast = contrast %>% 
+      # clean agl
+      stringr::str_replace("flight_agl", "xxx") %>% 
+      stringr::str_remove_all("flight_agl") %>% 
+      stringr::str_replace("xxx", "altitude (ft): ") %>% 
+      # clean mph
+      stringr::str_replace("flight_mph", "xxx") %>% 
+      stringr::str_remove_all("flight_mph") %>% 
+      stringr::str_replace("xxx", "speed (mph): ")
+      # rest
+    , dplyr::across(
+      c(estimate,SE,t.ratio,p.value)
+      , ~scales::comma(.x, accuracy = 0.001)
+    )
+  ) %>% 
+  kableExtra::kbl(
+    caption = "pairwise tests for non-zero differences in trees per hectare error"
+    , col.names = c(
+      "speed (mph)", "contrast"
+      # , "speed (mph)", "altitude (ft)"
+      , "estimate", "SE", "t.ratio", "p.value"
+    )
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top") %>% 
+  kableExtra::footnote(
+    general_title = "interpretation:"
+    , general = c(
+      "`estimate`: difference in error; positive means the first setting has higher error."
+      , "`SE`: measures the precision of the estimate (smaller values indicate higher precision)"
+      , "`t.ratio`: The test statistic; indicates distance from the null (zero difference)"
+      , "`p.value`: probability of observing this result by chance; values < 0.05 are considered significant"
+    )
+    , footnote_as_chunk = FALSE
+    , escape = F
+  )
+```
+
+contrast of **speed** levels at different flight speeds (see the table footnote for interpretation) for trees per hectare per hectare error
+
+```{r}
+preds_temp %>% 
+  emmeans::contrast(method = "pairwise", simple = "each", combine = TRUE) %>% 
+  dplyr::as_tibble() %>%
+  dplyr::filter(flight_agl!=".",!is.na(flight_agl)) %>% 
+  dplyr::select(flight_agl, contrast,estimate,SE,t.ratio,p.value) %>%
+  dplyr::arrange(flight_agl) %>% 
+  dplyr::mutate(
+    contrast = contrast %>% 
+      # clean agl
+      stringr::str_replace("flight_agl", "xxx") %>% 
+      stringr::str_remove_all("flight_agl") %>% 
+      stringr::str_replace("xxx", "altitude (ft): ") %>% 
+      # clean mph
+      stringr::str_replace("flight_mph", "xxx") %>% 
+      stringr::str_remove_all("flight_mph") %>% 
+      stringr::str_replace("xxx", "speed (mph): ")
+      # rest
+    , dplyr::across(
+      c(estimate,SE,t.ratio,p.value)
+      , ~scales::comma(.x, accuracy = 0.001)
+    )
+  ) %>% 
+  kableExtra::kbl(
+    caption = "pairwise tests for non-zero differences in trees per hectare error"
+    , col.names = c(
+      "altitude (ft)", "contrast"
+      # , "speed (mph)", "altitude (ft)"
+      , "estimate", "SE", "t.ratio", "p.value"
+    )
+    , digits = 3
+  ) %>%
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top") %>% 
+  kableExtra::footnote(
+    general_title = "interpretation:"
+    , general = c(
+      "`estimate`: difference in error; positive means the first setting has higher error."
+      , "`SE`: measures the precision of the estimate (smaller values indicate higher precision)"
+      , "`t.ratio`: The test statistic; indicates distance from the null (zero difference)"
+      , "`p.value`: probability of observing this result by chance; values < 0.05 are considered significant"
+    )
+    , footnote_as_chunk = FALSE
+    , escape = F
+  )
+```
+
+the significant linear trends from the MLR indicate that altitude and speed influence trees per hectare error, but the lack of significant pairwise contrasts suggests these settings are practically equivalent within the operationally feasible range of these flight settings. this result implies that the UAS-lidar and point cloud processing framework is not meaningfully influenced by changes in the flight settings over the range tested here. additionally, given the small sample size with no cross-site replication these findings should be viewed with caution as the lack of significance may reflect low statistical power rather than absence of effect.
 
 ### Pr(tree detected): Frequentist
 
@@ -4516,7 +4973,9 @@ ggplot2::ggplot(
     , plot.subtitle = ggplot2::element_text(size = 10)
   ) +
   ggplot2::guides(
-    color = ggplot2::guide_legend(override.aes = list(shape = 15, lwd = 8, fill = NA))
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, lwd = 8, fill = NA)
+    )
     , fill = "none"
   )
 ```
