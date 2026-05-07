@@ -5563,25 +5563,7 @@ We'll try to predict volume using National Volume Estimator Library (NVEL) which
 
 If the `RForInvt` [package](https://github.com/jstrunk001/RForInvt) was not broken at the time of analysis, I would have use it. Sadly, it was broken and I didn't want to try to fix it (but [see here](https://github.com/jstrunk001/RForInvt/issues/1)?) so....
 
-I followed these steps to manually get volume tables for the species on the PSINF: 
-
-* download the [The Volume Table Generator](https://www.fs.usda.gov/managing-land/forest-management/products/measurement/volume-estimation)
-* unzip the contents and launch "VolumeTable.exe"
-* within the interface on the "Volumes" tab:
-  - Region = "R2 - Rocky Mountain"
-  - Forest = "Pike-San Isabel"
-  - Species = *repeat this whole process manually for each species present*
-  - Volume Equation = *be sure to click "Get Equation Number(s)" with each species update*
-  - Volume Type = *for each species get "Total Cubic" and "Merchantable Cubic"*
-  - Minimum Top Diameter = 0
-* within the interface on the "Table Setup" tab:
-  - Minimum DBH Value = 1
-  - Maximum DBH Value = 99
-  - Product = "Sawtimber: Product 01"
-  - Height Type = "Total Tree Height From Ground to Tip"
-  - Set Height Range for DBH ranges = *for each DBH range use the same MIN HT: 5 and MAX HT: 150*
-  - Select = "5' Height Increment (1/2 Log Increment)"
-* Hit "OK" > "File" > "Export Table" > "As Tree List" > "Save"
+try the `rFIA` package, get the tree list which already has volume applied to the trees, make a volume lookup table by species, DBH (1 inch increments), and height (1 foot increments)
 
 ```{r, include=FALSE, eval=FALSE}
 # remotes::install_github("jstrunk001/RForInvt")
@@ -5622,11 +5604,152 @@ RForInvt::NVEL_volume( dfTL = df_fake )
 #get volumes
 RForInvt::NVEL_voleq(region = 2, spcdNm=951, dll_func_voleq = "getvoleq_r", load_dll = T)
 # !!!!!!!!!!!!!!! Error in .load_dll(dll_64, dll_32, dll_func) : unused argument (dll_func)  !!!!!!!!!!!!!!!
+
+
+
+# I followed these steps to manually get volume tables for the species on the PSINF: 
+# 
+# * download the [The Volume Table Generator](https://www.fs.usda.gov/managing-land/forest-management/products/measurement/volume-estimation)
+# * unzip the contents and launch "VolumeTable.exe"
+# * within the interface on the "Volumes" tab:
+#   - Region = "R2 - Rocky Mountain"
+#   - Forest = "Pike-San Isabel"
+#   - Species = *repeat this whole process manually for each species present*
+#   - Volume Equation = *be sure to click "Get Equation Number(s)" with each species update*
+#   - Volume Type = *for each species get "Total Cubic" and "Merchantable Cubic"*
+#   - Minimum Top Diameter = 0
+# * within the interface on the "Table Setup" tab:
+#   - Minimum DBH Value = 1
+#   - Maximum DBH Value = 99
+#   - Product = "Sawtimber: Product 01"
+#   - Height Type = "Total Tree Height From Ground to Tip"
+#   - Set Height Range for DBH ranges = *for each DBH range use the same MIN HT: 5 and MAX HT: 150*
+#   - Select = "5' Height Increment (1/2 Log Increment)"
+# * Hit "OK" > "File" > "Export Table" > "As Tree List" > "Save"
+
 ```
 
-let's load in the NVEL volume tables
+```{r}
+# install.packages("rFIA")
+library(rFIA)
+library(USAboundaries)
+# get data
+# ?rFIA::getFIA
+# what state are we in?
+st_temp <- USAboundaries::us_states() %>% 
+  sf::st_intersection(stand_boundary %>% sf::st_transform( sf::st_crs(USAboundaries::us_states()) )) %>% 
+  dplyr::group_by(state_abbr) %>% 
+  dplyr::mutate(
+    area_xxx = sf::st_union(.) %>% 
+      sf::st_area() %>% 
+      as.numeric()
+  ) %>% 
+  dplyr::ungroup() %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::slice_max(order_by = area_xxx, n = 1, with_ties = F) %>% 
+  dplyr::pull(state_abbr)
+# unfortunately, rFIA::getFIA() does not recognize if we already downloaded the data...
+# :\
+fnm_temp <- file.path("../data", paste0(st_temp,"_TREE.csv"))
+if(
+  !file.exists(fnm_temp)
+){
+  fiadb_temp <- rFIA::getFIA(
+    states = st_temp
+    , dir = "../data", common = TRUE, tables = c("TREE")
+  )  
+}else{
+  fiadb_temp <- list(
+    TREE = readr::read_csv(file = fnm_temp, progress = F, show_col_types = F)
+  )
+}
+# filter this dirty data
+fiadb_temp$TREE <- 
+  fiadb_temp$TREE %>% 
+  dplyr::rename_with(.cols = dplyr::everything(), tolower) %>% 
+  dplyr::select(spcd,dia,ht,volcfnet,volcfgrs) %>% 
+  tidyr::drop_na()
+# huh?
+fiadb_temp$TREE %>% dplyr::glimpse()
+```
+
+no one knows what these numeric species codes are....get reference species so a human can understand what is happening
 
 ```{r}
+# holy smokes, no one knows what these numeric species codes are
+  # ....get reference species so a human can understand these
+url_temp <- "https://apps.fs.usda.gov/fia/datamart/CSV/FIADB_REFERENCE.zip"
+zip_temp <- "FIADB_REFERENCE.zip"
+dir_temp <- file.path("../data", str_remove(basename(zip_temp), "\\.[^.]+$"))
+# dl if needed
+if (!dir.exists(dir_temp)){
+  download.file(url = url_temp, destfile = zip_temp, mode = "wb")
+  unzip(zipfile = zip_temp, exdir = dir_temp)
+  file.remove(zip_temp)
+}
+# read
+ref_species_temp <- readr::read_csv(file = file.path(dir_temp, "REF_SPECIES.csv"), progress = F, show_col_types = F) %>% 
+  dplyr::rename_with(.cols = dplyr::everything(), tolower) %>% 
+  dplyr::select(spcd, species_symbol, common_name, genus, species)
+# huh
+ref_species_temp %>% dplyr::glimpse()
+```
+
+join and make the volume lookup table by species, DBH (1 inch increments), and height (1 foot increments). for both of the height and diameter increments we'll use the floor to take a conservative approach for volume estimation. for example, DBH values of 5.0 to 5.999999 will be grouped in the 5.0 inch class. we'll apply this same logic to our field and predicted tree list for joining.
+
+```{r}
+vol_lookup <-
+  fiadb_temp$TREE %>% 
+  dplyr::inner_join(
+    ref_species_temp
+    , by = "spcd"
+    , relationship = "many-to-one"
+  ) %>% 
+  # aggregate
+  dplyr::mutate(dplyr::across(
+    .cols = c(ht,dia)
+    , ~ floor(.x) %>% as.integer()
+  )) %>% 
+  dplyr::group_by(
+    dplyr::across(dplyr::all_of(
+      c(
+        names(ref_species_temp)
+        ,"ht","dia"
+      )
+    ))
+  ) %>% 
+  dplyr::summarise(dplyr::across(
+   .cols = tidyselect::starts_with("volcf") 
+   , median
+  )) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::rename_with(
+    .cols = tidyselect::starts_with("volcf")
+    , ~ stringr::str_remove(.x,"^volcf") %>% stringr::str_c("_volume_ft3")
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      tidyselect::ends_with("volume_ft3")
+       # 1 cubic foot = 0.0283168 cubic meters
+      , ~ .x*0.0283168
+      , .names = "{.col}_m3"
+    )
+    , species_symbol = factor(species_symbol)
+  ) %>% 
+  dplyr::rename_with(
+    .cols = tidyselect::ends_with("volume_ft3_m3")
+    , ~ stringr::str_remove(.x,"_ft3")
+  )
+vol_lookup %>% dplyr::glimpse()
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+```{r, include=FALSE, eval=FALSE}
+# let's load in the NVEL volume tables
 timber_vol_df <- 
   list.files("../data/NVEL/", full.names = T) %>% 
   purrr::set_names() %>% 
@@ -5648,7 +5771,7 @@ timber_vol_df <-
       , stringr::str_starts(tolower(basename(fnm)), "total") ~ "total"
       , T ~ "error"
     )
-    , species_symb = 
+    , species_symbol = 
       stringr::str_extract(basename(fnm), "(?<=_)[^._]+(?=\\.[^.]+$)") %>% 
       toupper()
   ) %>% 
@@ -5674,39 +5797,47 @@ timber_vol_df <-
 timber_vol_df %>% dplyr::glimpse()
 ```
 
-let's see what this looks like
+let's see what this looks like for the net volume where...
+
+>The net volume of wood in the central stem of timber species (trees where diameter is measured at breast height >= 5.0 inches d.b.h., from a 1-foot stump to a minimum 4-inch top diameter, or to where the central stem breaks into limbs all of which are <4.0 inches in diameter...Does not include rotten, missing, and form cull (volume loss due to rotten, missing, and form cull defect has been deducted)...gross volume is identical to the net volume definition except that gross includes volume from portions of the stem that are rotten, missing, and considered form cull. ([https://doserlab.com/files/rfia/articles/biomassvolume](https://doserlab.com/files/rfia/articles/biomassvolume))
+
 
 ```{r}
-timber_vol_df %>% 
+vol_lookup %>% 
   dplyr::filter(
-    species_symb!="ABCO"
-    # , species_symb=="POTR5"
-    , dbh_in<=60
-    , ht_5_ft_bin<=100
+    # species_symbol!="ABCO"
+    # , species_symbol=="POTR5"
+    dia<=60
+    , ht<=100
+    , species_symbol %in% unique(toupper(validation_trees$spp))
   ) %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(
-      y = dbh_in
-      , x = ht_5_ft_bin
-      , fill = merch_volume_ft3
+      y = dia
+      , x = ht
+      , fill = net_volume_ft3
     )
   ) +
-  ggplot2::geom_tile(color = NA, width = 5, height = 1) +
+  ggplot2::geom_tile(
+    color = NA
+    , width = 1 # 5
+    , height = 1
+  ) +
   # ggplot2::geom_text(color = "white", size = 3) +
   ggplot2::facet_wrap(
-    facets = dplyr::vars(species_symb)
-    , ncol = 3
+    facets = dplyr::vars(species_symbol)
+    # , ncol = 2
     # , scales = "free"
     , axes = "all"
   ) + 
-  ggplot2::scale_x_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=15)) +
-  ggplot2::scale_y_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=15)) +
+  ggplot2::scale_x_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
+  ggplot2::scale_y_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
   # ggplot2::scale_fill_viridis_c(option = "mako", direction=-1, begin = 0.2, end = 0.8) +
   ggplot2::scale_fill_distiller(palette = "Greens", direction = 1, labels = scales::comma) +
   ggplot2::labs(
     x = "height (ft)"
     , y = "DBH (in)"
-    , fill = "merch. volume (ft3)"
+    , fill = "net volume (ft3)"
   ) +
   ggplot2::theme_light() + 
   ggplot2::theme(
@@ -5719,11 +5850,354 @@ timber_vol_df %>%
   )
 ```
 
-sure?
+sure? we'll use a linear model to fill in volume where we don't have a DBH, height, species observation in the FIA data
 
-Because volume estimation requires a species, we need to dig into what information we have on species for both the field-collected and UAS-predicted tree lists
+```{r}
+net_vol_mod <- lm(
+  net_volume_ft3 ~ 0 + species_symbol*dia*ht
+  , data = vol_lookup
+)
+grs_vol_mod <- lm(
+  grs_volume_ft3 ~ 0 + species_symbol*dia*ht
+  , data = vol_lookup
+)
+# summary(net_vol_mod)
+# get predictions for full dbh,ht range
+vol_lookup_pred <- tidyr::crossing(
+  dplyr::tibble(
+    dia = seq(
+      from = 1
+      , to = max(
+        max(vol_lookup$dia)
+        , max(as.integer(ceiling(validation_trees$field_dbh_in)))
+        , max(as.integer(ceiling(predicted_trees[[1]]$dbh_cm*0.394)))
+      )
+      , by = 1
+    )
+  )
+  , dplyr::tibble(
+    ht = seq(
+      from = 1
+      , to = max(
+        max(vol_lookup$ht)
+        , max(as.integer(ceiling(validation_trees$field_tree_height_ft)))
+        , max(as.integer(ceiling(predicted_trees[[1]]$tree_height_m*3.281)))
+      )
+      , by = 1
+    )
+  )
+  , vol_lookup %>% 
+    dplyr::filter(species_symbol %in% unique(toupper(validation_trees$spp))) %>% 
+    dplyr::distinct(species_symbol)
+)
+# predict
+vol_lookup_pred$net_volume_ft3 <- predict(net_vol_mod, newdata = vol_lookup_pred)
+vol_lookup_pred$grs_volume_ft3 <- predict(grs_vol_mod, newdata = vol_lookup_pred)
+# updt
+vol_lookup_pred <- vol_lookup_pred %>% 
+  dplyr::mutate(
+    net_volume_ft3 = ifelse(net_volume_ft3<0,0,net_volume_ft3)
+    , grs_volume_ft3 = ifelse(grs_volume_ft3<0,0,grs_volume_ft3)
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      tidyselect::ends_with("volume_ft3")
+       # 1 cubic foot = 0.0283168 cubic meters
+      , ~ .x*0.0283168
+      , .names = "{.col}_m3"
+    )
+    , species_symbol = factor(species_symbol)
+  ) %>% 
+  dplyr::rename_with(
+    .cols = tidyselect::ends_with("volume_ft3_m3")
+    , ~ stringr::str_remove(.x,"_ft3")
+  ) %>% 
+  dplyr::rename_with(
+    .cols = tidyselect::contains("_volume_")
+    , ~ paste0("pred_",.x,recycle0 = T)
+  )
+# vol_lookup_pred %>% dplyr::glimpse()
+```
+
+here's a plot of the imputed volume for each species which we'll use when we don't have a DBH, height, species observation in the FIA data
+
+```{r}
+# plot preds
+vol_lookup_pred %>% 
+  dplyr::filter(
+    # species_symbol==vol_lookup_pred$species_symbol[1]
+    # , species_symbol=="POTR5"
+    dia<=60
+    , ht<=100
+    , species_symbol %in% unique(toupper(validation_trees$spp))
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(
+      y = dia
+      , x = ht
+      , fill = pred_net_volume_ft3
+    )
+  ) +
+  ggplot2::geom_tile(
+    color = NA
+    , width = 1 # 5
+    , height = 1
+  ) +
+  # ggplot2::geom_text(color = "white", size = 3) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(species_symbol)
+    # , ncol = 2
+    # , scales = "free"
+    , axes = "all"
+  ) + 
+  ggplot2::scale_x_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
+  ggplot2::scale_y_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
+  # ggplot2::scale_fill_viridis_c(option = "mako", direction=-1, begin = 0.2, end = 0.8) +
+  ggplot2::scale_fill_distiller(palette = "Greens", direction = 1, labels = scales::comma) +
+  ggplot2::labs(
+    x = "height (ft)"
+    , y = "DBH (in)"
+    , fill = "IMPUTED\nnet volume (ft3)"
+  ) +
+  ggplot2::theme_light() + 
+  ggplot2::theme(
+    legend.position = "top"
+    # , axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)
+    , panel.background = ggplot2::element_blank()
+    , panel.grid = ggplot2::element_blank()
+    , plot.subtitle = ggplot2::element_text(hjust = 0.5)
+    , strip.text = ggplot2::element_text(color = "black", face = "bold")
+  )
+```
+
+```{r, include=FALSE, eval=FALSE}
+# , field_dbh_cm = field_dbh_in/0.394
+# , field_tree_height_m = field_tree_height_ft/3.281
+# what is the difference between the acutal values?
+vol_lookup_pred %>% 
+  dplyr::left_join(
+    vol_lookup
+    , by = dplyr::join_by(dia,ht,species_symbol)
+  ) %>% 
+  dplyr::mutate(diff = net_volume_ft3-pred_net_volume_ft3) %>% 
+  dplyr::filter(
+    # species_symbol!="ABCO"
+    # , species_symbol=="POTR5"
+    dia<=60
+    , ht<=100
+    , species_symbol %in% unique(toupper(validation_trees$spp))
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(
+      y = dia
+      , x = ht
+      , fill = diff
+    )
+  ) +
+  ggplot2::geom_tile(
+    color = NA
+    , width = 1 # 5
+    , height = 1
+  ) +
+  # ggplot2::geom_text(color = "white", size = 3) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(species_symbol)
+    # , ncol = 2
+    # , scales = "free"
+    , axes = "all"
+  ) + 
+  ggplot2::scale_x_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
+  ggplot2::scale_y_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=10)) +
+  # ggplot2::scale_fill_viridis_c(option = "mako", direction=-1, begin = 0.2, end = 0.8) +
+  ggplot2::scale_fill_gradient2(mid = "gray95", na.value = "white") +
+  ggplot2::labs(
+    x = "height (ft)"
+    , y = "DBH (in)"
+    , fill = "DIFF\nnet volume (ft3)"
+  ) +
+  ggplot2::theme_light() + 
+  ggplot2::theme(
+    legend.position = "top"
+    # , axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)
+    , panel.background = ggplot2::element_blank()
+    , panel.grid = ggplot2::element_blank()
+    , plot.subtitle = ggplot2::element_text(hjust = 0.5)
+    , strip.text = ggplot2::element_text(color = "black", face = "bold")
+  )
+```
 
 ### Field Data
 
-the field data should have species?
+get the volume for the field data (remembering we're working in imperial units)
+
+```{r}
+validation_trees <- 
+  validation_trees %>% 
+  # increments for dbh,ht
+  dplyr::mutate(
+    dia = floor(field_dbh_in) %>% as.integer()
+    , ht = floor(field_tree_height_ft) %>% as.integer()
+    , species_symbol = toupper(spp) %>% stringr::str_squish() %>% stringr::word()
+  ) %>% 
+  # add on preds
+  dplyr::left_join(
+    vol_lookup_pred
+    , dplyr::join_by(species_symbol,ht,dia)
+    , relationship = "many-to-one"
+  ) %>% 
+  # add on fia
+  dplyr::left_join(
+    vol_lookup %>% dplyr::select(species_symbol,ht,dia,tidyselect::contains("_volume_"))
+    , dplyr::join_by(species_symbol,ht,dia)
+    , relationship = "many-to-one"
+  ) %>% 
+  # fill in missing fia volume
+  dplyr::mutate(
+    net_volume_ft3 = ifelse(is.na(net_volume_ft3), pred_net_volume_ft3, net_volume_ft3) %>% 
+      dplyr::coalesce(0) # smallest of trees
+    , grs_volume_ft3 = ifelse(is.na(grs_volume_ft3), pred_grs_volume_ft3, grs_volume_ft3) %>% 
+      dplyr::coalesce(0) # smallest of trees
+    , net_volume_m3 = ifelse(is.na(net_volume_m3), pred_net_volume_m3, net_volume_m3) %>% 
+      dplyr::coalesce(0) # smallest of trees
+    , grs_volume_m3 = ifelse(is.na(grs_volume_m3), pred_grs_volume_m3, grs_volume_m3) %>% 
+      dplyr::coalesce(0) # smallest of trees
+  ) %>% 
+  dplyr::select(
+    -tidyselect::starts_with("pred_net_volume")
+    ,-tidyselect::starts_with("pred_grs_volume")
+    , -c(dia,ht)
+  )
+# validation_trees %>% dplyr::glimpse()
+# add all these volumes to the agg data
+agg_ground_truth_match_ans <- 
+  agg_ground_truth_match_ans %>% 
+  dplyr::bind_cols(
+    validation_trees %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::ungroup() %>% 
+      dplyr::summarise(
+        dplyr::across(
+          c(tidyselect::ends_with("_volume_ft3"),tidyselect::ends_with("_volume_m3"))
+          , .fns = sum
+        )
+      ) %>% 
+      dplyr::rename_with(.cols=dplyr::everything(),~paste0("ref_",.x,recycle0 = T))
+  )
+```
+
+let's check out the stand summary of volume
+
+```{r}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::group_by(stand_area_m2) %>% 
+  dplyr::summarise(
+    dplyr::across(
+      c(tidyselect::ends_with("_volume_ft3"),tidyselect::ends_with("_volume_m3"))
+      , .fns = sum
+    )
+    , n_trees = dplyr::n()
+  ) %>% 
+  # add area
+  dplyr::mutate(stand_area_ha = stand_area_m2/10000) %>% 
+  dplyr::mutate(
+    stand_area_ha = stand_area_ha %>% round(1) %>% scales::comma(accuracy = 0.1)
+    , n_trees = scales::comma(n_trees,accuracy=1)
+    , dplyr::across(
+      .cols = tidyselect::contains("_volume_")
+      , ~ scales::comma(.x,accuracy=0.1)
+    )
+  ) %>% 
+  dplyr::select(
+    stand_area_ha, n_trees
+    , tidyselect::ends_with("_volume_ft3"),tidyselect::ends_with("_volume_m3")
+  ) %>% 
+  kableExtra::kbl(
+    caption = "Field Data: Volume-Focused Stand Summary"
+    , escape = F
+    , digits = 1
+    , col.names = c(
+      "Hectares", "# trees"
+      , rep(c("net", "gross"), 2)
+    )
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=2
+      , "Volume<br />ft<sup>3</sup>" = 2
+      , "Volume<br />m<sup>3</sup>" = 2
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec( seq(2,6,by=2), border_right = TRUE, include_thead = TRUE)
+```
+
+
+
+```{r, include=FALSE, eval = F}
+ground_truth_prediction_match_ans[[1]] %>% 
+  dplyr::distinct(ref_match_idx) %>% 
+  tidyr::drop_na() %>% 
+  nrow()
+validation_trees %>% nrow()
+
+ground_truth_prediction_match_ans[[1]] %>% dplyr::filter(ref_match_idx==1) %>% dplyr::select(ref_tree_height_m, ref_dbh_cm)
+validation_trees %>% dplyr::slice(1) %>% dplyr::select(field_tree_height_m, field_dbh_cm)
+
+agg_ground_truth_match_ans <- 
+  ground_truth_prediction_match_ans %>% 
+  purrr::compact() %>% 
+  purrr::map(
+    \(x)
+    agg_ground_truth_match(x) %>% 
+      dplyr::bind_cols(
+        # add ba and stand area
+        x %>% 
+          sf::st_drop_geometry() %>% 
+          dplyr::ungroup() %>% 
+          dplyr::summarise(
+            dplyr::across(
+              c(ref_basal_area_m2,pred_basal_area_m2)
+              , ~sum(.x,na.rm=T)
+            )
+          ) %>% 
+          dplyr::mutate(
+            stand_area_ha = stand_boundary$stand_area_m2[1]/10000
+            , dplyr::across(
+              c(ref_basal_area_m2,pred_basal_area_m2)
+              , ~ .x/stand_area_ha
+              , .names = "{.col}_per_ha"
+            )
+          )
+      ) %>% 
+      # comps not done in agg_ground_truth_match()
+      dplyr::mutate(
+        ref_trees_per_ha = (tp_n+fn_n)/stand_area_ha
+        , pred_trees_per_ha = (tp_n+fp_n)/stand_area_ha
+        # 'diff_' columns are calculated as the predicted value minus the actual value
+        , diff_trees_per_ha = pred_trees_per_ha-ref_trees_per_ha
+        , diff_basal_area_m2 = pred_basal_area_m2-ref_basal_area_m2
+        , diff_basal_area_m2_per_ha = pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha
+        # 'abs_diff_' columns are calculated as the predicted value minus the actual value
+        , abs_diff_trees_per_ha = abs(diff_trees_per_ha)
+        , abs_diff_basal_area_m2 = abs(diff_basal_area_m2)
+        , abs_diff_basal_area_m2_per_ha = abs(diff_basal_area_m2_per_ha)
+        # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
+        , pct_diff_trees_per_ha = (pred_trees_per_ha-ref_trees_per_ha)/ref_trees_per_ha
+        , pct_diff_basal_area_m2 = (pred_basal_area_m2-ref_basal_area_m2)/ref_basal_area_m2
+        , pct_diff_basal_area_m2_per_ha = (pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha)/ref_basal_area_m2_per_ha
+      )
+  ) %>% 
+  purrr::list_rbind(names_to = "folder")
+# add tracking data cols
+agg_ground_truth_match_ans <- tracking_df %>% 
+  dplyr::left_join(
+    agg_ground_truth_match_ans
+    , by = "folder"
+  )
+# huh?
+# agg_ground_truth_match_ans %>% dplyr::glimpse()
+
+```
 
