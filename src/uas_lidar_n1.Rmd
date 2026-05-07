@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=T
+##```{r,eval=F
 ################################################
 # clean session
 remove(list = ls())
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r,eval=T, include=F, echo=F}
+```{r,eval=F, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r,eval=T}
+```{r,eval=F}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,7 +204,7 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r,eval=T}
+```{r,eval=F}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
@@ -365,7 +365,7 @@ my_linear2 <- function(x){
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r,eval=T}
+```{r,eval=F}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
@@ -427,13 +427,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -441,7 +441,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -453,7 +453,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -464,7 +464,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -472,7 +472,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -489,7 +489,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r,eval=T}
+```{r,eval=F}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -498,7 +498,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -506,7 +506,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -518,7 +518,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -584,7 +584,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -637,7 +637,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -770,7 +770,7 @@ remove(itd_tuning_ans, itd_tuning_ans2,crowns_simplified,plt_rgb_rast_itd_crowns
 gc()
 ```
 
-# `cloud2trees::cloud2trees()` example processing
+# Point Cloud Processing
 
 This is a demonstration for a single example data set. We won't show the processing of each individual data set of the study here to reduce clutter. Instead we'll process all datasets using the methods demonstrated in this section and review the outputs and analyze the tree detection accuracy in the following sections.
 
@@ -2173,9 +2173,11 @@ let's use the different geometries to plot the instance matching classification
 # custom palette
 pal_match_grp = c(
   "omission"=viridis::cividis(3)[1]
-  , "commission"= viridis::cividis(3)[2]
+  # , "commission"= viridis::cividis(3)[2]
+  , "commission"= "gray77"
   , "true positive"=viridis::cividis(3)[3]
 )
+# scales::show_col(pal_match_grp)
 # plt
 ggplot2::ggplot() +
   ggplot2::geom_sf(
@@ -2679,13 +2681,13 @@ ground_truth_prediction_match_ans %>%
       , fill = NA, color = "blue"
     ) +
     ggplot2::geom_sf(
-      data = ~ dplyr::filter(.x, match_grp %in% c("true positive","omission"))
-      , mapping = ggplot2::aes(geometry = ref_geometry, color = match_grp)
+      data = ~ dplyr::filter(.x, match_grp=="commission")
+      , mapping = ggplot2::aes(geometry = pred_geometry, color = match_grp)
       , size = 0.6, alpha = 0.8
     ) +
     ggplot2::geom_sf(
-      data = ~ dplyr::filter(.x, match_grp=="commission")
-      , mapping = ggplot2::aes(geometry = pred_geometry, color = match_grp)
+      data = ~ dplyr::filter(.x, match_grp %in% c("true positive","omission"))
+      , mapping = ggplot2::aes(geometry = ref_geometry, color = match_grp)
       , size = 0.6, alpha = 0.8
     ) +
     ggplot2::scale_color_manual(values = pal_match_grp) +
@@ -2717,6 +2719,131 @@ ground_truth_prediction_match_ans %>%
 ```
 
 interesting
+
+let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
+
+```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
+# re-read rgb
+rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
+  # keep only rgb bands
+  terra::subset(c(1,2,3))
+# aoi
+aoi_temp <- 
+  stand_boundary %>% 
+  sf::st_centroid() %>% 
+  sf::st_set_crs(terra::crs(rgb_rast_temp)) %>% 
+  sf::st_buffer(sqrt(2000/4),endCapStyle = "SQUARE") ## numerator = desired plot size in m2
+# sf::st_area(aoi_temp) %>% as.numeric() %>% `/`(10000)
+# crop
+rgb_rast_temp <- 
+  rgb_rast_temp %>% 
+  terra::subset(c(1,2,3)) %>% 
+  terra::crop(
+    aoi_temp %>% 
+      sf::st_union() %>% 
+      sf::st_bbox() %>% 
+      sf::st_as_sfc() %>% 
+      sf::st_buffer(2) %>% 
+      sf::st_transform(terra::crs(rgb_rast_temp)) %>% 
+      terra::vect()
+  )
+# convert raster to a data frame and create hex colors
+# ?grDevices::rgb
+rgb_df_temp <-
+  rgb_rast_temp %>% 
+  terra::as.data.frame(xy = TRUE) %>%
+  dplyr::rename(
+    red = 3, green = 4, blue = 5
+  ) %>%
+  dplyr::mutate(
+    # rows that have missing color data
+    is_missing = is.na(red) | is.na(green) | is.na(blue)
+    # hex using 0s for NAs to avoid grDevices::rgb error
+    , hex_col = grDevices::rgb(
+      ifelse(is_missing, 0, red)
+      , ifelse(is_missing, 0, green)
+      , ifelse(is_missing, 0, blue)
+      , maxColorValue = 255
+    )
+    # back to NA
+    , hex_col = ifelse(is_missing, as.character(NA), hex_col)
+  ) %>%
+  dplyr::select(-c(is_missing))
+
+# plt
+ggplot2::ggplot() +
+  # add rgb base map
+  ggplot2::geom_tile(data = rgb_df_temp, mapping = ggplot2::aes(x = x, y = y, fill = hex_col), color = NA) +
+  # use identity scale so the hex codes are used directly
+  ggplot2::scale_fill_identity(na.value = "transparent") + # !!! don't take this out or RGB plot will kill your computer
+  # overlay trees
+  ggplot2::geom_sf(
+    data = 
+        ground_truth_prediction_match_ans %>%
+        purrr::list_rbind(names_to = "folder") %>%
+        dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+        dplyr::inner_join(
+          tracking_df %>% 
+            dplyr::select(-c(path))
+          , by = "folder"
+        ) %>%
+        dplyr::arrange(dataset_factor, match_grp) %>% 
+        sf::st_set_geometry("ref_geometry") %>% 
+        sf::st_transform(terra::crs(rgb_rast_temp)) %>% 
+        sf::st_intersection(aoi_temp)
+    , mapping = ggplot2::aes(geometry = ref_geometry, color = match_grp)
+    , size = 1
+  ) +
+  ggplot2::geom_sf(
+    data = 
+      ground_truth_prediction_match_ans %>%
+      purrr::list_rbind(names_to = "folder") %>%
+      dplyr::filter(match_grp=="commission") %>% 
+      dplyr::inner_join(
+        tracking_df %>% 
+          dplyr::select(-c(path))
+        , by = "folder"
+      ) %>%
+      dplyr::arrange(dataset_factor, match_grp) %>% 
+      sf::st_set_geometry("pred_geometry") %>% 
+      sf::st_transform(terra::crs(rgb_rast_temp)) %>% 
+      sf::st_intersection(aoi_temp)
+    , mapping = ggplot2::aes(geometry = pred_geometry, color = match_grp)
+    , size = 1
+  ) +
+  ggplot2::scale_color_manual(values = pal_match_grp) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    , ncol = 3
+  ) +
+  ggplot2::coord_sf(expand = F) +
+  ggplot2::labs(subtitle = "") +
+  ggplot2::theme_void() +
+  ggplot2::theme(
+    legend.position = "top"
+    , legend.title = ggplot2::element_blank()
+    , legend.key = ggplot2::element_blank()
+    , strip.text = ggplot2::element_text(face = "bold", color = "black", margin = ggplot2::margin(t = 4, b = 4))
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+    # , panel.background = ggplot2::element_rect(fill = NA, color = "black")
+    # , panel.spacing = ggplot2::unit(1,"lines")
+    , panel.grid.major = ggplot2::element_blank()
+    , panel.grid.minor = ggplot2::element_blank()
+    , axis.text = ggplot2::element_blank()
+    , axis.title = ggplot2::element_blank()
+    , axis.ticks = ggplot2::element_blank()
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
+# ggplot2::ggsave(filename = "../data/matchedpts_rgb_facets.jpg", height = 10.2, width = 9.5, dpi = "print")
+```
+
+```{r, warning=FALSE, message=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
 
 ## Accuracy Results
 
@@ -5351,7 +5478,6 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-
 ```{r, include = F, eval = F}
 # Since you are varying one setting per flight to see how they interact, the interaction model is the correct way to handle this. It treats each unique combination (e.g., 200m + 20mph + Terrain Follow ON) as a specific experimental cell.
 library(brms)
@@ -5430,4 +5556,174 @@ ggplot2::ggplot(int_diff, ggplot2::aes(x = .epred, y = as.factor(flight_agl))) +
 
 
 ```
+
+## Volume Estimates
+
+We'll try to predict volume using National Volume Estimator Library (NVEL) which contains the standard equations used by the USFS for estimating merchantable and total volume.
+
+If the `RForInvt` [package](https://github.com/jstrunk001/RForInvt) was not broken at the time of analysis, I would have use it. Sadly, it was broken and I didn't want to try to fix it (but [see here](https://github.com/jstrunk001/RForInvt/issues/1)?) so....
+
+I followed these steps to manually get volume tables for the species on the PSINF: 
+
+* download the [The Volume Table Generator](https://www.fs.usda.gov/managing-land/forest-management/products/measurement/volume-estimation)
+* unzip the contents and launch "VolumeTable.exe"
+* within the interface on the "Volumes" tab:
+  - Region = "R2 - Rocky Mountain"
+  - Forest = "Pike-San Isabel"
+  - Species = *repeat this whole process manually for each species present*
+  - Volume Equation = *be sure to click "Get Equation Number(s)" with each species update*
+  - Volume Type = *for each species get "Total Cubic" and "Merchantable Cubic"*
+  - Minimum Top Diameter = 0
+* within the interface on the "Table Setup" tab:
+  - Minimum DBH Value = 1
+  - Maximum DBH Value = 99
+  - Product = "Sawtimber: Product 01"
+  - Height Type = "Total Tree Height From Ground to Tip"
+  - Set Height Range for DBH ranges = *for each DBH range use the same MIN HT: 5 and MAX HT: 150*
+  - Select = "5' Height Increment (1/2 Log Increment)"
+* Hit "OK" > "File" > "Export Table" > "As Tree List" > "Save"
+
+```{r, include=FALSE, eval=FALSE}
+# remotes::install_github("jstrunk001/RForInvt")
+library(RForInvt)
+library(DBI)
+#grab list of species
+if(!"dfSpp" %in% ls()){
+  library(RSQLite)
+  db0 <- DBI::dbConnect(
+    RSQLite::SQLite()
+    , system.file(package="RForInvt", "NVEL\\BiomassEqns.db")
+  )
+  dfSpp <- DBI::dbGetQuery(db0, paste("select * from tblspp"))
+  dfCoeff <- DBI::dbGetQuery(db0, paste("select * from BM_EQCoefs"))
+  DBI::dbDisconnect(db0)
+}
+dfSpp %>% dplyr::glimpse()
+dfCoeff %>% dplyr::glimpse()
+if(!"df_fake" %in% ls()){
+  set.seed <- 111
+  nfake_temp <- 88
+
+  df_fake  <- data.frame(
+    treeID=1:nfake_temp
+    , region = 6
+    , forest = "01"
+    , district = "01"
+    , dbh=10*abs(rnorm(nfake_temp))
+    , ht=100*abs(rnorm(nfake_temp))
+    , spcd = sample(unique(dfCoeff$species_code), nfake_temp)
+  )
+
+}
+
+RForInvt::NVEL_volume( dfTL = df_fake )
+# !!!!!!!!!!!!!!! Error in .load_dll(dll_64, dll_32, dll_func_vol) : unused argument (dll_func_vol)  !!!!!!!!!!!!!!!
+
+#get volumes
+RForInvt::NVEL_voleq(region = 2, spcdNm=951, dll_func_voleq = "getvoleq_r", load_dll = T)
+# !!!!!!!!!!!!!!! Error in .load_dll(dll_64, dll_32, dll_func) : unused argument (dll_func)  !!!!!!!!!!!!!!!
+```
+
+let's load in the NVEL volume tables
+
+```{r}
+timber_vol_df <- 
+  list.files("../data/NVEL/", full.names = T) %>% 
+  purrr::set_names() %>% 
+  purrr::map(
+    \(x)
+    # \(x,nm)
+    readr::read_csv(
+      file = x
+      , col_names = c("dbh_in", "ht_5_ft_bin", "volume")
+      , progress = F
+      , show_col_types = F
+    )
+  ) %>% 
+  purrr::list_rbind(names_to = "fnm") %>% 
+  # clean it
+  dplyr::mutate(
+    vol_type = dplyr::case_when(
+      stringr::str_starts(tolower(basename(fnm)), "merch") ~ "merch"
+      , stringr::str_starts(tolower(basename(fnm)), "total") ~ "total"
+      , T ~ "error"
+    )
+    , species_symb = 
+      stringr::str_extract(basename(fnm), "(?<=_)[^._]+(?=\\.[^.]+$)") %>% 
+      toupper()
+  ) %>% 
+  dplyr::select(-fnm) %>% 
+  tidyr::pivot_wider(
+    names_from = vol_type
+    , values_from = volume
+    , names_glue = "{vol_type}_{.value}_ft3"
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      tidyselect::ends_with("volume_ft3")
+       # 1 cubic foot = 0.0283168 cubic meters
+      , ~ .x*0.0283168
+      , .names = "{.col}_m3"
+    )
+  ) %>% 
+  dplyr::rename_with(
+    .cols = tidyselect::ends_with("volume_ft3_m3")
+    , ~ stringr::str_remove(.x,"_ft3")
+  )
+# huh?
+timber_vol_df %>% dplyr::glimpse()
+```
+
+let's see what this looks like
+
+```{r}
+timber_vol_df %>% 
+  dplyr::filter(
+    species_symb!="ABCO"
+    # , species_symb=="POTR5"
+    , dbh_in<=60
+    , ht_5_ft_bin<=100
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(
+      y = dbh_in
+      , x = ht_5_ft_bin
+      , fill = merch_volume_ft3
+    )
+  ) +
+  ggplot2::geom_tile(color = NA, width = 5, height = 1) +
+  # ggplot2::geom_text(color = "white", size = 3) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(species_symb)
+    , ncol = 3
+    # , scales = "free"
+    , axes = "all"
+  ) + 
+  ggplot2::scale_x_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=15)) +
+  ggplot2::scale_y_continuous(expand = c(0, 0), breaks = scales::breaks_extended(n=15)) +
+  # ggplot2::scale_fill_viridis_c(option = "mako", direction=-1, begin = 0.2, end = 0.8) +
+  ggplot2::scale_fill_distiller(palette = "Greens", direction = 1, labels = scales::comma) +
+  ggplot2::labs(
+    x = "height (ft)"
+    , y = "DBH (in)"
+    , fill = "merch. volume (ft3)"
+  ) +
+  ggplot2::theme_light() + 
+  ggplot2::theme(
+    legend.position = "top"
+    # , axis.text.x = ggplot2::element_text(angle = 90, vjust = 0.5, hjust = 1)
+    , panel.background = ggplot2::element_blank()
+    , panel.grid = ggplot2::element_blank()
+    , plot.subtitle = ggplot2::element_text(hjust = 0.5)
+    , strip.text = ggplot2::element_text(color = "black", face = "bold")
+  )
+```
+
+sure?
+
+Because volume estimation requires a species, we need to dig into what information we have on species for both the field-collected and UAS-predicted tree lists
+
+### Field Data
+
+the field data should have species?
 
