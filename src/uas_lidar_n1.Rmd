@@ -3020,7 +3020,7 @@ agg_ground_truth_match_ans %>%
   ggplot2::theme(
     legend.position = "none"
     , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
-    , axis.text.x = ggplot2::element_text(size = 8)
+    , axis.text.x = ggplot2::element_blank()
     , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
   ) +
   ggplot2::guides(
@@ -5887,7 +5887,7 @@ vol_lookup_pred <- tidyr::crossing(
     )
   )
   , vol_lookup %>% 
-    dplyr::filter(species_symbol %in% unique(toupper(validation_trees$spp))) %>% 
+    # dplyr::filter(species_symbol %in% unique(toupper(validation_trees$spp))) %>% 
     dplyr::distinct(species_symbol)
 )
 # predict
@@ -6133,71 +6133,460 @@ validation_trees %>%
   kableExtra::column_spec( seq(2,6,by=2), border_right = TRUE, include_thead = TRUE)
 ```
 
+### Predicted Data
 
+#### Species
 
-```{r, include=FALSE, eval = F}
-ground_truth_prediction_match_ans[[1]] %>% 
-  dplyr::distinct(ref_match_idx) %>% 
-  tidyr::drop_na() %>% 
-  nrow()
-validation_trees %>% nrow()
+`cloud2trees` does not currently include functionality to attach species to it's tree list. there are a few paths forward for performing species-specific workflows with the `cloud2trees` tree list:
 
-ground_truth_prediction_match_ans[[1]] %>% dplyr::filter(ref_match_idx==1) %>% dplyr::select(ref_tree_height_m, ref_dbh_cm)
-validation_trees %>% dplyr::slice(1) %>% dplyr::select(field_tree_height_m, field_dbh_cm)
+1) use the FIA forest type group attached to the tree list via `cloud2trees::cloud2trees(..., estimate_tree_type = T)` or `cloud2trees::trees_type()`. since this process currently only attributes trees with a forest type group, we would need to manually map these groups to a specific species, for example, by selecting the main species for a given type.
+2) use the `regional_dbh_height_model_training_data.csv` file written to the point cloud processing directory when we execute `cloud2trees::cloud2trees(..., estimate_tree_dbh = T)` or `cloud2trees::trees_dbh()` to proportionally allocate tree species to the tree list randomly. For example, if there are 66% PIPO and 34% PSME in the `regional_dbh_height_model_training_data.csv` data, then we could randomly assign 66% of the `cloud2trees` tree list as PIPO and 34% as PSME
+3) use the `regional_dbh_height_model_training_data.csv` file written to the point cloud processing directory when we execute `cloud2trees::cloud2trees(..., estimate_tree_dbh = T)` or `cloud2trees::trees_dbh()` to build a species classification model based on height that would inherently account for the proportional distribution of different species. For example, using [Softmax regression](https://solomon.quarto.pub/dbda2/22.html) or a [random forest classifier](https://insightimi.wordpress.com/2020/05/09/developing-random-forest-classification-in-r/) and then use that model to predict the tree species for our `cloud2trees` list
 
-agg_ground_truth_match_ans <- 
-  ground_truth_prediction_match_ans %>% 
-  purrr::compact() %>% 
-  purrr::map(
-    \(x)
-    agg_ground_truth_match(x) %>% 
-      dplyr::bind_cols(
-        # add ba and stand area
-        x %>% 
-          sf::st_drop_geometry() %>% 
-          dplyr::ungroup() %>% 
-          dplyr::summarise(
-            dplyr::across(
-              c(ref_basal_area_m2,pred_basal_area_m2)
-              , ~sum(.x,na.rm=T)
-            )
-          ) %>% 
-          dplyr::mutate(
-            stand_area_ha = stand_boundary$stand_area_m2[1]/10000
-            , dplyr::across(
-              c(ref_basal_area_m2,pred_basal_area_m2)
-              , ~ .x/stand_area_ha
-              , .names = "{.col}_per_ha"
-            )
-          )
-      ) %>% 
-      # comps not done in agg_ground_truth_match()
-      dplyr::mutate(
-        ref_trees_per_ha = (tp_n+fn_n)/stand_area_ha
-        , pred_trees_per_ha = (tp_n+fp_n)/stand_area_ha
-        # 'diff_' columns are calculated as the predicted value minus the actual value
-        , diff_trees_per_ha = pred_trees_per_ha-ref_trees_per_ha
-        , diff_basal_area_m2 = pred_basal_area_m2-ref_basal_area_m2
-        , diff_basal_area_m2_per_ha = pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha
-        # 'abs_diff_' columns are calculated as the predicted value minus the actual value
-        , abs_diff_trees_per_ha = abs(diff_trees_per_ha)
-        , abs_diff_basal_area_m2 = abs(diff_basal_area_m2)
-        , abs_diff_basal_area_m2_per_ha = abs(diff_basal_area_m2_per_ha)
-        # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
-        , pct_diff_trees_per_ha = (pred_trees_per_ha-ref_trees_per_ha)/ref_trees_per_ha
-        , pct_diff_basal_area_m2 = (pred_basal_area_m2-ref_basal_area_m2)/ref_basal_area_m2
-        , pct_diff_basal_area_m2_per_ha = (pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha)/ref_basal_area_m2_per_ha
-      )
-  ) %>% 
-  purrr::list_rbind(names_to = "folder")
-# add tracking data cols
-agg_ground_truth_match_ans <- tracking_df %>% 
-  dplyr::left_join(
-    agg_ground_truth_match_ans
-    , by = "folder"
+##### Proportional Species
+
+let's start by trying out option (2) which is to simply proportionally allocate the tree species to our tree list
+
+here's what that `regional_dbh_height_model_training_data.csv` file includes, fyi
+
+```{r}
+readr::read_csv(
+  file.path(
+    tracking_df$path[1]
+    , "point_cloud_processing_delivery"
+    , "regional_dbh_height_model_training_data.csv"
   )
-# huh?
-# agg_ground_truth_match_ans %>% dplyr::glimpse()
+  , show_col_types = F
+  , progress = F
+) %>% 
+dplyr::glimpse()
+```
+
+do it (attach species) for all predictions
+
+```{r}
+ground_truth_prediction_match_ans_updt <-
+  tracking_df$folder %>% 
+  purrr::map(function(x){
+    # read training
+    training_df <-
+      readr::read_csv(
+        file.path(
+          tracking_df %>% dplyr::filter(folder==x) %>% dplyr::pull(path)
+          , "point_cloud_processing_delivery"
+          , "regional_dbh_height_model_training_data.csv"
+        )
+        , show_col_types = F
+        , progress = F
+      ) %>% 
+      # get proportion by species
+      dplyr::group_by(species_symbol) %>% 
+      dplyr::summarise(tree_weight = sum(tree_weight)) %>% 
+      dplyr::ungroup() %>% 
+      dplyr::mutate(species_proportion = tree_weight/sum(tree_weight))
+    # training_df %>% dplyr::glimpse()  
+    # make a df of species to join with our predictions
+    pred_ids <-
+      ground_truth_prediction_match_ans[[x]]$pred_match_idx %>% 
+      purrr::discard(~.x==0)
+    set.seed(33)
+    pred_spec_df <-
+      dplyr::tibble(
+        pred_match_idx = pred_ids
+        , pred_species_symbol = 
+          sample(
+            x = training_df$species_symbol
+            , size = length(pred_ids)
+            , prob = training_df$species_proportion
+            , replace = T
+          ) 
+      )
+    # add on to precitions
+    ground_truth_prediction_match_ans <- 
+      ground_truth_prediction_match_ans[[x]] %>% 
+      dplyr::left_join(
+        pred_spec_df
+        , by = "pred_match_idx"
+      ) 
+    # add volume
+    ground_truth_prediction_match_ans <- 
+      ground_truth_prediction_match_ans %>% 
+      # increments for dbh,ht
+      dplyr::mutate(
+        dia = floor(pred_dbh_cm*0.394) %>% as.integer()
+        , ht = floor(pred_tree_height_m*3.281) %>% as.integer()
+        , species_symbol = pred_species_symbol
+      ) %>% 
+      # add on preds
+      dplyr::left_join(
+        vol_lookup_pred
+        , dplyr::join_by(species_symbol,ht,dia)
+        , relationship = "many-to-one"
+      ) %>% 
+      # add on fia
+      dplyr::left_join(
+        vol_lookup %>% dplyr::select(species_symbol,ht,dia,tidyselect::contains("_volume_"))
+        , dplyr::join_by(species_symbol,ht,dia)
+        , relationship = "many-to-one"
+      ) %>% 
+      # fill in missing fia volume
+      dplyr::mutate(
+        net_volume_ft3 = ifelse(is.na(net_volume_ft3), pred_net_volume_ft3, net_volume_ft3) %>% 
+          # any species not in the FIA data are set to zero (probs not timber...JUSC2,QUGA)
+          dplyr::coalesce(0) # smallest of trees
+        , grs_volume_ft3 = ifelse(is.na(grs_volume_ft3), pred_grs_volume_ft3, grs_volume_ft3) %>% 
+          # any species not in the FIA data are set to zero (probs not timber...JUSC2,QUGA)
+          dplyr::coalesce(0) # smallest of trees
+        , net_volume_m3 = ifelse(is.na(net_volume_m3), pred_net_volume_m3, net_volume_m3) %>% 
+          # any species not in the FIA data are set to zero (probs not timber...JUSC2,QUGA)
+          dplyr::coalesce(0) # smallest of trees
+        , grs_volume_m3 = ifelse(is.na(grs_volume_m3), pred_grs_volume_m3, grs_volume_m3) %>% 
+          # any species not in the FIA data are set to zero (probs not timber...JUSC2,QUGA)
+          dplyr::coalesce(0) # smallest of trees
+      ) %>% 
+      dplyr::select(
+        -tidyselect::starts_with("pred_net_volume")
+        ,-tidyselect::starts_with("pred_grs_volume")
+        , -c(dia,ht,species_symbol)
+      ) %>% 
+      dplyr::rename_with(
+        .cols = c(tidyselect::starts_with("grs_volume_"),tidyselect::starts_with("net_volume_"))
+        , ~ paste0("pred_",.x,recycle0 = T)
+      )
+    return(ground_truth_prediction_match_ans)
+  })
+names(ground_truth_prediction_match_ans_updt) <- tracking_df$folder
+```
+
+let's check out an example distribution of species for one of the UAS flights
+
+```{r}
+# wut
+ground_truth_prediction_match_ans_updt[[1]] %>%
+  dplyr::filter(pred_match_idx!=0) %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::count(pred_species_symbol) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    pct = scales::percent(n/sum(n), accuracy = 0.1)
+    , n = scales::comma(n)
+  ) %>% 
+  kableExtra::kbl(
+    caption = "predicted species distribution based on proportional allocation"
+    , col.names = c("species symbol","n", "%")
+  ) %>% 
+  kableExtra::kable_styling()
 
 ```
+
+looks good
+
+aggregate predicted volume within the stand by flight and attach to the aggregated data so we can calculate prediction error
+
+```{r}
+agg_ground_truth_match_ans <- 
+  agg_ground_truth_match_ans %>% 
+  dplyr::left_join(
+    ground_truth_prediction_match_ans_updt %>%
+      purrr::list_rbind(names_to = "folder") %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
+      dplyr::select(
+        folder
+        , pred_match_idx
+        , c(tidyselect::starts_with("pred_") & tidyselect::contains("_volume_"))
+      ) %>% 
+      dplyr::group_by(folder) %>% 
+      dplyr::summarize(
+        dplyr::across(
+          .cols = tidyselect::contains("_volume_")
+          , sum
+        )
+        # , n_trees = dplyr::n()
+      ) %>% 
+      dplyr::ungroup()
+    , by = "folder"
+  ) %>% 
+  # diff cols
+  dplyr::mutate(
+    # 'diff_' columns are calculated as the predicted value minus the actual value
+    diff_net_volume_m3 = pred_net_volume_m3-ref_net_volume_m3
+    , diff_grs_volume_m3 = pred_grs_volume_m3-ref_grs_volume_m3
+    # 'abs_diff_' columns are calculated as the predicted value minus the actual value
+    , abs_diff_net_volume_m3 = abs(diff_net_volume_m3)
+    , abs_diff_grs_volume_m3 = abs(diff_grs_volume_m3)
+    # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
+    , pct_diff_net_volume_m3 = (pred_net_volume_m3-ref_net_volume_m3)/ref_net_volume_m3
+    , pct_diff_grs_volume_m3 = (pred_grs_volume_m3-ref_grs_volume_m3)/ref_grs_volume_m3
+  )
+```
+
+table that
+
+```{r}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    ref_trees = tp_n+fn_n
+    , pred_trees = tp_n+fp_n
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # , site_area_m2
+    # detection
+    , ref_trees
+    , pred_trees
+    # quantification
+    , tidyselect::ends_with("_volume_m3")
+  ) %>% 
+  dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "On"
+      , !flight_tf ~ "Off"
+      , T ~ "error"
+    )
+    , dplyr::across(
+      .cols = c(
+        tidyselect::starts_with("pct_diff_")
+        , tidyselect::ends_with("_rate")
+      )
+      , .fn = ~ scales::percent(.x, accuracy = .1)
+    )
+    , dplyr::across(
+      .cols = c(flight_agl,flight_mph,tidyselect::ends_with("_trees"))
+      , .fn = ~ scales::comma(.x, accuracy = 1)
+    )
+    , dplyr::across(
+      .cols = dplyr::where(is.numeric)
+      , .fn = ~ scales::comma(.x, accuracy = 0.1)
+    )
+    # # one column for diff/pct
+    , diff_net_volume_m3 = paste0(diff_net_volume_m3, "<br>(", pct_diff_net_volume_m3, ")")
+    , diff_grs_volume_m3 = paste0(diff_grs_volume_m3, "<br>(", pct_diff_grs_volume_m3, ")")
+  ) %>% 
+  dplyr::select(
+    !tidyselect::starts_with("pct_diff_")
+  ) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    -c(
+      dataset_factor
+    )
+  ) %>% 
+  dplyr::select(
+    tidyselect::starts_with("flight_")
+    , tidyselect::ends_with("_trees")
+    , tidyselect::contains("grs_volume")
+    , tidyselect::contains("net_volume")
+  ) %>% 
+  # dplyr::glimpse()
+  kableExtra::kbl(
+    caption = "Volume: Stand-Level Accuracy"
+    , col.names = c(
+      "altitude (ft)", "speed (mph)", "Terrain Follow"
+      , "reference", "predicted"
+      , rep(c("reference","predicted","difference"), times = 2)
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11.5) %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=3
+      , "# Trees" = 2
+      # , "Area" = 3
+      , "Gross<br />Volume m<sup>3</sup>" = 3
+      , "Net<br />Volume m<sup>3</sup>" = 3
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec( c(3,seq(5,11,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+```
+
+plot
+
+```{r, fig.height=8}
+agg_ground_truth_match_ans %>% 
+  dplyr::select(
+    dataset_factor
+    , pct_diff_net_volume_m3
+    , pct_diff_grs_volume_m3
+  ) %>% 
+  dplyr::mutate(
+    tot = -1* (abs(pct_diff_net_volume_m3) + abs(pct_diff_grs_volume_m3))
+  ) %>% 
+  tidyr::pivot_longer(cols = -c(dataset_factor,tot)) %>% 
+  dplyr::mutate(
+    name = dplyr::recode_values(
+      name
+      , "pct_diff_net_volume_m3" ~ latex2exp::TeX("Net volume $m^{3}$", output = "character")
+      , "pct_diff_grs_volume_m3" ~ latex2exp::TeX("Gross volume $m^{3}$", output = "character")
+    )
+    , value_lab = scales::percent(value,accuracy=0.1)
+  ) %>% 
+
+ggplot2::ggplot(
+  mapping = ggplot2::aes(
+    y = reorder(dataset_factor, tot)
+    , x = value
+    , group = name
+  )
+) +
+  ggplot2::geom_vline(xintercept = 0, color = "gray95", lwd = 1.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.05,-0.05), color = "gray77", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.1,-0.1), color = "gray55", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.15,-0.15), color = "gray33", lwd = 0.5, alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = c(0.2,-0.2), color = "gray11", lwd = 0.5) +
+  ggplot2::geom_segment(
+    mapping = ggplot2::aes(yend = dataset_factor, xend = 0,color = value > 0)
+    # , color = "gray44"
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = value > 0)
+    , size = 3
+  ) +
+  # lhs labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,value<0)}
+    , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
+    # , color = "black"
+    , size = 3
+    , nudge_x = -0.006
+    , hjust = 1
+  ) +
+  # rhs labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,value>=0)}
+    , mapping = ggplot2::aes(label = value_lab, fontface = "bold")
+    # , color = "black"
+    , size = 3
+    , nudge_x = 0.006
+    , hjust = 0
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(name)
+    # , labeller = ggplot2::label_parsed
+    , labeller = ggplot2::as_labeller(
+      function(x) {
+        paste0("atop(", x, ", 'percent error')")
+      }
+      , default = ggplot2::label_parsed
+    )
+  ) +
+  ggplot2::scale_color_manual(values = c("firebrick","navy")) +
+  ggplot2::scale_x_continuous(
+    limits = c(-0.2,0.2)
+    , labels = scales::percent
+    # , breaks = scales::breaks_extended(n=10)
+    # , breaks = function(x) seq(min(x), max(x), by = 0.05)
+  ) +
+  ggplot2::labs(
+    y = "" # "comparison"
+    , x = "percent error"
+    , subtitle = "positive = UAS-measured higher than field-measured\nnegative = UAS-measured lower than field-measured"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "none"
+    , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
+    # , plot.subtitle = ggplot2::element_text(hjust = 1)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+    , panel.grid.major.x = element_blank()
+    , panel.grid.minor.x = element_blank()
+  )
+```
+
+another plot
+
+```{r, fig.height=8.5}
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    flight_tf = dplyr::case_when(
+      flight_tf ~ "terrain follow: On"
+      , !flight_tf ~ "terrain follow: Off"
+      , T ~ "error"
+    )
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # , diff_basal_area_m2_per_ha
+    , tidyselect::ends_with("_net_volume_m3")
+  ) %>% 
+  dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
+  tidyr::pivot_longer(cols = c(ref_net_volume_m3, pred_net_volume_m3)) %>% 
+  dplyr::mutate(
+    name = dplyr::recode_values(
+      name
+      , "ref_net_volume_m3" ~ "field"
+      , "pred_net_volume_m3" ~ "prediction"
+    )
+    , value_lab = scales::comma(value,accuracy=0.1)
+  ) %>% 
+  
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = name, y = value, group = dataset_factor)
+  ) +
+  ggplot2::geom_line(key_glyph = "point", alpha = 0.7, color = "gray", lwd = 1.1) +
+  # ref labs
+  ggplot2::geom_text(
+    data = function(x){dplyr::filter(x,name=="field")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  # pred labs
+  ggrepel::geom_text_repel(
+    data = function(x){dplyr::filter(x,name=="prediction")}
+    , mapping = ggplot2::aes(label = value_lab)
+    , size = 2.3
+    , hjust = 0.5, vjust = 2.2
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = flight_tf)
+    # mapping = ggplot2::aes(color = name)
+    # , alpha = 0.7
+    , size = 4
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(flight_agl)
+    , rows = dplyr::vars(flight_mph)
+    , labeller = ggplot2::labeller( 
+      flight_agl = ~paste("Altitude:", .x, " (ft)") 
+      , flight_mph = ~paste("Speed:", .x, " (mph)") 
+    )
+    , axes = "all_x"
+  ) +
+  # harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  ggplot2::scale_color_manual(values = c("gray55","gray11"), guide = "none") +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=10)
+    , expand = ggplot2::expansion(mult = c(0.01,0.1))
+  ) +
+  ggplot2::labs(
+    x = "" # "comparison"
+    , y = latex2exp::TeX("Net Volume $m^{3}$")
+    , color = ""
+    , subtitle = latex2exp::TeX("Predicted vs Reference Stand Net Volume ($m^{3}$)")
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , axis.text.x = ggplot2::element_text(size = 10, face = "bold", color = "black")
+    , axis.text.y = ggplot2::element_text(size = 7)
+    , axis.title.y = ggplot2::element_text(size = 7)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(shape = 15, size = 6, linetype = 0)
+    )
+  )
+```
+
+
+ok
 
