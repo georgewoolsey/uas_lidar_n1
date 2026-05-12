@@ -6587,6 +6587,455 @@ agg_ground_truth_match_ans %>%
   )
 ```
 
-
 ok
+
+##### Predicted Species
+
+let's demo option (3) to use the TreeMap imputed FIA plot tree list to build a species classification model based on height and tree location to attach tree species to our tree list. such a model would inherently account for the proportional distribution of different species. We'll try using [Softmax regression](https://solomon.quarto.pub/dbda2/22.html) with a model trained on the FIA tree list data to predict the tree species for our `cloud2trees` list.
+
+For the Softmax regression model the categorical (i.e. nominal) tree species will be our dependent variable and the most simple model will use tree height and tree location (X and Y coordinates) as independent variables. The training FIA tree list data (identified from the TreeMap imputed plots of the area of interest) includes tree height and we'll use the centroid of the TreeMap 30m raster cell to represent the individual tree X and Y location (i.e. each tree within the same cell will have the same coordinate). Considering the combined tree height and spatial location via a full interaction model (i.e. `height*x*y`) allows the model to capture how the species-height relationship varies across space.
+
+An alternative model specification would be to use a hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle redundant TreeMap imputed plots. However, hierarchical models in `brms` can be computationally expensive because the model has to estimate a separate coefficients for every species. Thus, we'll start with the interaction model (`height*x*y`) and treat space as a smooth surface since interpretation of the model coefficients is not really needed for our purposes, just the predictions.
+
+load in the TreeMap data and clip to our trees as in `cloud2trees::trees_dbh()`
+
+```{r}
+# where?
+treemap_data_finder_ans_temp <- cloud2trees:::find_ext_data()[["treemap_dir"]] %>% 
+  cloud2trees:::treemap_data_finder()
+# treemap_data_finder_ans_temp
+
+# read in treemap data
+# read in treemap (no memory is taken)
+treemap_rast <- terra::rast(treemap_data_finder_ans_temp$treemap_rast)
+# treemap_rast
+### filter treemap based on trees now in memory
+treemap_rast <- treemap_rast %>%
+  terra::crop(
+    predicted_trees %>%
+      purrr::list_rbind() %>% 
+      sf::st_bbox() %>%
+      sf::st_as_sfc() %>%
+      sf::st_buffer(50) %>%
+      sf::st_union() %>%
+      sf::st_transform(terra::crs(treemap_rast)) %>%
+      terra::vect()
+  ) %>%
+  terra::subset(1)
+# treemap_rast
+# terra::plot(treemap_rast)
+# terra::plot(treemap_rast, levels = NULL)
+# treemap_rast %>% 
+#   terra::catalyze() %>% 
+#   terra::subset(1) %>% 
+#   terra::as.factor() %>%
+#   terra::plot()
+
+### get weights for weighting each tree in the population models
+# treemap id = tm_id for linking to tabular data
+tm_id_weight_temp <- treemap_rast %>% ## works
+  terra::values() %>%
+  table() %>%
+  dplyr::as_tibble() %>%
+  dplyr::rename(tm_id=1,tree_weight=n) %>%
+  dplyr::mutate(tm_id = cloud2trees:::as_character_safe(tm_id))
+# tm_id_weight_temp
+
+############################################################################
+### get the TreeMap FIA tree list for only the plots included
+############################################################################
+if(treemap_data_finder_ans_temp$which_treemap==2022){
+  treemap_cols <- c(
+    "TM_ID"
+    , "PLT_CN"
+    , "SPECIES_SYMBOL"
+    , "STATUSCD"
+    , "DIA"
+    , "HT"
+    , "CR" # crown ratio
+  )
+}else if(treemap_data_finder_ans_temp$which_treemap==2016){
+  treemap_cols <- c(
+    "tm_id"
+    , "CN"
+    , "SPECIES_SYMBOL"
+    , "STATUSCD"
+    , "DIA"
+    , "HT"
+    , "CR" # crown ratio
+  )
+}else{
+  stop("unknown TreeMap vintage")
+}
+### read it
+# treemap_data_finder_ans$treemap_trees
+treemap_trees_df <-
+  readr::read_csv(
+    treemap_data_finder_ans_temp$treemap_trees
+    , col_select = treemap_cols
+    , progress = F
+    , show_col_types = F
+  ) %>%
+  dplyr::rename_with(tolower)
+# rename cn to fit with original table str
+if(treemap_data_finder_ans_temp$which_treemap==2022){
+  treemap_trees_df <- treemap_trees_df %>% dplyr::rename(cn = plt_cn)
+}
+# clean it
+treemap_trees_df <-
+  treemap_trees_df %>%
+  dplyr::mutate(
+    cn = cloud2trees:::as_character_safe(cn)
+    , tm_id = cloud2trees:::as_character_safe(tm_id)
+    , cr = ifelse(cr>100|cr<0,NA,cr)*0.01
+  ) %>%
+  dplyr::inner_join(
+    tm_id_weight_temp
+    , by = dplyr::join_by("tm_id")
+  ) %>%
+  dplyr::filter(
+    # keep live trees only: 1=live;2=dead
+    statuscd == 1
+    & !is.na(dia)
+    & !is.na(ht)
+    & !is.na(tree_weight)
+  ) %>%
+  dplyr::mutate(
+    dbh_cm = dia*2.54
+    , tree_height_m = ht*0.3048
+    , tm_id = as.factor(tm_id)
+    # # normalize ht
+    # , ht_wt_mean = sum(tree_height_m * tree_weight) / sum(tree_weight)
+    # , ht_wt_sd = sqrt( sum(tree_weight * (tree_height_m - ht_wt_mean)^2 ) / sum(tree_weight) )
+    # , ht_z = (tree_height_m - ht_wt_mean) / ht_wt_sd
+  ) %>%
+  dplyr::select(-c(statuscd,dia,ht,cr)) # maybe we can use cr in a future version with and NSUR approach
+
+# !!!!!!! use this if using hierarchical model with slope and intercept varying by plot and weights for repeated plot ids
+# !!!!!!! since spatial location is captured by the plot id (tm_id)
+# treemap_trees_df %>% dplyr::glimpse()
+
+# we need the spatial information from the raster...
+treemap_tree_list_df <- 
+  treemap_rast %>% 
+  terra::catalyze() %>% 
+  terra::subset(1) %>% 
+  terra::as.data.frame(xy = T) %>% 
+  dplyr::rename(tm_id=3) %>% 
+  dplyr::mutate(
+    tm_id = cloud2trees:::as_character_safe(tm_id)
+  ) %>% 
+  # add on the tree data in which a row is unique by tm_id and the tree (which doesn't have an id so we'll fake one)
+  dplyr::inner_join(
+    treemap_trees_df %>% 
+      dplyr::ungroup() %>% 
+      dplyr::mutate(
+        tree_id = dplyr::row_number()
+        , tm_id = as.character(tm_id)
+      )
+    , by = "tm_id"
+    , relationship = "many-to-many"
+  ) %>% 
+  dplyr::mutate(
+    # to factor
+    tm_id = forcats::fct_relevel(tm_id, levels(treemap_trees_df$tm_id) )
+  )
+  # a row is now unique by x,y,tree_id and the number of rows per tree_id = tree_weight
+```
+
+what's in the FIA tree list using the TreeMap imputed plots filtered for our area of interest?
+
+```{r}
+treemap_tree_list_df %>% dplyr::glimpse()
+```
+
+this is essentially the same thing as `regional_dbh_height_model_training_data.csv` that we reviewed above, but we added the spatial x and y coordinates
+
+before we build the model we need to scale the x, y, and height data but we need to be sure to scale both the training and data to be predicted using the same scale so we use data on the same scale across both data. Centering and scaling the x, y, and height variables puts the center of the area of interest (weighted by number of trees) at the "zero" point and resolves the sign (i.e. +/-) conflicts of the coordinate system (i.e. UTMs) by making the signs represent relative direction (north vs south) rather than arbitrary coordinate origins. we also need to convert the tree species in the training data to factor from character data type.
+
+```{r}
+# scale fn
+my_scale_fn <- function(x, ref_mean, ref_sd) {
+  (x - ref_mean) / ref_sd
+}
+
+# ref values from training data
+train_stats_temp <- list(
+  x_mean = mean(treemap_tree_list_df$x, na.rm = T)
+  , x_sd   = sd(treemap_tree_list_df$x, na.rm = T)
+  , y_mean = mean(treemap_tree_list_df$y, na.rm = T)
+  , y_sd   = sd(treemap_tree_list_df$y, na.rm = T)
+  , h_mean = mean(treemap_tree_list_df$tree_height_m, na.rm = T)
+  , h_sd   = sd(treemap_tree_list_df$tree_height_m, na.rm = T)
+)
+# train_stats_temp
+
+# apply to training data
+treemap_tree_list_df <- 
+  treemap_tree_list_df %>% 
+  dplyr::mutate(
+    x_z = my_scale_fn(x, train_stats_temp$x_mean, train_stats_temp$x_sd)
+    , y_z = my_scale_fn(y, train_stats_temp$y_mean, train_stats_temp$y_sd)
+    , ht_z = my_scale_fn(tree_height_m, train_stats_temp$h_mean, train_stats_temp$h_sd)
+    , species_symbol = as.factor(species_symbol)
+    , tm_id = as.factor(tm_id)
+  )
+# treemap_tree_list_df %>% dplyr::glimpse()
+# treemap_tree_list_df %>% dplyr::select(x_z,y_z,ht_z) %>% summary()
+# apply to prediction data
+# !!! use the train_stats_temp here, NOT the prediction data mean/sd
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+
+predicted_trees <-
+  predicted_trees %>% 
+  purrr::map(function(x){
+    orig_crs <- sf::st_crs(x)
+    # z val of x,y,ht
+    dta_temp <- 
+      x %>% 
+      sf::st_transform(terra::crs(treemap_rast)) %>% 
+      dplyr::mutate(
+        xxx = sf::st_coordinates(.)[,1]
+        , yyy = sf::st_coordinates(.)[,2]
+        , x_z = my_scale_fn(xxx, train_stats_temp$x_mean, train_stats_temp$x_sd)
+        , y_z = my_scale_fn(yyy, train_stats_temp$y_mean, train_stats_temp$y_sd)
+        , ht_z = my_scale_fn(tree_height_m, train_stats_temp$h_mean, train_stats_temp$h_sd)
+      ) %>% 
+      dplyr::select(-c(xxx,yyy))
+    # add tm_id
+    tmids_temp <- 
+      terra::extract(
+        x = treemap_rast %>% 
+          terra::catalyze() %>% 
+          terra::subset(1)
+        , y = dta_temp %>% 
+          terra::vect()
+      ) %>% 
+      dplyr::rename_with(tolower) %>% 
+      dplyr::mutate(
+        tm_id = cloud2trees:::as_character_safe(tm_id) %>% 
+          forcats::as_factor() %>% 
+          forcats::fct_expand( levels(treemap_trees_df$tm_id) ) %>% 
+          forcats::fct_relevel( levels(treemap_trees_df$tm_id) )
+      )
+    dta_temp$tm_id <- tmids_temp$tm_id
+    # orig_crs
+    dta_temp <- dta_temp %>% sf::st_transform(orig_crs)
+    return(dta_temp)
+  })
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+# predicted_trees[[1]] %>% ggplot2::ggplot() + ggplot2::geom_sf(mapping = ggplot2::aes(color=tm_id))
+```
+
+let's quickly look at the training data predictions over the independent variables of height and x, y
+
+```{r}
+pal_temp <- 
+  length(unique(treemap_tree_list_df$species_symbol)) %>% 
+  # RColorBrewer::brewer.pal(name = "Set2") %>% 
+  viridis::turbo() %>% 
+  setNames(
+    as.character(unique(treemap_tree_list_df$species_symbol))
+  )
+# x,y
+plt1_temp <-
+  treemap_tree_list_df %>% 
+  dplyr::slice_sample(n = 1111) %>% 
+  dplyr::mutate(flab = "Y coord vs X coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = x_z, y = y_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 3) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "x", y = "y"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt1_temp
+
+# ht,x
+plt2_temp <-
+  treemap_tree_list_df %>% 
+  dplyr::slice_sample(n = 1111) %>% 
+  dplyr::mutate(flab = "Height vs X coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = x_z, y = ht_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 1.8) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "x", y = "tree height (z)"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt2_temp
+
+# ht,y
+plt3_temp <-
+  treemap_tree_list_df %>% 
+  dplyr::slice_sample(n = 1111) %>% 
+  dplyr::mutate(flab = "Height vs Y coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = y_z, y = ht_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 1.8) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "y", y = "tree height (z)"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt3_temp
+patchwork::wrap_plots(list(plt2_temp,plt3_temp,plt1_temp), ncol = 2)
+# ggplot2::ggsave(filename = "../data/spec_predictors_ex.jpg", height = 10.5, width = 9, dpi = "print")
+```
+
+Softmax model it
+
+```{r, results=F, message=F, warning=F}
+# softmax regression with spatial interaction
+brms_spec_i_mod <- brms::brm(
+  formula = species_symbol ~ ht_z * (x_z + y_z)
+  , data = treemap_tree_list_df
+  , family = brms::categorical(link = "logit")
+  # , prior = c(
+  #   brms::prior(normal(0, 5), class = "b"),
+  #   brms::prior(normal(0, 5), class = "Intercept")
+  # )
+  , iter = 5000, warmup = 2500, chains = 4
+  , cores = lasR::half_cores()
+  , file = paste0("../data/", "species_model")
+  # , file_refit = "always" # uncomment for c2t
+)
+# # #  Elapsed Time: 1500.86 seconds (Warm-up)
+# # #                1839.83 seconds (Sampling)
+# # #                3340.68 seconds (Total)
+```
+
+*9.3 hours later...*
+
+this Softmax model with tree-level data was super slowwwwww and won't work for integration within `cloud2trees`
+
+let's try the hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle redundant TreeMap imputed plots.
+
+```{r, include=FALSE, eval=FALSE}
+# let's try to bin the heights in ~~1~~ 2 m increments and then count the number of trees by plot, x, y, height bin, and species and then use the `weights()` in the `brms::brm()` formula
+
+# apply to training data
+ht_bin_size_temp <- 2
+treemap_trees_df <- 
+  treemap_trees_df %>% 
+  dplyr::mutate(
+    ht_bin = round(tree_height_m/ht_bin_size_temp)*ht_bin_size_temp
+    , ht_bin_z = my_scale_fn(ht_bin, train_stats_temp$h_mean, train_stats_temp$h_sd)
+  )
+# treemap_trees_df %>% dplyr::glimpse()
+
+# apply to prediction data
+# !!! use the train_stats_temp here, NOT the prediction data mean/sd
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+predicted_trees <-
+  predicted_trees %>% 
+  purrr::map(
+    \(x)
+    x %>% 
+      sf::st_transform(terra::crs(treemap_rast)) %>% 
+      dplyr::mutate(
+        ht_bin = round(tree_height_m/ht_bin_size_temp)*ht_bin_size_temp
+        , ht_bin_z = my_scale_fn(ht_bin, train_stats_temp$h_mean, train_stats_temp$h_sd)
+      ) %>% 
+      dplyr::select(-c(ht_bin))
+  )
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+```
+
+```{r, results=F, message=F, warning=F}
+# treemap_trees_df %>% dplyr::glimpse()
+# hierarchical model with slope and intercept varying by plot and weights for repeated plot ids
+# treemap_trees_df %>% dplyr::distinct(tm_id,tree_id,tree_weight,tree_height_m,species_symbol) %>% dplyr::glimpse()
+brms_spec_h_mod <- 
+  brms::brm(
+    formula = brms::bf(species_symbol | weights(tree_weight) ~ 1 + tree_height_m + (1 + tree_height_m | tm_id))
+    # formula = brms::bf(species_symbol | weights(tree_weight) ~ 1 + ht_z + (1 + ht_z | tm_id))
+    , data = treemap_trees_df
+    , family = brms::categorical(link = "logit")
+    # , prior = c(
+    #   brms::prior(normal(0, 5), class = "b")
+    #   brms::prior(exponential(1), class = "sd")
+    # )
+    , iter = 5000, warmup = 2500, chains = 4
+    , cores = lasR::half_cores()
+    , file = paste0("../data/", "species_model_h")
+    # , control = list(adapt_delta = 0.98)
+    # , file_refit = "always" # uncomment for c2t
+  )
+# # #                1048.05 seconds (Total) ... tm_id as character
+# # #                2136.31 seconds (Total) ... non-norm ht, tm_id factor
+# # #                2163.11 seconds (Total) ... norm ht, tm_id factor
+```
+
+let's compare the model estimates
+
+```{r}
+pred_i_mod_temp <- predict(brms_spec_i_mod, newdata = predicted_trees[[1]])
+pred_h_mod_temp <- predict(brms_spec_h_mod, newdata = predicted_trees[[1]])
+```
+
+huh?
+
+```{r}
+pred_h_mod_temp %>% dplyr::glimpse()
+```
 
