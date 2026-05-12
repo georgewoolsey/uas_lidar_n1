@@ -7036,6 +7036,12 @@ pred_h_mod_temp <- predict(brms_spec_h_mod, newdata = predicted_trees[[1]])
 huh?
 
 ```{r}
+pred_h_mod_temp %>% dimnames()
 pred_h_mod_temp %>% dplyr::glimpse()
+# find index of max column for each row
+max_col_idx_temp <- max.col(pred_h_mod_temp, ties.method = "first")
+# get the actual names using the indices
+max_col_names <- colnames(pred_h_mod_temp)[max_col_idx_temp]
+max_col_names %>% table()
 ```
 
