@@ -2642,8 +2642,16 @@ ground_truth_prediction_match_ans <-
       dplyr::left_join(
         rp$pred_data %>% 
           sf::st_drop_geometry() %>% 
-          dplyr::select(pred_match_idx, is_in_stand)
+          dplyr::select(pred_match_idx, is_in_stand, treeID) %>% 
+          dplyr::rename(pred_tree_id = treeID)
         , by = "pred_match_idx"
+      ) %>% 
+      dplyr::left_join(
+        rp$ref_data %>% 
+          sf::st_drop_geometry() %>% 
+          dplyr::select(ref_match_idx, field_tree_id) %>% # we know the id is this
+          dplyr::rename(ref_tree_id = field_tree_id)
+        , by = "ref_match_idx"
       ) %>% 
       dplyr::filter(
         !(!is_in_stand & match_grp=="commission")
@@ -5561,7 +5569,7 @@ ggplot2::ggplot(int_diff, ggplot2::aes(x = .epred, y = as.factor(flight_agl))) +
 
 We'll try to predict volume using National Volume Estimator Library (NVEL) which contains the standard equations used by the USFS for estimating merchantable and total volume.
 
-If the `RForInvt` [package](https://github.com/jstrunk001/RForInvt) was not broken at the time of analysis, I would have use it. Sadly, it was broken and I didn't want to try to fix it (but [see here](https://github.com/jstrunk001/RForInvt/issues/1)?) so....
+If the `RForInvt` [package](https://github.com/jstrunk001/RForInvt) was not broken at the time of analysis, I would have used it. Sadly, it was broken and I didn't want to try to fix it (but [see here](https://github.com/jstrunk001/RForInvt/issues/1)?) so....
 
 try the `rFIA` package, get the tree list which already has volume applied to the trees, make a volume lookup table by species, DBH (1 inch increments), and height (1 foot increments)
 
@@ -5800,7 +5808,6 @@ timber_vol_df %>% dplyr::glimpse()
 let's see what this looks like for the net volume where...
 
 >The net volume of wood in the central stem of timber species (trees where diameter is measured at breast height >= 5.0 inches d.b.h., from a 1-foot stump to a minimum 4-inch top diameter, or to where the central stem breaks into limbs all of which are <4.0 inches in diameter...Does not include rotten, missing, and form cull (volume loss due to rotten, missing, and form cull defect has been deducted)...gross volume is identical to the net volume definition except that gross includes volume from portions of the stem that are rotten, missing, and considered form cull. ([https://doserlab.com/files/rfia/articles/biomassvolume](https://doserlab.com/files/rfia/articles/biomassvolume))
-
 
 ```{r}
 vol_lookup %>% 
@@ -6589,13 +6596,15 @@ agg_ground_truth_match_ans %>%
 
 ok
 
-##### Predicted Species
+## Predict Species
 
 let's demo option (3) to use the TreeMap imputed FIA plot tree list to build a species classification model based on height and tree location to attach tree species to our tree list. such a model would inherently account for the proportional distribution of different species. We'll try using [Softmax regression](https://solomon.quarto.pub/dbda2/22.html) with a model trained on the FIA tree list data to predict the tree species for our `cloud2trees` list.
 
 For the Softmax regression model the categorical (i.e. nominal) tree species will be our dependent variable and the most simple model will use tree height and tree location (X and Y coordinates) as independent variables. The training FIA tree list data (identified from the TreeMap imputed plots of the area of interest) includes tree height and we'll use the centroid of the TreeMap 30m raster cell to represent the individual tree X and Y location (i.e. each tree within the same cell will have the same coordinate). Considering the combined tree height and spatial location via a full interaction model (i.e. `height*x*y`) allows the model to capture how the species-height relationship varies across space.
 
 An alternative model specification would be to use a hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle redundant TreeMap imputed plots. However, hierarchical models in `brms` can be computationally expensive because the model has to estimate a separate coefficients for every species. Thus, we'll start with the interaction model (`height*x*y`) and treat space as a smooth surface since interpretation of the model coefficients is not really needed for our purposes, just the predictions.
+
+### Training Data
 
 load in the TreeMap data and clip to our trees as in `cloud2trees::trees_dbh()`
 
@@ -6704,6 +6713,7 @@ treemap_trees_df <-
     dbh_cm = dia*2.54
     , tree_height_m = ht*0.3048
     , tm_id = as.factor(tm_id)
+    , species_symbol = factor(species_symbol)
     # # normalize ht
     # , ht_wt_mean = sum(tree_height_m * tree_weight) / sum(tree_weight)
     # , ht_wt_sd = sqrt( sum(tree_weight * (tree_height_m - ht_wt_mean)^2 ) / sum(tree_weight) )
@@ -6777,7 +6787,7 @@ treemap_tree_list_df <-
     x_z = my_scale_fn(x, train_stats_temp$x_mean, train_stats_temp$x_sd)
     , y_z = my_scale_fn(y, train_stats_temp$y_mean, train_stats_temp$y_sd)
     , ht_z = my_scale_fn(tree_height_m, train_stats_temp$h_mean, train_stats_temp$h_sd)
-    , species_symbol = as.factor(species_symbol)
+    , species_symbol = factor(species_symbol)
     , tm_id = as.factor(tm_id)
   )
 # treemap_tree_list_df %>% dplyr::glimpse()
@@ -6829,13 +6839,13 @@ predicted_trees <-
 
 let's quickly look at the training data predictions over the independent variables of height and x, y
 
-```{r}
-pal_temp <- 
-  length(unique(treemap_tree_list_df$species_symbol)) %>% 
+```{r, fig.height = 10.5, fig.width = 8.7}
+pal_species <- 
+  length(unique(treemap_trees_df$species_symbol)) %>% 
   # RColorBrewer::brewer.pal(name = "Set2") %>% 
   viridis::turbo() %>% 
   setNames(
-    as.character(unique(treemap_tree_list_df$species_symbol))
+    as.character(unique(treemap_trees_df$species_symbol))
   )
 # x,y
 plt1_temp <-
@@ -6858,7 +6868,7 @@ plt1_temp <-
   ) +
   ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
   # ggplot2::scale_color_discrete(palette = "Set2") + 
-  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::scale_color_manual(values = pal_species) +
   ggplot2::coord_equal() + 
   ggplot2::labs(
     x = "x", y = "y"
@@ -6892,7 +6902,7 @@ plt2_temp <-
   ) +
   ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
   # ggplot2::scale_color_discrete(palette = "Set2") + 
-  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::scale_color_manual(values = pal_species) +
   ggplot2::coord_equal() + 
   ggplot2::labs(
     x = "x", y = "tree height (z)"
@@ -6926,7 +6936,7 @@ plt3_temp <-
   ) +
   ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
   # ggplot2::scale_color_discrete(palette = "Set2") + 
-  ggplot2::scale_color_manual(values = pal_temp) +
+  ggplot2::scale_color_manual(values = pal_species) +
   ggplot2::coord_equal() + 
   ggplot2::labs(
     x = "y", y = "tree height (z)"
@@ -6942,9 +6952,16 @@ patchwork::wrap_plots(list(plt2_temp,plt3_temp,plt1_temp), ncol = 2)
 # ggplot2::ggsave(filename = "../data/spec_predictors_ex.jpg", height = 10.5, width = 9, dpi = "print")
 ```
 
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+### Predictions
+
 Softmax model it
 
-```{r, results=F, message=F, warning=F}
+```{r, results=F, message=F, warning=F, include=TRUE, eval=FALSE}
 # softmax regression with spatial interaction
 brms_spec_i_mod <- brms::brm(
   formula = species_symbol ~ ht_z * (x_z + y_z)
@@ -6959,9 +6976,6 @@ brms_spec_i_mod <- brms::brm(
   , file = paste0("../data/", "species_model")
   # , file_refit = "always" # uncomment for c2t
 )
-# # #  Elapsed Time: 1500.86 seconds (Warm-up)
-# # #                1839.83 seconds (Sampling)
-# # #                3340.68 seconds (Total)
 ```
 
 *9.3 hours later...*
@@ -7018,30 +7032,698 @@ brms_spec_h_mod <-
     , iter = 5000, warmup = 2500, chains = 4
     , cores = lasR::half_cores()
     , file = paste0("../data/", "species_model_h")
-    # , control = list(adapt_delta = 0.98)
+    # , control = list(adapt_delta = 0.995)
     # , file_refit = "always" # uncomment for c2t
   )
-# # #                1048.05 seconds (Total) ... tm_id as character
-# # #                2136.31 seconds (Total) ... non-norm ht, tm_id factor
-# # #                2163.11 seconds (Total) ... norm ht, tm_id factor
 ```
 
-let's compare the model estimates
+let's get the model estimates for our predicted tree list so that the trees have a species probabilistically estimated
 
 ```{r}
-pred_i_mod_temp <- predict(brms_spec_i_mod, newdata = predicted_trees[[1]])
-pred_h_mod_temp <- predict(brms_spec_h_mod, newdata = predicted_trees[[1]])
+predicted_trees <-
+  predicted_trees %>% 
+  purrr::map(function(x){
+    # take 1 draw to get a single species per tree
+    preds_temp <- brms::posterior_predict(
+      object = brms_spec_h_mod
+      , newdata = x
+      , ndraws = 1
+      , cores = lasR::half_cores()
+    )
+    # preds_temp %>% dplyr::glimpse()
+    # attr(preds_temp, "levels")
+    
+    # preds back to tree list
+    dta_temp <-
+      x %>% 
+      dplyr::mutate(
+        species_symbol = 
+          preds_temp %>% 
+          as.vector() %>% 
+          factor(
+            levels = seq_along(attr(preds_temp, "levels"))
+            , labels = attr(preds_temp, "levels")
+          )
+      )
+    # dta_temp %>% 
+    #   sf::st_drop_geometry() %>% 
+    #   dplyr::count(species_symbol) %>% 
+    #   dplyr::mutate(pct=n/sum(n))
+    return(dta_temp)
+  })
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+# predicted_trees[[1]] %>% ggplot2::ggplot() + ggplot2::geom_sf(mapping = ggplot2::aes(color=species_symbol))
 ```
 
-huh?
+let's look at the predicted species by height and location for a single flight predicted trees
+
+```{r, fig.height = 10.5, fig.width = 8.7}
+# x,y
+plt1_temp <-
+  predicted_trees[[1]] %>% 
+  dplyr::slice_sample(n = 999) %>% 
+  dplyr::mutate(flab = "Y coord vs X coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = x_z, y = y_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 3) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_species) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "x", y = "y"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt1_temp
+
+# ht,x
+plt2_temp <-
+  predicted_trees[[1]] %>% 
+  dplyr::slice_sample(n = 999) %>% 
+  dplyr::mutate(flab = "Height vs X coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = x_z, y = ht_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 1.8) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_species) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "x", y = "tree height (z)"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt2_temp
+
+# ht,y
+plt3_temp <-
+  predicted_trees[[1]] %>% 
+  dplyr::slice_sample(n = 999) %>% 
+  dplyr::mutate(flab = "Height vs Y coord") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = y_z, y = ht_z, fill = species_symbol, color = species_symbol, label = species_symbol)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "black") + 
+  ggplot2::geom_vline(xintercept = 0, color = "black") + 
+  # ggplot2::geom_text(size = 1.8) + 
+  ggrepel::geom_text_repel(
+    size = 1.8
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(facets = dplyr::vars(flab)) +
+  # ggplot2::scale_color_discrete(palette = "Set2") + 
+  ggplot2::scale_color_manual(values = pal_species) +
+  ggplot2::coord_equal() + 
+  ggplot2::labs(
+    x = "y", y = "tree height (z)"
+  ) + 
+  ggplot2::theme_minimal() + 
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(color = "black", size = 9, face = "bold")
+    , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+  )
+# plt3_temp
+patchwork::wrap_plots(list(plt2_temp,plt3_temp,plt1_temp), ncol = 2)
+# ggplot2::ggsave(filename = "../data/spec_predictors_pred_ex.jpg", height = 10.5, width = 9, dpi = "print")
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+yep, that resembles the training data. let's map predicted species in space for each flight
+
+```{r, fig.height = 9.8, fig.width = 8.7}
+predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::arrange(dataset_factor, desc(species_symbol)) %>% 
+  # plot it
+  # plt
+  ggplot2::ggplot() +
+    ggplot2::geom_sf(
+      data = stand_boundary
+      , fill = NA, color = "blue"
+    ) +
+    ggplot2::geom_sf(
+      mapping = ggplot2::aes(geometry = geom, color = species_symbol)
+      , size = 0.6, alpha = 0.88
+    ) +
+    ggplot2::scale_color_manual(values = pal_species, drop = F) +
+    ggplot2::facet_wrap(
+      facets = dplyr::vars(dataset_factor)
+      , ncol = 3
+    ) +
+    ggplot2::theme_light() +
+    ggplot2::theme(
+      legend.position = "top"
+      , legend.title = ggplot2::element_blank()
+      , legend.key = ggplot2::element_blank()
+      , strip.text = ggplot2::element_text(face = "bold", color = "black", margin = ggplot2::margin(t = 4, b = 4))
+      , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+      # , panel.background = ggplot2::element_rect(fill = NA, color = "black")
+      # , panel.spacing = ggplot2::unit(1,"lines")
+      , panel.grid.major = ggplot2::element_blank()
+      , panel.grid.minor = ggplot2::element_blank()
+      , axis.text = ggplot2::element_blank()
+      , axis.title = ggplot2::element_blank()
+      , axis.ticks = ggplot2::element_blank()
+    ) +
+    ggplot2::guides(
+      color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+      , fill = "none"
+    )
+# ggplot2::ggsave(filename = "../data/spec_predicted.jpg", height = 9.8, width = 8.7, dpi = "print")
+```
+
+and table that
 
 ```{r}
-pred_h_mod_temp %>% dimnames()
-pred_h_mod_temp %>% dplyr::glimpse()
-# find index of max column for each row
-max_col_idx_temp <- max.col(pred_h_mod_temp, ties.method = "first")
-# get the actual names using the indices
-max_col_names <- colnames(pred_h_mod_temp)[max_col_idx_temp]
-max_col_names %>% table()
+dta_temp <- predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol
+  ) %>% 
+  dplyr::count(dplyr::pick(dplyr::everything())) %>% 
+  dplyr::group_by(dataset_factor) %>% 
+  dplyr::mutate(pct=n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() 
+# plt
+dta_temp %>% 
+  dplyr::mutate(
+    # # one column for diff/pct
+    n = paste0(scales::comma(n,accuracy=1), "<br />(", scales::percent(pct,accuracy=0.1), ")")
+  ) %>% 
+  dplyr::select(-c(dataset_factor,pct)) %>% 
+  tidyr::pivot_wider(values_from = n, names_from = species_symbol) %>% 
+  dplyr::rename(
+    `altitude (ft)` = flight_agl
+    , `speed (mph)` = flight_mph
+    , `Terrain Follow` = flight_tf
+  ) %>% 
+  # dplyr::glimpse()
+  kableExtra::kbl(
+    caption = "Predicted Species"
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(3), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
 ```
 
+notice the proportional allocation of species varies across the flights even though we used the same training data and species classification model. this variation arises from the uncertainty in the model which is integrated into our predicted tree list via the `brms::posterior_predict(... , ndraws = 1)` setting.
+
+we can plot the proportional distribution by flight
+
+```{r, fig.height=10}
+dta_temp %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.0005
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = species_symbol)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = species_symbol)
+    , width = 0.6
+    , color = NA, alpha = 0.8
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab)
+    , color = "black", size = 2.5, vjust = -0.2
+  ) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    # breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.15))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "", y = "", fill = ""
+    , subtitle = "Predicted Species"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+lastly, let's look at the height distribution within each species since species was predicted based on height and location
+
+```{r, fig.height=10}
+predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol, tree_height_m
+  ) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = tree_height_m, x = species_symbol)
+  ) +
+  ggplot2::geom_violin(
+    mapping = ggplot2::aes(fill = species_symbol)
+    , width = 0.6
+    , color = NA, alpha = 0.8
+  ) +
+  ggplot2::geom_boxplot(width = 0.1, fill = NA, outliers = F) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    y = "tree height (m)", x = "", fill = ""
+    , subtitle = "Predicted Species height distribution"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_text(size = 8)
+  )
+```
+
+let's try another way to visualize the height distribution by species
+
+```{r, fig.height=10}
+predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  dplyr::slice_sample(prop = 0.44, by = folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol, tree_height_m
+  ) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = tree_height_m, y = species_symbol)
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = species_symbol)
+    , alpha = 0.9
+    , shape = "|"
+  ) +
+  ggplot2::scale_color_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_y_discrete(drop = F) +
+  ggplot2::scale_x_continuous(
+    labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "tree height (m)", y = ""
+    , subtitle = "Predicted Species height distribution"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.y = ggplot2::element_text(size = 7)
+    , axis.text.x = ggplot2::element_text(size = 8)
+  )
+```
+
+### Field Data
+
+let's check out the reference data species distribution
+
+let's map the reference species in space
+
+```{r}
+# align the factors
+validation_trees <- 
+  validation_trees %>% 
+  dplyr::mutate(
+    species_symbol = 
+      species_symbol %>% 
+      forcats::as_factor() %>% 
+      forcats::fct_expand( levels(treemap_trees_df$species_symbol) ) %>% 
+      forcats::fct_relevel( levels(treemap_trees_df$species_symbol) )
+  )
+# plt
+validation_trees %>% 
+  dplyr::arrange(desc(species_symbol)) %>% 
+  dplyr::mutate(dataset_factor="Reference Trees") %>% 
+  # plot it
+  # plt
+  ggplot2::ggplot() +
+    ggplot2::geom_sf(
+      data = stand_boundary
+      , fill = NA, color = "blue"
+    ) +
+    ggplot2::geom_sf(
+      mapping = ggplot2::aes(color = species_symbol)
+      , size = 1.2, alpha = 0.88
+    ) +
+    ggplot2::scale_color_manual(values = pal_species) +
+    ggplot2::facet_wrap(
+      facets = dplyr::vars(dataset_factor)
+      , ncol = 3
+    ) +
+    ggplot2::theme_light() +
+    ggplot2::theme(
+      legend.position = "top"
+      , legend.title = ggplot2::element_blank()
+      , legend.key = ggplot2::element_blank()
+      , strip.text = ggplot2::element_text(face = "bold", color = "black", margin = ggplot2::margin(t = 4, b = 4))
+      , strip.background = ggplot2::element_rect(fill = "gray88", color = "gray88")
+      # , panel.background = ggplot2::element_rect(fill = NA, color = "black")
+      # , panel.spacing = ggplot2::unit(1,"lines")
+      , panel.grid.major = ggplot2::element_blank()
+      , panel.grid.minor = ggplot2::element_blank()
+      , axis.text = ggplot2::element_blank()
+      , axis.title = ggplot2::element_blank()
+      , axis.ticks = ggplot2::element_blank()
+    ) +
+    ggplot2::guides(
+      color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+      , fill = "none"
+    )
+```
+
+and table that
+
+```{r}
+dta_temp <- predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol
+  ) %>% 
+  dplyr::count(dplyr::pick(dplyr::everything())) %>% 
+  dplyr::group_by(dataset_factor) %>% 
+  dplyr::mutate(pct=n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() 
+# plt
+dta_temp %>% 
+  dplyr::mutate(
+    # # one column for diff/pct
+    n = paste0(scales::comma(n,accuracy=1), "<br />(", scales::percent(pct,accuracy=0.1), ")")
+  ) %>% 
+  dplyr::select(-c(dataset_factor,pct)) %>% 
+  tidyr::pivot_wider(values_from = n, names_from = species_symbol) %>% 
+  dplyr::rename(
+    `altitude (ft)` = flight_agl
+    , `speed (mph)` = flight_mph
+    , `Terrain Follow` = flight_tf
+  ) %>% 
+  # dplyr::glimpse()
+  kableExtra::kbl(
+    caption = "Predicted Species"
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(3), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+```
+
+notice the proportional allocation of species varies across the flights even though we used the same training data and species classification model. this variation arises from the uncertainty in the model which is integrated into our predicted tree list via the `brms::posterior_predict(... , ndraws = 1)` setting.
+
+we can plot the proportional distribution by flight
+
+```{r}
+dta_temp %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.0005
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = species_symbol)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = species_symbol)
+    , width = 0.6
+    , color = NA, alpha = 0.8
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab)
+    , color = "black", size = 2.5, vjust = -0.2
+  ) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    # breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.15))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "", y = "", fill = ""
+    , subtitle = "Predicted Species"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+lastly, let's look at the height distribution within each species since species was predicted based on height and location
+
+```{r}
+predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol, tree_height_m
+  ) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = tree_height_m, x = species_symbol)
+  ) +
+  ggplot2::geom_violin(
+    mapping = ggplot2::aes(fill = species_symbol)
+    , width = 0.6
+    , color = NA, alpha = 0.8
+  ) +
+  ggplot2::geom_boxplot(width = 0.1, fill = NA, outliers = F) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    y = "tree height (m)", x = "", fill = ""
+    , subtitle = "Predicted Species height distribution"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_text(size = 8)
+  )
+```
+
+let's try another way to visualize the height distribution by species
+
+```{r}
+predicted_trees %>%
+  purrr::list_rbind(names_to = "folder") %>%
+  dplyr::slice_sample(prop = 0.44, by = folder) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "folder"
+  ) %>%
+  dplyr::select(
+    dataset_factor
+    , tidyselect::starts_with("flight_")
+    , species_symbol, tree_height_m
+  ) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = tree_height_m, y = species_symbol)
+  ) +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(color = species_symbol)
+    , alpha = 0.9
+    , shape = "|"
+  ) +
+  ggplot2::scale_color_manual(values = pal_species) +
+  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
+  ggplot2::scale_y_discrete(drop = F) +
+  ggplot2::scale_x_continuous(
+    labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 3
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "tree height (m)", y = ""
+    , subtitle = "Predicted Species height distribution"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.y = ggplot2::element_text(size = 7)
+    , axis.text.x = ggplot2::element_text(size = 8)
+  )
+```
