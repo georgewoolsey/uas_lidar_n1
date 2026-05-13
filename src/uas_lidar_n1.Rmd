@@ -6044,7 +6044,10 @@ validation_trees <-
   dplyr::mutate(
     dia = floor(field_dbh_in) %>% as.integer()
     , ht = floor(field_tree_height_ft) %>% as.integer()
-    , species_symbol = toupper(spp) %>% stringr::str_squish() %>% stringr::word()
+    , species_symbol = toupper(spp) %>% 
+      stringr::str_squish() %>% 
+      stringr::word() %>% 
+      stringr::str_replace("JUSC","JUSC2")
   ) %>% 
   # add on preds
   dplyr::left_join(
@@ -6835,18 +6838,27 @@ predicted_trees <-
   })
 # predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
 # predicted_trees[[1]] %>% ggplot2::ggplot() + ggplot2::geom_sf(mapping = ggplot2::aes(color=tm_id))
+pal_species <- 
+  forcats::lvls_union(list(
+    validation_trees$species_symbol
+    , treemap_trees_df$species_symbol
+  )) %>% 
+  length() %>% 
+  # RColorBrewer::brewer.pal(name = "Set2") %>% 
+  viridis::turbo() %>% 
+  setNames(
+    forcats::lvls_union(list(
+      validation_trees$species_symbol
+      , treemap_trees_df$species_symbol
+    )) %>% 
+    as.character()
+  )
+# scales::show_col(pal_species)
 ```
 
 let's quickly look at the training data predictions over the independent variables of height and x, y
 
-```{r, fig.height = 10.5, fig.width = 8.7}
-pal_species <- 
-  length(unique(treemap_trees_df$species_symbol)) %>% 
-  # RColorBrewer::brewer.pal(name = "Set2") %>% 
-  viridis::turbo() %>% 
-  setNames(
-    as.character(unique(treemap_trees_df$species_symbol))
-  )
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   treemap_tree_list_df %>% 
@@ -6980,40 +6992,9 @@ brms_spec_i_mod <- brms::brm(
 
 *9.3 hours later...*
 
-this Softmax model with tree-level data was super slowwwwww and won't work for integration within `cloud2trees`
+this model with tree-level data was super slowwwwww and won't work for integration within `cloud2trees`
 
 let's try the hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle redundant TreeMap imputed plots.
-
-```{r, include=FALSE, eval=FALSE}
-# let's try to bin the heights in ~~1~~ 2 m increments and then count the number of trees by plot, x, y, height bin, and species and then use the `weights()` in the `brms::brm()` formula
-
-# apply to training data
-ht_bin_size_temp <- 2
-treemap_trees_df <- 
-  treemap_trees_df %>% 
-  dplyr::mutate(
-    ht_bin = round(tree_height_m/ht_bin_size_temp)*ht_bin_size_temp
-    , ht_bin_z = my_scale_fn(ht_bin, train_stats_temp$h_mean, train_stats_temp$h_sd)
-  )
-# treemap_trees_df %>% dplyr::glimpse()
-
-# apply to prediction data
-# !!! use the train_stats_temp here, NOT the prediction data mean/sd
-# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
-predicted_trees <-
-  predicted_trees %>% 
-  purrr::map(
-    \(x)
-    x %>% 
-      sf::st_transform(terra::crs(treemap_rast)) %>% 
-      dplyr::mutate(
-        ht_bin = round(tree_height_m/ht_bin_size_temp)*ht_bin_size_temp
-        , ht_bin_z = my_scale_fn(ht_bin, train_stats_temp$h_mean, train_stats_temp$h_sd)
-      ) %>% 
-      dplyr::select(-c(ht_bin))
-  )
-# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
-```
 
 ```{r, results=F, message=F, warning=F}
 # treemap_trees_df %>% dplyr::glimpse()
@@ -7036,6 +7017,8 @@ brms_spec_h_mod <-
     # , file_refit = "always" # uncomment for c2t
   )
 ```
+
+that ran much faster (~20-30 mins) but still not great on the estimation time
 
 let's get the model estimates for our predicted tree list so that the trees have a species probabilistically estimated
 
@@ -7077,7 +7060,7 @@ predicted_trees <-
 
 let's look at the predicted species by height and location for a single flight predicted trees
 
-```{r, fig.height = 10.5, fig.width = 8.7}
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   predicted_trees[[1]] %>% 
@@ -7515,17 +7498,11 @@ validation_trees %>%
 and table that
 
 ```{r}
-dta_temp <- predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
-  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
-  dplyr::inner_join(
-    tracking_df %>% 
-      dplyr::select(-c(path))
-    , by = "folder"
-  ) %>%
+dta_temp <- validation_trees %>%
+  sf::st_drop_geometry() %>% 
+  dplyr::mutate(dataset_factor="Reference Trees") %>% 
   dplyr::select(
     dataset_factor
-    , tidyselect::starts_with("flight_")
     , species_symbol
   ) %>% 
   dplyr::count(dplyr::pick(dplyr::everything())) %>% 
@@ -7540,25 +7517,19 @@ dta_temp %>%
   ) %>% 
   dplyr::select(-c(dataset_factor,pct)) %>% 
   tidyr::pivot_wider(values_from = n, names_from = species_symbol) %>% 
-  dplyr::rename(
-    `altitude (ft)` = flight_agl
-    , `speed (mph)` = flight_mph
-    , `Terrain Follow` = flight_tf
-  ) %>% 
   # dplyr::glimpse()
   kableExtra::kbl(
-    caption = "Predicted Species"
+    caption = "Reference Species"
     , escape = F
     # , digits = 2
   ) %>% 
-  kableExtra::kable_styling() %>% 
-  kableExtra::column_spec(c(3), border_right = TRUE, include_thead = TRUE) %>% 
-  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+  kableExtra::kable_styling()
+  
 ```
 
-notice the proportional allocation of species varies across the flights even though we used the same training data and species classification model. this variation arises from the uncertainty in the model which is integrated into our predicted tree list via the `brms::posterior_predict(... , ndraws = 1)` setting.
+pretty simple species mix...
 
-we can plot the proportional distribution by flight
+plot the proportional distribution
 
 ```{r}
 dta_temp %>% 
@@ -7597,16 +7568,9 @@ dta_temp %>%
     labels = scales::percent
     , expand = ggplot2::expansion(mult = c(0,0.15))
   ) +
-  ggplot2::facet_wrap(
-    facets = dplyr::vars(dataset_factor)
-    # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
-    , axes = "all"
-    # , switch = "y"
-  ) +
   ggplot2::labs(
     x = "", y = "", fill = ""
-    , subtitle = "Predicted Species"
+    , subtitle = "Reference Species"
   ) +
   ggplot2::theme_light()+
   ggplot2::theme(
@@ -7623,107 +7587,215 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-lastly, let's look at the height distribution within each species since species was predicted based on height and location
+### Predicted Species Accuracy
+
+accuracy metrics for a species classification model are calculated using a confusion matrix comparing the predicted and reference data
+
+for this demonstration, we'll limit our evaluation to a single flight since all flights used the same species prediction model and we are evaluating the method moreso than the flight settings when it comes to the species prediction. since we have data across the different flight settings we'll just use the flight that resulted in the highest F-score noting that the flights were very similar in their detection accuracy
 
 ```{r}
-predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
-  # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
-  dplyr::inner_join(
-    tracking_df %>% 
-      dplyr::select(-c(path))
-    , by = "folder"
-  ) %>%
-  dplyr::select(
-    dataset_factor
-    , tidyselect::starts_with("flight_")
-    , species_symbol, tree_height_m
+species_comp_temp <- 
+  forcats::lvls_union(list(
+    validation_trees$species_symbol
+    , predicted_trees %>% purrr::list_rbind() %>% dplyr::pull(species_symbol)
+  )) %>% 
+  dplyr::as_tibble() %>% 
+  dplyr::rename(species_symbol=value) %>% 
+  # count reference trees
+  dplyr::left_join(
+    validation_trees %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::count(species_symbol) %>% 
+      dplyr::mutate(pct=n/sum(n)) %>% 
+      dplyr::rename(
+        ref_n=n
+        , ref_pct=pct
+      )
+    , by = "species_symbol"
   ) %>% 
-  # dplyr::glimpse()
-  ggplot2::ggplot(
-    mapping = ggplot2::aes(y = tree_height_m, x = species_symbol)
-  ) +
-  ggplot2::geom_violin(
-    mapping = ggplot2::aes(fill = species_symbol)
-    , width = 0.6
-    , color = NA, alpha = 0.8
-  ) +
-  ggplot2::geom_boxplot(width = 0.1, fill = NA, outliers = F) +
-  ggplot2::scale_fill_manual(values = pal_species) +
-  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
-  ggplot2::scale_x_discrete(drop = F) +
-  ggplot2::scale_y_continuous(
-    labels = scales::comma
-    , breaks = scales::breaks_extended(n=7)
-  ) +
-  ggplot2::facet_wrap(
-    facets = dplyr::vars(dataset_factor)
-    # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
-    , axes = "all"
-    # , switch = "y"
-  ) +
-  ggplot2::labs(
-    y = "tree height (m)", x = "", fill = ""
-    , subtitle = "Predicted Species height distribution"
-  ) +
-  ggplot2::theme_light()+
-  ggplot2::theme(
-    legend.position = "none"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
-    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
-    , axis.text.y = ggplot2::element_text(size = 8)
+  # count pred trees
+  dplyr::left_join(
+    predicted_trees %>% 
+      purrr::pluck(
+        agg_ground_truth_match_ans %>% 
+          dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
+          dplyr::pull(folder)    
+      ) %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::count(species_symbol) %>% 
+      dplyr::mutate(pct=n/sum(n)) %>% 
+      dplyr::rename(
+        pred_n=n
+        , pred_pct=pct
+      )
+    , by = "species_symbol"
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      dplyr::where(is.numeric)
+      , ~ dplyr::coalesce(.x,0)
+    )
+    # calc intersecting shared area per species (Schoener's Overlap index component)
+    , overlap_pct = pmin(pred_pct, ref_pct)
+    , sq_pct_error = (pred_pct - ref_pct)^2
   )
+# species_comp_temp  
 ```
 
-let's try another way to visualize the height distribution by species
+let's start by plotting the predicted versus reference counts by species
 
 ```{r}
-predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
-  dplyr::slice_sample(prop = 0.44, by = folder) %>% 
-  dplyr::inner_join(
-    tracking_df %>% 
-      dplyr::select(-c(path))
-    , by = "folder"
-  ) %>%
-  dplyr::select(
-    dataset_factor
-    , tidyselect::starts_with("flight_")
-    , species_symbol, tree_height_m
-  ) %>% 
-  # dplyr::glimpse()
+species_comp_temp %>% 
   ggplot2::ggplot(
-    mapping = ggplot2::aes(x = tree_height_m, y = species_symbol)
+    mapping = ggplot2::aes(x=ref_n,y=pred_n,color=species_symbol,label=species_symbol,fontface="bold")
   ) +
-  ggplot2::geom_point(
-    mapping = ggplot2::aes(color = species_symbol)
-    , alpha = 0.9
-    , shape = "|"
+  ggplot2::geom_abline() +
+  ggplot2::geom_point(size = 3, alpha = 0.88) +
+  ggrepel::geom_text_repel(
+    size = 4
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    # , max.overlaps = Inf
   ) +
   ggplot2::scale_color_manual(values = pal_species) +
-  # ggplot2::scale_color_manual(values = c("black","white"), guide = "none") +
-  ggplot2::scale_y_discrete(drop = F) +
   ggplot2::scale_x_continuous(
-    labels = scales::comma
-    , breaks = scales::breaks_extended(n=7)
+    limits = c(0,max(species_comp_temp$pred_n,species_comp_temp$ref_n))
+    , labels = scales::comma
   ) +
-  ggplot2::facet_wrap(
-    facets = dplyr::vars(dataset_factor)
-    # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
-    , axes = "all"
-    # , switch = "y"
+  ggplot2::scale_y_continuous(
+    limits = c(0,max(species_comp_temp$pred_n,species_comp_temp$ref_n))
+    , labels = scales::comma
   ) +
   ggplot2::labs(
-    x = "tree height (m)", y = ""
-    , subtitle = "Predicted Species height distribution"
+    x = "# field trees"
+    , y = "# predicted trees"
   ) +
-  ggplot2::theme_light()+
+  ggplot2::theme_light() +
   ggplot2::theme(
-    legend.position = "none"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
-    , axis.text.y = ggplot2::element_text(size = 7)
-    , axis.text.x = ggplot2::element_text(size = 8)
+      legend.position = "top"
+      , legend.title = ggplot2::element_blank()
+      , legend.key = ggplot2::element_blank()
+    ) +
+    ggplot2::guides(
+      color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+      , fill = "none"
+    )  
+```
+
+table it
+
+```{r}
+species_comp_temp %>% 
+  dplyr::mutate(
+    # # one column for diff/pct
+    pred_pct = paste0(scales::comma(pred_n,accuracy=1), "<br />(", scales::percent(pred_pct,accuracy=0.1), ")")
+    , ref_pct = paste0(scales::comma(ref_n,accuracy=1), "<br />(", scales::percent(ref_pct,accuracy=0.1), ")")
+  ) %>% 
+  dplyr::select(species_symbol, pred_pct, ref_pct) %>% 
+  tidyr::pivot_longer(
+    cols = c(pred_pct, ref_pct)
+    , names_to = "dta"
+    , values_to = "prop"
+  ) %>% 
+  dplyr::mutate(
+    dta = ifelse(dta == "pred_pct", "predicted", "field")
+  ) %>% 
+  tidyr::pivot_wider(
+    names_from = species_symbol
+    , values_from = prop
+  ) %>% 
+  dplyr::rename(`_`=dta) %>% 
+  kableExtra::kbl(
+    caption = paste0(
+      "Species Proportional Comparision"
+      , "<br />Total Overlap Index: "
+      , sum(species_comp_temp$overlap_pct) %>% scales::percent(accuracy = 0.1 )
+      , "<br />Proportion RMSE: "
+      , sqrt(mean(species_comp_temp$sq_pct_error)) %>% scales::percent(accuracy = 0.1 )
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::add_header_above(
+    c(" " = 1, "Species Tree Counts and Proportions" = nrow(species_comp_temp))
   )
 ```
+
+we can plot the predicted vs reference proportional distribution by species
+
+```{r}
+species_comp_temp %>% 
+  dplyr::select(species_symbol, pred_pct, ref_pct) %>% 
+  tidyr::pivot_longer(
+    cols = c(pred_pct, ref_pct)
+  ) %>% 
+  dplyr::mutate(name = ifelse(name == "pred_pct", "predicted", "field")) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = species_symbol, y = value, fill = name, group = name)
+  ) +
+  ggplot2::geom_area(position = "identity", alpha = 0.4) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(color = name)
+    , linewidth = 1
+  ) +
+  ggplot2::scale_y_continuous(labels = scales::percent, breaks = scales::breaks_extended(n=9)) +
+  harrypotter::scale_color_hp_d(option = "hermionegranger") +
+  harrypotter::scale_fill_hp_d(option = "hermionegranger") +
+  ggplot2::labs(
+    subtitle = "Relative Species Abundance"
+    , x = ""
+    , y = "relative proportion of total"
+    , fill = "", color = ""
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(legend.position = "top")
+```
+
+and the proportion of total
+
+```{r}
+species_comp_temp %>% 
+  dplyr::select(species_symbol, pred_pct, ref_pct) %>% 
+  tidyr::pivot_longer(
+    cols = c(pred_pct, ref_pct)
+  ) %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      value>0.05
+      , paste0(
+        species_symbol
+        ,"\n("
+        , scales::percent(value,accuracy=1)
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::mutate(
+    name = ifelse(name == "pred_pct", "predicted", "field")
+    , species_symbol = forcats::fct_reorder(species_symbol, value, .fun = sum)
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = name, y = value, fill = species_symbol)
+  ) +
+  ggplot2::geom_col(width = 0.5, color = NA, alpha = 0.9) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, group = species_symbol, fontface = "bold")
+    # , color = "black"
+    , size = 2.5
+    , position = ggplot2::position_stack(vjust = 0.5)
+  ) +
+  ggplot2::scale_y_continuous(labels = scales::percent, breaks = scales::breaks_extended(n=9)) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  ggplot2::labs(
+    subtitle = "Species Composition Comparison"
+    , x = ""
+    , y = ""
+    , fill = ""
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(legend.position = "top")
+```
+
