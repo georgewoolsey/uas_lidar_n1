@@ -6838,6 +6838,18 @@ predicted_trees <-
   })
 # predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
 # predicted_trees[[1]] %>% ggplot2::ggplot() + ggplot2::geom_sf(mapping = ggplot2::aes(color=tm_id))
+
+# align the factors
+validation_trees <- 
+  validation_trees %>% 
+  dplyr::mutate(
+    species_symbol = 
+      species_symbol %>% 
+      forcats::as_factor() %>% 
+      forcats::fct_expand( levels(treemap_trees_df$species_symbol) ) %>% 
+      forcats::fct_relevel( levels(treemap_trees_df$species_symbol) )
+  )
+
 pal_species <- 
   forcats::lvls_union(list(
     validation_trees$species_symbol
@@ -7444,16 +7456,6 @@ let's check out the reference data species distribution
 let's map the reference species in space
 
 ```{r}
-# align the factors
-validation_trees <- 
-  validation_trees %>% 
-  dplyr::mutate(
-    species_symbol = 
-      species_symbol %>% 
-      forcats::as_factor() %>% 
-      forcats::fct_expand( levels(treemap_trees_df$species_symbol) ) %>% 
-      forcats::fct_relevel( levels(treemap_trees_df$species_symbol) )
-  )
 # plt
 validation_trees %>% 
   dplyr::arrange(desc(species_symbol)) %>% 
