@@ -2848,7 +2848,7 @@ ggplot2::ggplot() +
 # ggplot2::ggsave(filename = "../data/matchedpts_rgb_facets.jpg", height = 10.2, width = 9.5, dpi = "print")
 ```
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
@@ -7589,7 +7589,7 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-### Predicted Species Accuracy
+### Predicted Species Composition Accuracy
 
 accuracy metrics for a species classification model are calculated using a confusion matrix comparing the predicted and reference data
 
@@ -7673,6 +7673,7 @@ species_comp_temp %>%
   ggplot2::labs(
     x = "# field trees"
     , y = "# predicted trees"
+    , subtitle = "Species Count Equality"
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
@@ -7714,8 +7715,8 @@ species_comp_temp %>%
       "Species Proportional Comparision"
       , "<br />Total Overlap Index: "
       , sum(species_comp_temp$overlap_pct) %>% scales::percent(accuracy = 0.1 )
-      , "<br />Proportion RMSE: "
-      , sqrt(mean(species_comp_temp$sq_pct_error)) %>% scales::percent(accuracy = 0.1 )
+      # , "<br />Proportion RMSE: "
+      # , sqrt(mean(species_comp_temp$sq_pct_error)) %>% scales::percent(accuracy = 0.1 )
     )
     , escape = F
   ) %>% 
@@ -7724,6 +7725,8 @@ species_comp_temp %>%
     c(" " = 1, "Species Tree Counts and Proportions" = nrow(species_comp_temp))
   )
 ```
+
+in the table above, we present the total overlap index of `r sum(species_comp_temp$overlap_pct) %>% scales::percent(accuracy = 0.1 )` which is sometimes referred to as Schoener's D index where a value of 1 means complete overlap (identical), while 0 means no overlap. we'll explore this concept of similarity/dissimilarity between the predicted and reference species compositions in more detail below
 
 we can plot the predicted vs reference proportional distribution by species
 
@@ -7801,3 +7804,406 @@ species_comp_temp %>%
   ggplot2::theme(legend.position = "top")
 ```
 
+While not specifically designed for evaluating the accuracy of a proposed prediction method, the `vegan` [package](https://vegandevs.github.io/vegan/reference/vegdist.html) provides utilities for comparing species assemblages using community ecology methods. Let's use the `vegan::vegdist()` function to compute the Bray-Curtis index which can be used to quantify the compositional dissimilarity between two different samples. This index is bounded between 0 and 1, where 0 = same composition and 1 = maximally dissimilar (see [here](https://peat-clark.github.io/BIO381/veganTutorial.html)). For our purposes, dissimilarity quantifies the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile.
+
+Because Bray-Curtis is a **dissimilarity** measure and Schoener's D (total overlap) index which we looked at above is a **similarity** measure, they can be interpreted as $\textrm{Bray-Curtis}_{dissimilarity} \approx 1-\textrm{Schoener}_{similarity}$
+
+we'll start by looking at the site-wide dissimilarity between the predicted and reference species compositions
+
+```{r}
+library(vegan)
+# vegan needs a matrix :\
+bc_dissim_temp <-
+  species_comp_temp %>% 
+  dplyr::select(species_symbol, pred_n, ref_n) %>% 
+  tidyr::pivot_longer(cols = c(pred_n, ref_n), names_to = "which_dta", values_to = "n") %>% 
+  tidyr::pivot_wider(names_from = species_symbol, values_from = n) %>% 
+  dplyr::mutate(which_dta = ifelse(which_dta == "pred_n", "predicted", "field")) %>% 
+  tibble::column_to_rownames(var = "which_dta") %>% 
+  # relative props
+  vegan::decostand(method = "total") %>% 
+  # dissimilarity
+  vegan::vegdist(method = "bray") %>% 
+  as.numeric()
+# sim
+bc_sim_temp <- 1 - bc_dissim_temp
+# table
+dplyr::tibble(
+    metric = c(
+      "Bray-Curtis Dissimilarity Index"
+      , "Bray-Curtis Similarity"
+      , "Schoener's D (total overlap) Index"
+    )
+    , value = c(
+      bc_dissim_temp
+      , bc_sim_temp
+      , sum(species_comp_temp$overlap_pct) 
+    )
+    , huh = c(
+      "proportion of relative species profile mis-matched"
+      , "proportion of total distribution matching perfectly"
+      , "equal to Bray-Curtis similarity for proportions"
+    )
+  ) %>% 
+  dplyr::mutate(dplyr::across(
+    dplyr::where(is.numeric)
+    , ~scales::percent(.x,accuracy=0.01)
+  )) %>% 
+  kableExtra::kbl(
+    caption = "Predicted vs Reference Profile Similarity Metrics"
+    , col.names = c("","value","interpretation")
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(1:2, bold = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(bc_dissim_temp, bc_sim_temp)
+gc()
+```
+
+lastly, let's quantify the compositional dissimilarity between the reference and predicted tree species assemblages by height class
+
+we'll group our trees into quartile height classes based on the reference tree heights
+
+```{r}
+ht_qtr_temp <- quantile(validation_trees$field_tree_height_m, probs = c(0.25, 0.5, 0.75))
+# reference trees
+valht_temp <- 
+  validation_trees %>% 
+  dplyr::mutate(
+    tree_height_m_bin = 
+      cut(
+        field_tree_height_m
+        , breaks = c(0,ht_qtr_temp,Inf)
+      ) %>% 
+      make_bins_pretty(suffix = "m") %>% 
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
+    , tree_height_m_bin = fct_relabel(tree_height_m_bin, ~ {
+        levels_list <- levels(tree_height_m_bin)
+        nums <- match(.x, levels_list)
+        paste0("Q",nums, ": ", .x)
+      })
+  ) %>% 
+  sf::st_drop_geometry() %>%
+  # dplyr::group_by(tree_height_m_bin) %>% 
+  # dplyr::summarise(
+  #   dplyr::across(field_tree_height_m, .fns = list(min,max))
+  # )
+  # species count
+  dplyr::count(tree_height_m_bin,species_symbol)
+
+# data with row unique by species and height bin
+species_comp_temp <- 
+  tidyr::crossing(
+    species_comp_temp %>% dplyr::distinct(species_symbol)
+    , valht_temp %>% dplyr::distinct(tree_height_m_bin)
+  ) %>% 
+  # count reference trees
+  dplyr::left_join(
+    valht_temp %>% 
+      dplyr::group_by(tree_height_m_bin) %>% 
+      dplyr::mutate(pct=n/sum(n)) %>% 
+      dplyr::rename(
+        ref_n=n
+        , ref_pct=pct
+      ) %>% 
+      dplyr::ungroup()
+    , by = dplyr::join_by(species_symbol,tree_height_m_bin)
+  ) %>% 
+  # count pred trees
+  dplyr::left_join(
+    predicted_trees %>% 
+      purrr::pluck(
+        agg_ground_truth_match_ans %>% 
+          dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
+          dplyr::pull(folder)    
+      ) %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::mutate(
+        tree_height_m_bin = 
+          cut(
+            tree_height_m
+            , breaks = c(0,ht_qtr_temp,Inf)
+          ) %>% 
+          make_bins_pretty(suffix = "m") %>% 
+          forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
+        , tree_height_m_bin = fct_relabel(tree_height_m_bin, ~ {
+            levels_list <- levels(tree_height_m_bin)
+            nums <- match(.x, levels_list)
+            paste0("Q",nums, ": ", .x)
+          })
+      ) %>% 
+      dplyr::count(tree_height_m_bin,species_symbol) %>% 
+      dplyr::group_by(tree_height_m_bin) %>% 
+      dplyr::mutate(pct=n/sum(n)) %>% 
+      dplyr::rename(
+        pred_n=n
+        , pred_pct=pct
+      ) %>% 
+      dplyr::ungroup()
+    , by = dplyr::join_by(species_symbol,tree_height_m_bin)
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      dplyr::where(is.numeric)
+      , ~ dplyr::coalesce(.x,0)
+    )
+  ) %>% 
+  dplyr::filter(ref_n+pred_n>0)
+```
+
+plot the count of trees by species and height bin
+
+```{r, fig.height=9}
+species_comp_temp %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x=ref_n,y=pred_n,color=species_symbol,label=species_symbol,fontface="bold")
+  ) +
+  ggplot2::geom_abline() +
+  ggplot2::geom_point(size = 3, alpha = 0.88) +
+  ggrepel::geom_text_repel(
+    size = 4
+    , segment.color = NA
+    , box.padding = 0.1
+    , point.padding = 0
+    , force = 0.5
+    # , max.overlaps = Inf
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(tree_height_m_bin)
+    , ncol = 2
+    , axes = "all" 
+  ) +
+  ggplot2::scale_color_manual(values = pal_species) +
+  ggplot2::scale_x_continuous(
+    limits = c(0,max(species_comp_temp$pred_n,species_comp_temp$ref_n))
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,max(species_comp_temp$pred_n,species_comp_temp$ref_n))
+    , labels = scales::comma
+    , breaks = scales::breaks_extended(n=7)
+  ) +
+  ggplot2::labs(
+    x = "# field trees"
+    , y = "# predicted trees"
+    , subtitle = "Species Count Equality\nby tree height quartile"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , legend.title = ggplot2::element_blank()
+    , legend.key = ggplot2::element_blank()
+    , axis.text = ggplot2::element_text(size = 8)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
+```
+
+table it by height bin
+
+```{r}
+species_comp_temp %>% 
+  dplyr::mutate(
+    # # one column for diff/pct
+    pred_pct = paste0(scales::comma(pred_n,accuracy=1), "<br />(", scales::percent(pred_pct,accuracy=0.1), ")")
+    , ref_pct = paste0(scales::comma(ref_n,accuracy=1), "<br />(", scales::percent(ref_pct,accuracy=0.1), ")")
+  ) %>% 
+  dplyr::select(tree_height_m_bin, species_symbol, pred_pct, ref_pct) %>% 
+  tidyr::pivot_longer(
+    cols = c(pred_pct, ref_pct)
+    , names_to = "dta"
+    , values_to = "prop"
+  ) %>% 
+  dplyr::mutate(
+    dta = ifelse(dta == "pred_pct", "predicted", "field")
+  ) %>% 
+  tidyr::pivot_wider(
+    names_from = species_symbol
+    , values_from = prop
+  ) %>% 
+  dplyr::arrange(tree_height_m_bin) %>% 
+  dplyr::rename(`Ht. Quartile`=tree_height_m_bin, `data`=dta) %>% 
+  kableExtra::kbl(
+    caption = paste0(
+      "Species Proportional Comparision<br />by tree height quartile"
+      , "<br />by tree height quartile"
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::add_header_above(
+    c(" " = 2, "Species Tree Counts and Proportions by Height" =length(unique(species_comp_temp$species_symbol)) )
+  ) %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = 1, valign = "top")
+```
+
+interesting
+
+plot the proportion of total
+
+```{r, fig.height=9}
+species_comp_temp %>% 
+  dplyr::select(tree_height_m_bin, species_symbol, pred_pct, ref_pct) %>% 
+  tidyr::pivot_longer(
+    cols = c(pred_pct, ref_pct)
+  ) %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      value>0.05
+      , paste0(
+        species_symbol
+        ,"\n("
+        , scales::percent(value,accuracy=1)
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::mutate(
+    name = ifelse(name == "pred_pct", "predicted", "field")
+    , species_symbol = forcats::fct_reorder(species_symbol, value, .fun = sum)
+  ) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = name, y = value, fill = species_symbol)
+  ) +
+  ggplot2::geom_col(width = 0.5, color = NA, alpha = 0.9) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, group = species_symbol, fontface = "bold")
+    # , color = "black"
+    , size = 2.5
+    , position = ggplot2::position_stack(vjust = 0.5)
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(tree_height_m_bin)
+    , ncol = 2
+    , axes = "all" 
+  ) +
+  ggplot2::scale_y_continuous(labels = scales::percent, breaks = scales::breaks_extended(n=9)) +
+  ggplot2::scale_fill_manual(values = pal_species) +
+  ggplot2::labs(
+    subtitle = "Species Composition Comparison\nby tree height quartile"
+    , x = ""
+    , y = ""
+    , fill = ""
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , axis.text = ggplot2::element_text(size = 8)
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+  )
+```
+
+most of the misclassification occurs in the smaller tree classes which have less influence on stand-level metrics like basal area and total volume
+
+let's get the similarity/dissimilarity values by height bin to quantify the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile
+
+```{r}
+bc_df_temp <- 
+  species_comp_temp$tree_height_m_bin %>% 
+  unique() %>% 
+  purrr::map(function(x){
+    # vegan needs a matrix :\
+    bc_dissim_temp <-
+      species_comp_temp %>% 
+      dplyr::filter(tree_height_m_bin==x) %>% 
+      dplyr::select(species_symbol, pred_n, ref_n) %>% 
+      tidyr::pivot_longer(cols = c(pred_n, ref_n), names_to = "which_dta", values_to = "n") %>% 
+      tidyr::pivot_wider(names_from = species_symbol, values_from = n) %>% 
+      dplyr::mutate(which_dta = ifelse(which_dta == "pred_n", "predicted", "field")) %>% 
+      tibble::column_to_rownames(var = "which_dta") %>% 
+      # relative props
+      vegan::decostand(method = "total") %>% 
+      # dissimilarity
+      vegan::vegdist(method = "bray") %>% 
+      as.numeric()
+    # sim
+    bc_sim_temp <- 1 - bc_dissim_temp
+    dplyr::tibble(
+      tree_height_m_bin = x
+      , dissim = bc_dissim_temp
+      , sim = bc_sim_temp
+    ) 
+  }) %>% 
+  purrr::list_rbind() %>% 
+  dplyr::mutate(
+    tree_height_m_bin = tree_height_m_bin %>% 
+      forcats::as_factor() %>% 
+      forcats::fct_expand( levels(species_comp_temp$tree_height_m_bin) ) %>% 
+      forcats::fct_relevel( levels(species_comp_temp$tree_height_m_bin) )
+  )
+  dplyr::arrange(tree_height_m_bin)
+  
+# table
+bc_df_temp %>% 
+  dplyr::mutate(dplyr::across(
+    dplyr::where(is.numeric)
+    , ~scales::percent(.x,accuracy=0.01)
+  )) %>% 
+  kableExtra::kbl(
+    caption = "Predicted vs Reference Profile Similarity Metrics<br />by tree height quartile"
+    , col.names = c(
+      "Ht. Quartile"
+      , "Bray-Curtis Dissimilarity Index"
+      , "Bray-Curtis Similarity"
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(1, bold = TRUE)
+```
+
+let's visualize that
+
+```{r}
+bc_df_temp %>% 
+  dplyr::mutate(dplyr::across(
+    dplyr::where(is.numeric)
+    , ~scales::percent(.x,accuracy=0.1)
+    , .names = "{.col}_lab"
+  )) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = tree_height_m_bin, group = 1)
+  ) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = dissim, color = "dissimilarity"), lwd = 2) +
+  ggplot2::geom_line(mapping = ggplot2::aes(y = sim, color = "similarity"), lwd = 2) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = dissim, color = "dissimilarity"), size = 4) +
+  ggplot2::geom_point(mapping = ggplot2::aes(y = sim, color = "similarity"), size = 4) +
+  ggrepel::geom_text_repel(mapping = ggplot2::aes(y = dissim, label = dissim_lab), size = 2.5) +
+  ggrepel::geom_text_repel(mapping = ggplot2::aes(y = sim, label = sim_lab), size = 2.5) +
+  ggplot2::scale_color_viridis_d(option = "viridis", begin = 0.3, end = 0.7) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,1)
+    , breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.02))
+  ) +
+  ggplot2::labs(
+    x = "tree height quartile", y = "", color = ""
+    , subtitle = "Predicted vs Reference Species Composition Similarity Metrics"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , axis.text.x = ggplot2::element_text(size = 11, face = "bold")
+    , axis.title.x = ggplot2::element_text(size = 9)
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
+```
+
+neat 
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
