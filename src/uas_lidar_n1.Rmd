@@ -7807,7 +7807,9 @@ species_comp_temp %>%
 
 While not specifically designed for evaluating the accuracy of a proposed prediction method, the `vegan` [package](https://vegandevs.github.io/vegan/reference/vegdist.html) provides utilities for comparing species assemblages using community ecology methods. Let's use the `vegan::vegdist()` function to compute the Bray-Curtis index which can be used to quantify the compositional dissimilarity between two different samples. This index is bounded between 0 and 1, where 0 = same composition and 1 = maximally dissimilar (see [here](https://peat-clark.github.io/BIO381/veganTutorial.html)). For our purposes, dissimilarity quantifies the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile.
 
-Because Bray-Curtis is a **dissimilarity** measure and Schoener's D (total overlap) index which we looked at above is a **similarity** measure, they can be interpreted as $\textrm{Bray-Curtis}_{dissimilarity} \approx 1-\textrm{Schoener}_{similarity}$
+Because Bray-Curtis is a **dissimilarity** measure and Schoener's D (total overlap) index which we looked at above is a **similarity** measure, they can be interpreted as: 
+
+$$\textrm{Bray-Curtis}_{dissimilarity} \approx 1-\textrm{Schoener}_{similarity}$$
 
 we'll start by looking at the site-wide dissimilarity between the predicted and reference species compositions
 
@@ -8033,7 +8035,6 @@ species_comp_temp %>%
   kableExtra::kbl(
     caption = paste0(
       "Species Proportional Comparision<br />by tree height quartile"
-      , "<br />by tree height quartile"
     )
     , escape = F
   ) %>% 
@@ -8918,24 +8919,24 @@ names(ground_truth_prediction_match_ans_updt) <- tracking_df$folder
 #   sf::st_drop_geometry() %>% 
 #   dplyr::count(ref_species_symbol,pred_species_symbol)
 #   dplyr::glimpse()
-ground_truth_prediction_match_ans_updt %>%
-  purrr::list_rbind(names_to = "folder") %>%
-  sf::st_drop_geometry() %>% 
-  dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
-  dplyr::select(
-    folder
-    , pred_match_idx
-    , c(tidyselect::starts_with("pred_") & tidyselect::contains("_volume_"))
-  ) %>% 
-  dplyr::group_by(folder) %>% 
-  dplyr::summarize(
-    dplyr::across(
-      .cols = tidyselect::contains("_volume_")
-      , sum
-    )
-    # , n_trees = dplyr::n()
-  ) %>% 
-  dplyr::ungroup()
+# ground_truth_prediction_match_ans_updt %>%
+#   purrr::list_rbind(names_to = "folder") %>%
+#   sf::st_drop_geometry() %>% 
+#   dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
+#   dplyr::select(
+#     folder
+#     , pred_match_idx
+#     , c(tidyselect::starts_with("pred_") & tidyselect::contains("_volume_"))
+#   ) %>% 
+#   dplyr::group_by(folder) %>% 
+#   dplyr::summarize(
+#     dplyr::across(
+#       .cols = tidyselect::contains("_volume_")
+#       , sum
+#     )
+#     # , n_trees = dplyr::n()
+#   ) %>% 
+#   dplyr::ungroup()
 
 
 # agg_ground_truth_match_ans %>% dplyr::glimpse()
