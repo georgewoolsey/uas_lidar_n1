@@ -20,7 +20,7 @@ knit: (function(inputFile, encoding){
 
 ```{r, include=FALSE, warning=F, message=F}
 ################################################
-##```{r,eval=T
+##```{r,eval=F
 ################################################
 # clean session
 remove(list = ls())
@@ -79,7 +79,7 @@ Though not necessary for `cloud2trees` data processing, let's quickly check out 
 
 we got a folder of point cloud data: *N1_400AGL_20MPH_TFOFF* ... let's see what's in that folder
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # directory with the downloaded .las|.laz files
 point_cld_folder <- "../data/N1_400AGL_20MPH_TFOFF"
 # is there data?
@@ -90,7 +90,7 @@ list.files(point_cld_folder, pattern = ".*\\.(laz|las)$")[1]
 
 again, this is not necessary for `cloud2trees` data processing but we can use `lidR` to read the point cloud folder as a catalog which doesn't read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # read folder as LAScatalog
 ctg_temp <- lidR::readLAScatalog(point_cld_folder)
 # what information do we get about the point cloud?
@@ -101,7 +101,7 @@ that's a lot of points...can an ordinary or sub-optimal laptop handle it? we'll 
 
 let's look at the point cloud extent on a map to orient ourselves in space
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 ctg_temp %>% 
   cloud2trees:::check_las_ctg_empty() %>% 
   purrr::pluck("data") %>% 
@@ -148,7 +148,7 @@ itd_tuning_ans <-
   )
 ```
 
-```{r,eval=T, include=F, echo=F}
+```{r,eval=F, include=F, echo=F}
 itd_tuning_ans <- 
   cloud2trees::itd_tuning(
     input_las_dir = "../data/N1_400AGL_20MPH_TFOFF/"
@@ -160,7 +160,7 @@ itd_tuning_ans <-
 
 what does `cloud2trees::itd_tuning()` give us?
 
-```{r,eval=T}
+```{r,eval=F}
 names(itd_tuning_ans)
 ```
 
@@ -196,7 +196,7 @@ these results confirm what we identified about the `log_fn` compared to the othe
 
 let's look at the default window function named `lin_fn` (i.e. linear function) from `cloud2trees` to see how we might adjust it to obtain different tree segmentation results
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans$ws_fn_list$lin_fn
 ```
 
@@ -204,7 +204,7 @@ it's a function defining the window size (called `y`) based on the CHM height (c
 
 we can plot the two functions that we did not rule out based on the first set of `cloud2trees::itd_tuning()` samples
 
-```{r,eval=T}
+```{r,eval=F}
 # plot the ws fn
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
@@ -365,7 +365,7 @@ my_linear2 <- function(x){
 
 let's visualize these functions we'll use for the second `cloud2trees::itd_tuning()` sampling
 
-```{r,eval=T}
+```{r,eval=F}
 ggplot2::ggplot() +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$lin_fn, aes(color = "lin_fn"), lwd = 1) +
   ggplot2::geom_function(fun = itd_tuning_ans$ws_fn_list$exp_fn, aes(color = "exp_fn"), lwd = 1) +
@@ -427,13 +427,13 @@ itd_tuning_ans2$crowns <- sf::st_read("../data/itd_tuning_crowns.gpkg", quiet = 
 
 let's check out the crown polygon data we got from our second `itd_tuining()` iteration
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% dplyr::glimpse()
 ```
 
 this data includes the crown polygons for each window function and 0.1 ha sample plot
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::count(sample_number,ws_fn)
@@ -441,7 +441,7 @@ itd_tuning_ans2$crowns %>%
 
 let's investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees > 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -453,7 +453,7 @@ itd_tuning_ans2$crowns %>%
 
 the `exp_fn` predicts a single tree with a crown diameter greater than height, let's see the tree details for those questionable predictions
 
-```{r,eval=T}
+```{r,eval=F}
 itd_tuning_ans2$crowns %>% 
   dplyr::filter(
     crown_diameter_m>tree_height_m &
@@ -464,7 +464,7 @@ itd_tuning_ans2$crowns %>%
 
 let's check the geometry types
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(itd_tuning_ans2$crowns) %>% 
   droplevels() %>% 
   table()
@@ -472,7 +472,7 @@ sf::st_geometry_type(itd_tuning_ans2$crowns) %>%
 
 note that there are `MULTIPOLYGON` geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to "connect" at the corners during segmentation. `cloud2trees` has functionality to handle these `MULTIPOLYGON` geometries by selecting the largest area polygon part by predicted segment (i.e. `treeID` from `cloud2trees`). let's simplify the `MULTIPOLYGON` geometries, calculate the diameter of the new, simplified geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified <- itd_tuning_ans2$crowns %>% 
   # we're going to replace the treeID to ensure we have a 
   # unique identifier since the data is a special case where 
@@ -489,7 +489,7 @@ crowns_simplified <- itd_tuning_ans2$crowns %>%
 
 we should have the same number of predicted trees
 
-```{r,eval=T}
+```{r,eval=F}
 identical(
   nrow(crowns_simplified)
   , nrow(itd_tuning_ans2$crowns)
@@ -498,7 +498,7 @@ identical(
 
 we can verify the geometry type in the data now
 
-```{r,eval=T}
+```{r,eval=F}
 sf::st_geometry_type(crowns_simplified) %>% 
   droplevels() %>% 
   table()
@@ -506,7 +506,7 @@ sf::st_geometry_type(crowns_simplified) %>%
 
 now let's look for trees where the where crown diameter is greater than the tree height but limit our search to only trees > 2m in height
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -518,7 +518,7 @@ crowns_simplified %>%
 
 now there is only a single record from the `exp_fn` where the crown diameter is larger than the tree height. let's look at the specific record
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::filter(
@@ -584,7 +584,7 @@ crowns_simplified %>%
 
 we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries
 
-```{r,eval=T}
+```{r,eval=F}
 crowns_simplified %>% 
   sf::st_drop_geometry() %>% 
   dplyr::rename(sample = sample_number) %>%
@@ -637,7 +637,7 @@ rgb_rast
 
 make a function to plot the crowns overlaid on the RGB
 
-```{r,eval=T,purl=FALSE}
+```{r,eval=F,purl=FALSE}
 # make a function to plot these detected crowns with rgb data
 plt_rgb_rast_itd_crowns <- function(sample_nmbr = 1, rgb_rast, itd_crowns, plt_lwd = 0.5, my_title = "") {
   # crop
@@ -2730,7 +2730,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands
@@ -6808,13 +6808,12 @@ predicted_trees <-
       x %>% 
       sf::st_transform(terra::crs(treemap_rast)) %>% 
       dplyr::mutate(
-        xxx = sf::st_coordinates(.)[,1]
-        , yyy = sf::st_coordinates(.)[,2]
-        , x_z = my_scale_fn(xxx, train_stats_temp$x_mean, train_stats_temp$x_sd)
-        , y_z = my_scale_fn(yyy, train_stats_temp$y_mean, train_stats_temp$y_sd)
+        x = sf::st_coordinates(.)[,1]
+        , y = sf::st_coordinates(.)[,2]
+        , x_z = my_scale_fn(x, train_stats_temp$x_mean, train_stats_temp$x_sd)
+        , y_z = my_scale_fn(y, train_stats_temp$y_mean, train_stats_temp$y_sd)
         , ht_z = my_scale_fn(tree_height_m, train_stats_temp$h_mean, train_stats_temp$h_sd)
-      ) %>% 
-      dplyr::select(-c(xxx,yyy))
+      )
     # add tm_id
     tmids_temp <- 
       terra::extract(
@@ -6870,7 +6869,7 @@ pal_species <-
 
 let's quickly look at the training data species over the independent variables of height and x, y
 
-```{r,eval=T, fig.height = 10.5, fig.width = 8.7}
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   treemap_tree_list_df %>% 
@@ -7072,7 +7071,7 @@ predicted_trees <-
 
 let's look at the predicted species by height and location for a single flight predicted trees
 
-```{r,eval=T, fig.height = 10.5, fig.width = 8.7}
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   predicted_trees[[1]] %>% 
@@ -8207,3 +8206,252 @@ neat
 remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
+
+### RF Predict Species
+
+since our bayesian hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot took quite a while to run for this relatively small area (~20-30 mins), let's try a random forest classifier to see if we can get the run time down. `cloud2trees` already implements random forest models to model missing HMD and CBH values that were not successfully extracted from the point cloud and uses a model averaging method that subsamples the training data (to reduce model fit times), estimates the model several times with different subsamples, then model averages the predictions. Because the species is not a metric variable that can averaged, we'll use the same method but employ a model majority voting system instead. let's do it with some of the `cloud2trees` built-in functionality.
+
+random forest model majority voting for species with the objective to reduce estimation time while improving or maintaining the species composition accuracy compared to the field data
+
+```{r, results=F, message=F, warning=F, eval = F}
+# treemap_tree_list_df %>% dplyr::glimpse()
+# go for at least 50% of training data sampled
+# it's just that the individual model fits will be smaller
+estimate_missing_max_n_training_temp <- 5555 # max FIA trees to use in each subsample
+ntimes_temp <-
+  ((nrow(treemap_tree_list_df)*0.5)/estimate_missing_max_n_training_temp) %>%
+  ceiling() %>%
+  max(22) %>%
+  min(111)
+# ntimes_temp
+
+st_temp <- Sys.time()
+
+# estimate
+rf_spec_mod <- cloud2trees:::rf_subsample_and_model_n_times(
+  predictors = treemap_tree_list_df %>% dplyr::select(tree_height_m,x,y)
+  , response = treemap_tree_list_df$species_symbol
+  , mod_n_subsample = estimate_missing_max_n_training_temp
+  , mod_n_times = ntimes_temp
+)
+# length(rf_spec_mod)
+# timer
+mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric()
+
+
+### model majority vote
+# cloud2trees:::rf_model_avg_predictions() was not built for non-numeric y-vars
+# cloud2trees:::rf_model_avg_predictions(
+#   mod_list = rf_spec_mod
+#   , predict_df = predicted_trees[[1]] %>%
+#     sf::st_drop_geometry() %>%
+#     dplyr::select(tree_height_m,x,y)
+# )
+
+rf_model_vote_predictions <- function(mod_list, predict_df){
+  # get model predictions for each model
+  predicted_temp <-
+    1:length(mod_list) %>%
+      purrr::map(function(x){
+        predict(
+          mod_list[[x]]
+          , predict_df
+        ) %>%
+        dplyr::as_tibble() %>%
+        dplyr::pull(1) %>%
+        dplyr::as_tibble() %>%
+        dplyr::rename(value=1) %>%
+        dplyr::mutate(id=dplyr::row_number())
+      }) %>%
+      dplyr::bind_rows()
+  # predicted_temp %>% dplyr::glimpse()
+
+  # model vote
+  predicted_temp <- predicted_temp %>%
+    dplyr::count(id,value) %>% 
+    dplyr::group_by(id) %>% 
+    dplyr::slice_max(order_by = n, n = 1, with_ties = F) %>% 
+    dplyr::ungroup() %>%
+    dplyr::arrange(id) %>%
+    dplyr::rename(predicted=value) %>% 
+    dplyr::select(predicted)
+  # return
+  return(predicted_temp)
+}
+
+# get predicted values
+predicted_temp <- rf_model_vote_predictions(
+  mod_list = rf_spec_mod
+  , predict_df = 
+    # predicted_trees[[1]] %>%
+    xxx_temp %>% 
+    sf::st_drop_geometry() %>%
+    dplyr::select(tree_height_m,x,y)
+)
+
+
+
+# attach back to data
+# predicted_trees[[1]] %>%
+xxx_temp %>% 
+  dplyr::mutate(species_symbol = predicted_temp$predicted) %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::count(species_symbol)
+
+
+predicted_trees <-
+  predicted_trees %>% 
+  purrr::map(function(x){
+    preds_temp
+    # preds back to tree list
+    dta_temp <-
+      x %>% 
+      dplyr::mutate(
+        species_symbol = 
+          preds_temp %>% 
+          as.vector() %>% 
+          factor(
+            levels = seq_along(attr(preds_temp, "levels"))
+            , labels = attr(preds_temp, "levels")
+          )
+      )
+    # dta_temp %>% 
+    #   sf::st_drop_geometry() %>% 
+    #   dplyr::count(species_symbol) %>% 
+    #   dplyr::mutate(pct=n/sum(n))
+    return(dta_temp)
+  })
+# predicted_trees %>% purrr::list_rbind(names_to = "folder") %>% dplyr::glimpse()
+# predicted_trees[[1]] %>% ggplot2::ggplot() + ggplot2::geom_sf(mapping = ggplot2::aes(color=species_symbol))
+```
+
+
+
+
+```{r, include=F, eval=FALSE}
+# estimate species and DBH simultaneously with brms::mvbf()
+# the "link" between the two models is the `tm_id` in the grouping term
+# this type of model will estimate whether a plot that is "above average" for a certain species might also be "above average" for the asymptotic diameter in the Chapman-richards growth curve
+
+# define the species formula
+bf_species <- brms::bf(
+  species_symbol | weights(tree_weight) ~ 1 + tree_height_m + (1 + tree_height_m | p | tm_id)
+) + brms::categorical(link = "logit")
+
+# define the non-linear dbh formula
+# note the use of | p | to link the random effects to the species model
+bf_dbh <- brms::bf(
+  dbh_cm | weights(tree_weight) ~ asym * (1 - exp(-k * tree_height_m))^p
+  , asym ~ 1 + (1 | p | tm_id)
+  , k ~ 1 + (1 | p | tm_id)
+  , p ~ 1 + (1 | p | tm_id)
+  , nl = TRUE
+) + brms::lognormal()
+
+st_temp <- Sys.time()
+# combine into a multivariate model
+joint_model <- brms::brm(
+  formula = bf_species + bf_dbh
+  , data = treemap_trees_df
+  , prior = c(
+    brms::prior(normal(60, 20), nlpar = "asym", resp = "dbhcm", lb = 0)
+    , brms::prior(normal(0.05, 0.02), nlpar = "k", resp = "dbhcm", lb = 0)
+    , brms::prior(normal(2, 0.5), nlpar = "p", resp = "dbhcm", lb = 0)
+  )
+  , iter = 6000
+  , warmup = 3000 
+  , chains = 4
+  , cores = lasR::half_cores()
+  , file = paste0("../data/", "dbh_species_model")
+)
+# timer
+(mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric())
+
+summary(joint_model)
+```
+
+
+```{r, include=F, eval=FALSE}
+# another option for linking species and DBH is a sequential model approach
+# that is, run the species model then the dbh model with the asym and k coefficients
+# allowed to vary by predicted species:
+# Non-linear DBH model where asym and k vary by species
+# p is kept as a global parameter to simplify estimation
+dbh_species_model <- brms::brm(
+  formula = brms::bf(
+    dbh_cm | weights(tree_weight) ~ asym * (1 - exp(-k * tree_height_m))^p,
+    asym ~ 0 + species_symbol + (1 | tm_id),
+    k ~ 0 + species_symbol + (1 | tm_id),
+    p ~ 1,
+    nl = TRUE
+  ),
+  data = treemap_trees_df,
+  prior = c(
+    brms::prior(normal(60, 20), nlpar = "asym", lb = 0),
+    brms::prior(normal(0.05, 0.02), nlpar = "k", lb = 0),
+    brms::prior(normal(2, 0.5), nlpar = "p", lb = 0)
+  ),
+  family = brms::lognormal(),
+  iter = 4000, 
+  warmup = 2000, 
+  chains = 4, 
+  cores = 6,
+  backend = "cmdstanr"
+)
+
+# if the brms species classifier is taking too long to run for package implementation
+# use a random forest classifier
+
+# Train the Random Forest
+# We use the weights to account for TreeMap imputation frequency
+species_rf <- randomForest::randomForest(
+  formula = species_symbol ~ tree_height_m + x + y,
+  data = treemap_trees_df,
+  weights = treemap_trees_df$tree_weight,
+  ntree = 500,
+  mtry = 2,
+  importance = TRUE
+)
+
+# Predict species for the target tree list
+# We assign the discrete label directly in a tidy pipe
+target_tree_list <- target_tree_list |>
+  dplyr::mutate(
+    species_symbol = stats::predict(species_rf, newdata = target_tree_list)
+  )
+# Fit the non-linear model with species as a covariate
+dbh_model <- brms::brm(
+  formula = brms::bf(
+    dbh_cm | weights(tree_weight) ~ asym * (1 - exp(-k * tree_height_m))^p,
+    asym ~ 0 + species_symbol + (1 | tm_id),
+    k ~ 0 + species_symbol + (1 | tm_id),
+    p ~ 1,
+    nl = TRUE
+  ),
+  data = treemap_trees_df,
+  prior = c(
+    brms::prior(normal(60, 20), nlpar = "asym", lb = 0),
+    brms::prior(normal(0.05, 0.02), nlpar = "k", lb = 0),
+    brms::prior(normal(2, 0.5), nlpar = "p", lb = 0)
+  ),
+  family = brms::lognormal(),
+  iter = 4000, 
+  warmup = 2000, 
+  chains = 4, 
+  cores = 6
+)
+# Generate DBH predictions
+dbh_preds <- brms::posterior_epred(
+  object = dbh_model,
+  newdata = target_tree_list,
+  ndraws = 100, # Use enough draws to capture the mean
+  re_formula = NULL # Keep the plot-level spatial variation
+)
+
+# Attach the mean prediction to the list
+target_tree_list <- target_tree_list |>
+  dplyr::mutate(
+    predicted_dbh_cm = base::colMeans(dbh_preds)
+  ) 
+```
+
