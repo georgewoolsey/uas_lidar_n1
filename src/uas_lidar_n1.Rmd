@@ -6622,6 +6622,11 @@ treemap_data_finder_ans_temp <- cloud2trees:::find_ext_data()[["treemap_dir"]] %
 # read in treemap data
 # read in treemap (no memory is taken)
 treemap_rast <- terra::rast(treemap_data_finder_ans_temp$treemap_rast)
+
+# calculate buffer based on the expected window size used for any terra::focal operations
+ws_temp <- 5
+buffer_temp <- ((ws_temp-1)/2)*terra::res(treemap_rast)[1]
+
 # treemap_rast
 ### filter treemap based on trees now in memory
 treemap_rast <- treemap_rast %>%
@@ -6630,7 +6635,7 @@ treemap_rast <- treemap_rast %>%
       purrr::list_rbind() %>% 
       sf::st_bbox() %>%
       sf::st_as_sfc() %>%
-      sf::st_buffer(50) %>%
+      sf::st_buffer(buffer_temp) %>%
       sf::st_union() %>%
       sf::st_transform(terra::crs(treemap_rast)) %>%
       terra::vect()
@@ -6725,21 +6730,104 @@ treemap_trees_df <-
     # , ht_z = (tree_height_m - ht_wt_mean) / ht_wt_sd
   ) %>%
   dplyr::select(-c(statuscd,dia,ht,cr)) # maybe we can use cr in a future version with and NSUR approach
-
 # !!!!!!! use this if using hierarchical model with slope and intercept varying by plot and weights for repeated plot ids
 # !!!!!!! since spatial location is captured by the plot id (tm_id)
 # treemap_trees_df %>% dplyr::glimpse()
 
 # we need the spatial information from the raster...
-treemap_tree_list_df <- 
+```
+
+if we are going to treat the FIA measured trees as individual observations to use for training data without using the imputed plot ID from TreeMap and weight by the number of times that specific id is repeated in the area of interest, then we need to get a tree list with the trees replicated based on the number of times the plot id is replicated. in addition, the TreeMap data product is a raster of imputed plots for a given area at 30m resolution and we should not assume that the tree list of that "guessed" plot represent the actual trees present at that location with complete accuracy. Instead, we expect the TreeMap imputed plots to be more accurate as we look over a broader area with accuracy decreasing at smaller scales. That is, when we consider the tree composition of an entire forest stand we expect TreeMap to generally get the main species and forest type correct but for each 30m raster cell (i.e. the plot location that we get the X and Y coordinates for the tree list used for training from) we expect it to be less accurate with a cell potentially being a completely incorrect representation of the actual ground setting. As such, we we'll weight the individual tree records based on the stability of the imputed plot id's looking over a window surrounding the focal cell. Specifically, we'll calculate the proportion of surrounding cells (5x5) that share the same imputed plot id as the focal cell and use this weight as a measure of TreeMap's predicted stability to place less weight on plots that occur infrequently and more weight on plots that occur frequently.
+
+```{r}
+# focal matrix for a x by x window
+# focal_kernel_temp <- matrix(1, nrow = 3, ncol = 3)
+# focal_kernel_temp
+# length(focal_kernel_temp)*terra::res(treemap_rast) %>% prod() %>% `/`(10000)
+# 5x5 = 2.25 ha; 3x3 = 0.81 ha
+# custom window fn to get prop of surrounding cells matching focal value
+# ?terra::focal
+match_focal_cells_fn <- function(v, ...) {
+  if(all(is.na(v))){ return(NA) }
+  
+  # center index of the window vector
+  center_idx <- (length(v) + 1) / 2
+  focal_val  <- v[center_idx]
+  
+  if(is.na(focal_val)){ return(NA) }
+  
+  # count how many cells in the window match the focal cell
+  n_matches <- sum(v %in% focal_val, ...)
+  prop_matches <- n_matches / length(v)
+  
+  return(prop_matches)
+}
+# rast of matches
+treemap_prop_rast_temp <- 
+  treemap_rast %>% 
+  terra::catalyze() %>% 
+  terra::subset(1) %>%
+  terra::focal(
+    # # 5x5 = 2.25 ha; 3x3 = 0.81 ha
+    w = ws_temp
+    , fun = match_focal_cells_fn
+    # , na.poicy = "omit"
+    , na.rm = T
+  ) %>% 
+  setNames("stability_weight")
+# treemap_prop_rast_temp %>% terra::hist()
+```
+
+what do these rasters look like?
+
+```{r, fig.height=8.8}
+terra::plot(
+  c(
+    treemap_rast %>%
+      terra::catalyze() %>%
+      terra::subset(1) %>%
+      terra::as.factor()
+    , treemap_prop_rast_temp 
+      # `*`(100) %>%
+      # round() %>%
+      # terra::as.factor()
+  )
+  , nc = 1
+  , main = c("Imputed Plot ID", "Plot Stability %")
+  , axes = F
+  # , col = c(viridis::viridis(n=100),viridis::magma(n=100))
+  , fun = function() {
+   # This code executes on top of every single panel automatically
+   lines(
+     stand_boundary %>% sf::st_transform(terra::crs(treemap_rast)) %>% terra::vect()
+     , col = "red", lwd = 2
+    )
+ }
+)
+```
+
+create the tree list with trees assigned the X and Y of the raster cell and for imputed plot id's the specific tree will appear multiple times based on the number of times the plot is replicated within the area of interest but each tree will have a different X,Y and stability weight based on the surrounding imputed plots 
+
+```{r}
+# add to tree list
+treemap_tree_list_df <-
   treemap_rast %>% 
   terra::catalyze() %>% 
   terra::subset(1) %>% 
-  terra::as.data.frame(xy = T) %>% 
-  dplyr::rename(tm_id=3) %>% 
+  terra::as.data.frame(xy = T, cells = T) %>% 
+  dplyr::rename(tm_id=4) %>% 
+  # add on weights based on moving window stability of imputed plot
+  dplyr::left_join(
+    treemap_prop_rast_temp %>% 
+      terra::as.data.frame(xy = F, cells = T)
+    , by = "cell"
+  ) %>% 
   dplyr::mutate(
     tm_id = cloud2trees:::as_character_safe(tm_id)
+    # clean stability_weight
+    , stability_weight = ifelse(stability_weight>1,1,stability_weight) %>% dplyr::coalesce(0.01)
   ) %>% 
+  # dplyr::glimpse()
   # add on the tree data in which a row is unique by tm_id and the tree (which doesn't have an id so we'll fake one)
   dplyr::inner_join(
     treemap_trees_df %>% 
@@ -6751,11 +6839,37 @@ treemap_tree_list_df <-
     , by = "tm_id"
     , relationship = "many-to-many"
   ) %>% 
+  # a row is now unique by x,y,tree_id resulting in the number of rows per tree_id = tree_weight
   dplyr::mutate(
     # to factor
     tm_id = forcats::fct_relevel(tm_id, levels(treemap_trees_df$tm_id) )
+    , species_symbol = factor(species_symbol)
+    # slightly jitter the tree x,y so that RF doesn't lock-in on grid pattern from raster
+    # jitter within the 30m cell +/- 15 m
+    , x = x + stats::runif(
+      dplyr::n()
+      , min = -(terra::res(treemap_rast)[1]/2)
+      , max = (terra::res(treemap_rast)[1]/2)
+    )
+    , y = y + stats::runif(
+      dplyr::n()
+      , min = -(terra::res(treemap_rast)[1]/2)
+      , max = (terra::res(treemap_rast)[1]/2)
+    )
   )
-  # a row is now unique by x,y,tree_id and the number of rows per tree_id = tree_weight
+# dplyr::glimpse(treemap_tree_list_df)
+# treemap_tree_list_df %>% ggplot2::ggplot(ggplot2::aes(x=x,y=y,color=species_symbol)) + ggplot2::geom_point() + ggplot2::theme_void()
+# treemap_tree_list_df %>% ggplot2::ggplot(ggplot2::aes(x=x,y=y,color=stability_weight)) + ggplot2::geom_point() + ggplot2::theme_void()
+# treemap_tree_list_df %>% 
+#   ggplot2::ggplot(ggplot2::aes(x=x,y=y,color=factor(cell))) + 
+#   ggplot2::geom_point() + 
+#   ggplot2::scale_color_manual(values = sample(
+#       viridis::turbo(n=length(unique(treemap_tree_list_df$cell)))
+#     )
+#   ) + 
+#   ggplot2::theme_void() + 
+#   ggplot2::theme(legend.position = "none")
+
 ```
 
 what's in the FIA tree list using the TreeMap imputed plots filtered for our area of interest?
@@ -6792,8 +6906,6 @@ treemap_tree_list_df <-
     x_z = my_scale_fn(x, train_stats_temp$x_mean, train_stats_temp$x_sd)
     , y_z = my_scale_fn(y, train_stats_temp$y_mean, train_stats_temp$y_sd)
     , ht_z = my_scale_fn(tree_height_m, train_stats_temp$h_mean, train_stats_temp$h_sd)
-    , species_symbol = factor(species_symbol)
-    , tm_id = as.factor(tm_id)
   )
 # treemap_tree_list_df %>% dplyr::glimpse()
 # treemap_tree_list_df %>% dplyr::select(x_z,y_z,ht_z) %>% summary()
@@ -8231,16 +8343,37 @@ ntimes_temp <-
 # ntimes_temp
 st_temp <- Sys.time()
 # estimate
-rf_spec_mod <- cloud2trees:::rf_subsample_and_model_n_times(
+
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
+# rf_spec_mod <- cloud2trees:::rf_subsample_and_model_n_times(
+#   predictors = treemap_tree_list_df %>% dplyr::select(x,y,tree_height_m)
+#   , response = treemap_tree_list_df$species_symbol
+#   , mod_n_subsample = mod_n_subsample_temp
+#   , mod_n_times = ntimes_temp
+# )
+
+# ?randomForest::tuneRF
+optimal_mtry_temp <- cloud2trees:::rf_tune_subsample(
   predictors = treemap_tree_list_df %>% dplyr::select(x,y,tree_height_m)
   , response = treemap_tree_list_df$species_symbol
-  , mod_n_subsample = mod_n_subsample_temp
-  , mod_n_times = ntimes_temp
+)
+rf_spec_mod <- list(
+  randomForest::randomForest(
+    x = treemap_tree_list_df %>% dplyr::select(x,y,tree_height_m)
+    , y = treemap_tree_list_df$species_symbol
+    , case.weights = treemap_tree_list_df$stability_weight
+    , mtry = optimal_mtry_temp
+    , na.action = na.omit
+    , ntree = 500
+  )
 )
 # randomForest::varImpPlot(rf_spec_mod[[1]])
 # length(rf_spec_mod)
 # timer
 mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric()
+# mins_temp
 ```
 
 processing time was much better and took only `r scales::comma(mins_temp, accuracy = 0.01)` minutes (`r scales::comma(mins_temp*60, accuracy = 0.01)` seconds) to estimate `r ntimes_temp` RF models using `r scales::comma(mod_n_subsample_temp)` training records (`rscales::percent(mod_n_subsample_temp/nrow(treemap_tree_list_df), accuracy = 0.01)` of the training data) from which will use majority voting to determine the predicted class
@@ -9164,6 +9297,11 @@ ggplot2::ggplot(
 ```
 
 these volume errors are slightly larger than the volume errors based on when species was randomly assigned to trees to [proportionally match the distribution](#spec_prop_alloc) of tree species. the reason for this increase in error is that when species were proportionally, randomly assigned there were a greater number of non-timber species (i.e. JUSC2, POTR5, and QUGA) which had the effect of removing those trees from the stand-level volume estimates. because our estimated DBH values tended to be larger than the field-measured values (~`r scales::comma(mean(agg_ground_truth_match_ans$diff_dbh_cm_mean), accuracy = 0.01)` cm mean error) and our stand-level TPA were highly accurate (~ `r scales::percent(mean(agg_ground_truth_match_ans$pct_diff_trees_per_ha), accuracy = 0.1)` error), our predicted stand-level basal area was overestimated by `r scales::percent(fivenum(agg_ground_truth_match_ans$pct_diff_basal_area_m2_per_ha)[c(1,5)], accuracy = 0.1) %>% paste0(collapse = " to ")` across the flights. The overestimation of stand-level gross volume by `r scales::percent(fivenum(agg_ground_truth_match_ans$pct_diff_grs_volume_m3)[c(1,5)], accuracy = 0.1) %>% paste0(collapse = " to ")` mirrors this trend, especially when trees aren't (improperly) removed from the volume summation due to being classified as a non-timber species as in the random, proportional assignment.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
 
 To potentially improve DBH estimates we could explore linking species and DBH is a sequential model approach. That is, we could run the species model (using RF, probably), then in the DBH model we would allow the coefficients to vary by predicted species
 
