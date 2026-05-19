@@ -7125,6 +7125,11 @@ let's try the hierarchical model grouped by imputed FIA plot identifier that all
 # treemap_trees_df %>% dplyr::glimpse()
 # hierarchical model with slope and intercept varying by plot and weights for repeated plot ids
 # treemap_trees_df %>% dplyr::distinct(tm_id,tree_id,tree_weight,tree_height_m,species_symbol) %>% dplyr::glimpse()
+timer_f_temp <- "../data/timer_brms_spec_h_mod.csv"
+if(file.exists(timer_f_temp)){
+  timer_temp <- readr::read_csv(timer_f_temp)
+}else{timer_temp <- NULL}
+st_temp <- Sys.time()
 brms_spec_h_mod <- 
   brms::brm(
     formula = brms::bf(species_symbol | weights(tree_weight) ~ 1 + tree_height_m + (1 + tree_height_m | tm_id))
@@ -7141,9 +7146,15 @@ brms_spec_h_mod <-
     # , control = list(adapt_delta = 0.995)
     # , file_refit = "always" # uncomment for c2t
   )
+mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric()
+if(is.null(timer_temp)){
+  timer_temp <- dplyr::tibble(timer_brms_spec_h_mod_mins = mins_temp)
+  timer_temp %>% 
+    readr::write_csv(timer_f_temp)
+}
 ```
 
-that ran much faster (~20-30 mins) but still not great on the estimation time
+that took `r scales::comma(timer_temp$timer_brms_spec_h_mod_mins,accuracy=0.1)` minutes, much faster than the model with individual tree-level data, but still not great on the estimation time
 
 let's get the model estimates for our predicted tree list so that the trees have a species probabilistically estimated
 
@@ -8353,12 +8364,17 @@ st_temp <- Sys.time()
 #   , mod_n_subsample = mod_n_subsample_temp
 #   , mod_n_times = ntimes_temp
 # )
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
+# #### need to update cloud2trees:::rf_subsample_and_model_n_times to include case.weights arg
 
 # ?randomForest::tuneRF
 optimal_mtry_temp <- cloud2trees:::rf_tune_subsample(
   predictors = treemap_tree_list_df %>% dplyr::select(x,y,tree_height_m)
   , response = treemap_tree_list_df$species_symbol
 )
+ntimes_temp <- 1
+mod_n_subsample_temp <- nrow(treemap_tree_list_df)
 rf_spec_mod <- list(
   randomForest::randomForest(
     x = treemap_tree_list_df %>% dplyr::select(x,y,tree_height_m)
@@ -8376,7 +8392,7 @@ mins_temp <- difftime(Sys.time(),st_temp,units = "mins") %>% as.numeric()
 # mins_temp
 ```
 
-processing time was much better and took only `r scales::comma(mins_temp, accuracy = 0.01)` minutes (`r scales::comma(mins_temp*60, accuracy = 0.01)` seconds) to estimate `r ntimes_temp` RF models using `r scales::comma(mod_n_subsample_temp)` training records (`rscales::percent(mod_n_subsample_temp/nrow(treemap_tree_list_df), accuracy = 0.01)` of the training data) from which will use majority voting to determine the predicted class
+processing time was much better and took only `r scales::comma(mins_temp, accuracy = 0.01)` minutes (`r scales::comma(mins_temp*60, accuracy = 0.01)` seconds) to estimate `r ntimes_temp` RF models using `r scales::comma(mod_n_subsample_temp)` training records (`r scales::percent(mod_n_subsample_temp/nrow(treemap_tree_list_df), accuracy = 0.01)` of the training data) from which will use majority voting to determine the predicted class
 
 this RF approach has potential for cloud2trees implementation if the species composition accuracy is acceptable. what is acceptable? that's going to take much more testing than is done here...
 
@@ -8647,9 +8663,7 @@ species_comp_temp %>%
   ggplot2::theme(legend.position = "top")
 ```
 
-look at the  Bray-Curtis **dissimilarity** measure and Schoener's D (total overlap) index which we looked at above is a **similarity** measure
-
-we'll start by looking at the site-wide dissimilarity between the predicted and reference species compositions
+check out the site-wide dissimilarity/similarity between the predicted and reference species compositions
 
 ```{r}
 library(vegan)
@@ -8849,7 +8863,7 @@ species_comp_temp %>%
   )
 ```
 
-most of the misclassification occurs in the smaller tree classes which have less influence on stand-level metrics like basal area and total volume
+most of the misclassification occurs in the smaller tree classes (i.e. below the median tree height) which have less influence on stand-level metrics like basal area and total volume
 
 let's get the similarity/dissimilarity values by height bin to quantify the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile
 
