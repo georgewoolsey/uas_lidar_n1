@@ -2,9 +2,9 @@
 
 We have finally arrived to the part where we review the results of the accuracy of the UAS-derived forest inventory based on:
 
-* [**Detection Accuracy**](#detect_metrics_form): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
-* [**Quantification Accuracy**](#quant_metrics_form): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
-* **Stand-Level Accuracy**: assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
+* [**Detection Accuracy**](#detect_acc): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
+* [**Quantification Accuracy**](#quant_acc): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
+* [**Stand-Level Accuracy**](#stand_acc): assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
 
 aggregate the instance matching to get detection and quantification accuracy for each data set
 
@@ -68,7 +68,7 @@ agg_ground_truth_match_ans <- tracking_df %>%
 # levels(agg_ground_truth_match_ans$dataset_factor)
 ```
 
-## Detection Accuracy Results
+## Detection Accuracy Results{#detect_acc}
 
 let's table that
 
@@ -491,7 +491,7 @@ dta_temp %>%
 
 the commission error (percentage shown in the gray bar) is highest for the intermediate trees which suggests we could potentially improve our ITD window function to decrease the number of trees detected in this middle height range. However, going back to the detection rate above, this same height range also had the lowest detection rate which would suggest we increase the number of trees identified in this height range. This conflict suggests that the trees in this height range are likely difficult to detect for the study area using the data and ITD methods used in this study. For example, they may be subordinate to directly adjacent taller trees with the crowns interlocking, so they are often grouped with the taller tree during the CHM-based ITD.
 
-## Quantification Accuracy Results
+## Quantification Accuracy Results{#quant_acc}
 
 let's table the tree-level aggregated measurement error
 
@@ -852,7 +852,7 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
-## Stand-Level Accuracy Results
+## Stand-Level Accuracy Results{#stand_acc}
 
 In addition to the tree-level accuracy metrics (e.g. height RMSE and MAPE), we can also calculate stand-level accuracy metrics by aggregating estimates from the reference (ground truth) and predicted trees irrespective of wheter or not they were matched (i.e. true positive) during instance matching. 
 
@@ -1804,7 +1804,7 @@ preds_temp %>%
 
 the significant linear trends from the MLR indicate that altitude and speed influence trees per hectare error, but the lack of significant pairwise contrasts suggests these settings are practically equivalent within the operationally feasible range of these flight settings. this result implies that the UAS-lidar and point cloud processing framework is not meaningfully influenced by changes in the flight settings over the range tested here. additionally, given the small sample size with no cross-site replication these findings should be viewed with caution as the lack of significance may reflect low statistical power rather than absence of effect.
 
-## Individual Tree Level
+### Individual Tree Level
 
 Let's shift to the tree-level detection data to statistically analyze the influence of the flight settings (and tree characteristics) on the probability of individual tree detection. We'll use logistic multiple linear regression
 
@@ -1979,7 +1979,7 @@ ggplot2::ggplot(
   , mapping = ggplot2::aes(
     x = ref_tree_height_m
     , y = prob
-    , color = as.factor(flight_meters_per_second)
+    , color = as.factor(flight_meters_per_second )
   )
 ) +
   ggplot2::geom_ribbon(
@@ -2237,7 +2237,7 @@ em_temp %>%
       x = 0
         # as.factor(flight_altitude_m)
       , y = prob
-      , color = as.factor(flight_meters_per_second)
+      , color = as.factor(flight_meters_per_second )
     )
   ) +
   ggplot2::geom_point(

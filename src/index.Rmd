@@ -42,9 +42,9 @@ Raw spatial point clouds were processed, filtered, and segmented using the `clou
 
 ## Accuracy Evaluation
 
-* [**Detection Accuracy**](#detect_metrics_form): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
-* [**Quantification Accuracy**](#quant_metrics_form): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
-* **Stand-Level Accuracy**: assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
+* [**Detection Accuracy**](#detect_acc): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
+* [**Quantification Accuracy**](#quant_acc): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
+* [**Stand-Level Accuracy**](#stand_acc): assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
 
 ```{r, include=FALSE, echo=FALSE}
 knitr::write_bib(c(
@@ -54,18 +54,20 @@ knitr::write_bib(c(
   , "rmarkdown"
   , "tidyverse"
   , "viridis"
+  , "harrypotter"
   , "RColorBrewer"
   , "scales"
   , "latex2exp"
+# visualization
   , "mapview"
   , "kableExtra"
   , "patchwork"
   , "ggnewscale"
+  , "ggrepel"
+# spatial analysis
   , "terra"
-  , "stars"
   , "sf"
-  , "brms"
-  , "tidybayes"
-  , "parallel"
-), 'packages.bib')
+  , "lidR"
+  , "cloud2trees"
+  ), 'packages.bib')
 ```

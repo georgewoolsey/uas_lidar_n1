@@ -4,9 +4,9 @@ In this section, we review the accuracy evaluation process and set up the functi
 
 We evaluate the accuracy of the UAS-derived forest inventory based on:
 
-* [**Detection Accuracy**](#detect_metrics_form): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
-* [**Quantification Accuracy**](#quant_metrics_form): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
-* **Stand-Level Accuracy**: assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
+* [**Detection Accuracy**](#detect_acc): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
+* [**Quantification Accuracy**](#quant_acc): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
+* [**Stand-Level Accuracy**](#stand_acc): assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
 
 We'll follow [Tinkham and Swayze (2021)](https://doi.org/10.3390/f12020250) and [Tinkham and Woolsey (2024)](https://doi.org/10.3390/rs16203844) who describe a methodology for matching UAS detected trees with stem mapped trees identified via traditional field methods. Note, *detected* trees in the excerpt below references UAS detected trees.
 
@@ -823,7 +823,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands

@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en-US" xml:lang="en-US">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>2 Primer on Point Cloud Processing | influence of UAS-lidar flight parameters on tree detection at N1 study site</title>
+  <meta name="description" content="2 Primer on Point Cloud Processing | influence of UAS-lidar flight parameters on tree detection at N1 study site" />
+  <meta name="generator" content="bookdown 0.34 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="2 Primer on Point Cloud Processing | influence of UAS-lidar flight parameters on tree detection at N1 study site" />
+  <meta property="og:type" content="book" />
+  
+  
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="2 Primer on Point Cloud Processing | influence of UAS-lidar flight parameters on tree detection at N1 study site" />
+  
+  
+  
+
+<meta name="author" content="George Woolsey" />
+
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="index.html"/>
+<link rel="next" href="review-of-all-data-sets.html"/>
+<script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+<link href="libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet" />
+<script src="libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
+<link href="libs/leaflet-1.3.1/leaflet.css" rel="stylesheet" />
+<script src="libs/leaflet-1.3.1/leaflet.js"></script>
+<link href="libs/leafletfix-1.0.0/leafletfix.css" rel="stylesheet" />
+<script src="libs/proj4-2.6.2/proj4.min.js"></script>
+<script src="libs/Proj4Leaflet-1.0.1/proj4leaflet.js"></script>
+<link href="libs/rstudio_leaflet-1.3.1/rstudio_leaflet.css" rel="stylesheet" />
+<script src="libs/leaflet-binding-2.2.3/leaflet.js"></script>
+<script src="libs/leaflet-providers-3.0.0/leaflet-providers.js"></script>
+<script src="libs/leaflet-providers-plugin-2.2.3/leaflet-providers-plugin.js"></script>
+<script src="libs/clipboard-0.0.1/setClipboardText.js"></script>
+<link href="libs/mapviewCSS-0.0.1/mapview-popup.css" rel="stylesheet" />
+<link href="libs/mapviewCSS-0.0.1/mapview.css" rel="stylesheet" />
+<script src="libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+<link href="libs/bsTable-3.3.7/bootstrapTable.min.css" rel="stylesheet" />
+<script src="libs/bsTable-3.3.7/bootstrapTable.js"></script>
+<script type="text/javascript">
+
+// toggle visibility of R source blocks in R Markdown output
+function toggle_R() {
+  var x = document.getElementsByClassName('r');
+  if (x.length == 0) return;
+  function toggle_vis(o) {
+    var d = o.style.display;
+    o.style.display = (d == 'block' || d == '') ? 'none':'block';
+  }
+
+  for (i = 0; i < x.length; i++) {
+    var y = x[i];
+    if (y.tagName.toLowerCase() === 'pre') toggle_vis(y);
+  }
+
+    var elem = document.getElementById("myButton1");
+    if (elem.value === "Hide Code") elem.value = "Show Code";
+    else elem.value = "Hide Code";
+}
+
+document.write('<input onclick="toggle_R();" type="button" value="Hide Code" id="myButton1" style="position: absolute; top: 10%; right: 2%; z-index: 200"></input>')
+
+</script>
+
+
+<style type="text/css">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+<style type="text/css">
+  
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+</style>
+
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> Overview</a>
+<ul>
+<li class="chapter" data-level="1.1" data-path="index.html"><a href="index.html#objective"><i class="fa fa-check"></i><b>1.1</b> Objective</a></li>
+<li class="chapter" data-level="1.2" data-path="index.html"><a href="index.html#data-field-validation"><i class="fa fa-check"></i><b>1.2</b> Data &amp; Field Validation</a></li>
+<li class="chapter" data-level="1.3" data-path="index.html"><a href="index.html#point-cloud-processing-via-cloud2trees"><i class="fa fa-check"></i><b>1.3</b> Point Cloud Processing via <code>cloud2trees</code></a></li>
+<li class="chapter" data-level="1.4" data-path="index.html"><a href="index.html#accuracy-evaluation"><i class="fa fa-check"></i><b>1.4</b> Accuracy Evaluation</a></li>
+</ul></li>
+<li class="chapter" data-level="2" data-path="primer.html"><a href="primer.html"><i class="fa fa-check"></i><b>2</b> Primer on Point Cloud Processing</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="primer.html"><a href="primer.html#data"><i class="fa fa-check"></i><b>2.1</b> Data</a></li>
+<li class="chapter" data-level="2.2" data-path="primer.html"><a href="primer.html#itd-tuning"><i class="fa fa-check"></i><b>2.2</b> ITD Tuning</a>
+<ul>
+<li class="chapter" data-level="2.2.1" data-path="primer.html"><a href="primer.html#rgb-itd_tunining-visualizations"><i class="fa fa-check"></i><b>2.2.1</b> RGB <code>itd_tunining</code> Visualizations</a></li>
+</ul></li>
+<li class="chapter" data-level="2.3" data-path="primer.html"><a href="primer.html#point-cloud-processing-example"><i class="fa fa-check"></i><b>2.3</b> Point Cloud Processing Example</a>
+<ul>
+<li class="chapter" data-level="2.3.1" data-path="primer.html"><a href="primer.html#raster-products"><i class="fa fa-check"></i><b>2.3.1</b> Raster Products</a></li>
+<li class="chapter" data-level="2.3.2" data-path="primer.html"><a href="primer.html#tree-list"><i class="fa fa-check"></i><b>2.3.2</b> Tree list</a></li>
+<li class="chapter" data-level="2.3.3" data-path="primer.html"><a href="primer.html#tree-crowns"><i class="fa fa-check"></i><b>2.3.3</b> Tree Crowns</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html"><i class="fa fa-check"></i><b>3</b> Review of All Data Sets</a>
+<ul>
+<li class="chapter" data-level="3.1" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html#tracking"><i class="fa fa-check"></i><b>3.1</b> Tracking</a></li>
+<li class="chapter" data-level="3.2" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html#raster-data-and-study-boundary"><i class="fa fa-check"></i><b>3.2</b> Raster Data and Study Boundary</a></li>
+<li class="chapter" data-level="3.3" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html#field-trees"><i class="fa fa-check"></i><b>3.3</b> Field Trees</a></li>
+<li class="chapter" data-level="3.4" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html#uas-predicted-trees"><i class="fa fa-check"></i><b>3.4</b> UAS Predicted Trees</a></li>
+<li class="chapter" data-level="3.5" data-path="review-of-all-data-sets.html"><a href="review-of-all-data-sets.html#point-cloud-data-and-processing-time"><i class="fa fa-check"></i><b>3.5</b> Point Cloud Data and Processing Time</a></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html"><i class="fa fa-check"></i><b>4</b> Accuracy Evaluation</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html#detect_metrics_form"><i class="fa fa-check"></i><b>4.1</b> Detection Accuracy Functions</a>
+<ul>
+<li class="chapter" data-level="4.1.1" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html#example-instance-match"><i class="fa fa-check"></i><b>4.1.1</b> Example: Instance Match</a></li>
+<li class="chapter" data-level="4.1.2" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html#example-detection-accuracy"><i class="fa fa-check"></i><b>4.1.2</b> Example: Detection Accuracy</a></li>
+</ul></li>
+<li class="chapter" data-level="4.2" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html#quant_metrics_form"><i class="fa fa-check"></i><b>4.2</b> Quantification Accuracy Metrics</a></li>
+<li class="chapter" data-level="4.3" data-path="accuracy-evaluation-1.html"><a href="accuracy-evaluation-1.html#apply-instance-match"><i class="fa fa-check"></i><b>4.3</b> Apply Instance Match</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="accuracy-results.html"><a href="accuracy-results.html"><i class="fa fa-check"></i><b>5</b> Accuracy Results</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="accuracy-results.html"><a href="accuracy-results.html#detect_acc"><i class="fa fa-check"></i><b>5.1</b> Detection Accuracy Results</a></li>
+<li class="chapter" data-level="5.2" data-path="accuracy-results.html"><a href="accuracy-results.html#quant_acc"><i class="fa fa-check"></i><b>5.2</b> Quantification Accuracy Results</a></li>
+<li class="chapter" data-level="5.3" data-path="accuracy-results.html"><a href="accuracy-results.html#stand_acc"><i class="fa fa-check"></i><b>5.3</b> Stand-Level Accuracy Results</a></li>
+<li class="chapter" data-level="5.4" data-path="accuracy-results.html"><a href="accuracy-results.html#statistical-analysis"><i class="fa fa-check"></i><b>5.4</b> Statistical Analysis</a>
+<ul>
+<li class="chapter" data-level="5.4.1" data-path="accuracy-results.html"><a href="accuracy-results.html#aggregated-stand-level"><i class="fa fa-check"></i><b>5.4.1</b> Aggregated Stand-Level</a></li>
+</ul></li>
+<li class="chapter" data-level="5.5" data-path="accuracy-results.html"><a href="accuracy-results.html#individual-tree-level"><i class="fa fa-check"></i><b>5.5</b> Individual Tree Level</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="appendix.html"><a href="appendix.html"><i class="fa fa-check"></i><b>6</b> Appendix</a>
+<ul>
+<li class="chapter" data-level="6.1" data-path="appendix.html"><a href="appendix.html#vol_est"><i class="fa fa-check"></i><b>6.1</b> Volume Estimates</a>
+<ul>
+<li class="chapter" data-level="6.1.1" data-path="appendix.html"><a href="appendix.html#field-data"><i class="fa fa-check"></i><b>6.1.1</b> Field Data</a></li>
+<li class="chapter" data-level="6.1.2" data-path="appendix.html"><a href="appendix.html#predicted-data"><i class="fa fa-check"></i><b>6.1.2</b> Predicted Data</a></li>
+<li class="chapter" data-level="6.1.3" data-path="appendix.html"><a href="appendix.html#volume-accuracy"><i class="fa fa-check"></i><b>6.1.3</b> Volume Accuracy</a></li>
+</ul></li>
+<li class="chapter" data-level="6.2" data-path="appendix.html"><a href="appendix.html#species_pred"><i class="fa fa-check"></i><b>6.2</b> Predict Species</a>
+<ul>
+<li class="chapter" data-level="6.2.1" data-path="appendix.html"><a href="appendix.html#training-data"><i class="fa fa-check"></i><b>6.2.1</b> Training Data</a></li>
+<li class="chapter" data-level="6.2.2" data-path="appendix.html"><a href="appendix.html#predictions"><i class="fa fa-check"></i><b>6.2.2</b> Predictions</a></li>
+<li class="chapter" data-level="6.2.3" data-path="appendix.html"><a href="appendix.html#field-data-1"><i class="fa fa-check"></i><b>6.2.3</b> Field Data</a></li>
+<li class="chapter" data-level="6.2.4" data-path="appendix.html"><a href="appendix.html#predicted-species-composition-accuracy"><i class="fa fa-check"></i><b>6.2.4</b> Predicted Species Composition Accuracy</a></li>
+<li class="chapter" data-level="6.2.5" data-path="appendix.html"><a href="appendix.html#rf-predict-species"><i class="fa fa-check"></i><b>6.2.5</b> RF Predict Species</a></li>
+</ul></li>
+</ul></li>
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">influence of UAS-lidar flight parameters on tree detection at N1 study site</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="primer" class="section level1 hasAnchor" number="2">
+<h1><span class="header-section-number">2</span> Primer on Point Cloud Processing<a href="primer.html#primer" class="anchor-section" aria-label="Anchor link to header"></a></h1>
+<p>We’ll start with an overview of the point cloud processing workflow using a single, representative example dataset from the Manitou Experimental Forest study site. Before comparing performance across the entire study, this primer walks through the <code>cloud2trees</code> <a href="https://github.com/georgewoolsey/cloud2trees">package</a> pipeline utilized to process the raw point cloud to generate the spatial forest inventory for each of the six unique flight configurations tested. Within this section, we review the example data to define the window function used in the ITD algorithm implemented by <code>cloud2trees</code> and describe the outputs from <code>cloud2trees</code> which we use in the accuracy evaluation on the different UAS flight plan settings.</p>
+<p>load the standard libraries we use to do work</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="primer.html#cb1-1" tabindex="-1"></a><span class="co"># bread-and-butter</span></span>
+<span id="cb1-2"><a href="primer.html#cb1-2" tabindex="-1"></a><span class="fu">library</span>(tidyverse) <span class="co"># the tidyverse</span></span>
+<span id="cb1-3"><a href="primer.html#cb1-3" tabindex="-1"></a><span class="fu">library</span>(viridis) <span class="co"># viridis colors</span></span>
+<span id="cb1-4"><a href="primer.html#cb1-4" tabindex="-1"></a><span class="fu">library</span>(harrypotter) <span class="co"># hp colors</span></span>
+<span id="cb1-5"><a href="primer.html#cb1-5" tabindex="-1"></a><span class="fu">library</span>(palettetown) <span class="co"># poke colors</span></span>
+<span id="cb1-6"><a href="primer.html#cb1-6" tabindex="-1"></a><span class="fu">library</span>(RColorBrewer) <span class="co"># brewer colors</span></span>
+<span id="cb1-7"><a href="primer.html#cb1-7" tabindex="-1"></a><span class="fu">library</span>(scales) <span class="co"># work with number and plot scales</span></span>
+<span id="cb1-8"><a href="primer.html#cb1-8" tabindex="-1"></a><span class="fu">library</span>(latex2exp)</span>
+<span id="cb1-9"><a href="primer.html#cb1-9" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="primer.html#cb1-10" tabindex="-1"></a><span class="co"># visualization</span></span>
+<span id="cb1-11"><a href="primer.html#cb1-11" tabindex="-1"></a><span class="fu">library</span>(mapview) <span class="co"># interactive html maps</span></span>
+<span id="cb1-12"><a href="primer.html#cb1-12" tabindex="-1"></a><span class="fu">library</span>(kableExtra) <span class="co"># tables</span></span>
+<span id="cb1-13"><a href="primer.html#cb1-13" tabindex="-1"></a><span class="fu">library</span>(patchwork) <span class="co"># combine plots</span></span>
+<span id="cb1-14"><a href="primer.html#cb1-14" tabindex="-1"></a><span class="fu">library</span>(ggnewscale) <span class="co"># new scale</span></span>
+<span id="cb1-15"><a href="primer.html#cb1-15" tabindex="-1"></a><span class="fu">library</span>(ggrepel) <span class="co"># repel labels</span></span>
+<span id="cb1-16"><a href="primer.html#cb1-16" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="primer.html#cb1-17" tabindex="-1"></a><span class="co"># spatial analysis</span></span>
+<span id="cb1-18"><a href="primer.html#cb1-18" tabindex="-1"></a><span class="fu">library</span>(terra) <span class="co"># raster</span></span>
+<span id="cb1-19"><a href="primer.html#cb1-19" tabindex="-1"></a><span class="fu">library</span>(sf) <span class="co"># simple features</span></span>
+<span id="cb1-20"><a href="primer.html#cb1-20" tabindex="-1"></a><span class="fu">library</span>(lidR) <span class="co"># lidR</span></span>
+<span id="cb1-21"><a href="primer.html#cb1-21" tabindex="-1"></a><span class="fu">library</span>(cloud2trees) <span class="co"># cloud2trees</span></span></code></pre></div>
+<div id="data" class="section level2 hasAnchor" number="2.1">
+<h2><span class="header-section-number">2.1</span> Data<a href="primer.html#data" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>Though not necessary for <code>cloud2trees</code> data processing, let’s quickly check out the location and structure of the data we have</p>
+<p>we got a folder of point cloud data: <em>N1_400AGL_20MPH_TFOFF</em> … let’s see what’s in that folder</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="primer.html#cb2-1" tabindex="-1"></a><span class="co"># directory with the downloaded .las|.laz files</span></span>
+<span id="cb2-2"><a href="primer.html#cb2-2" tabindex="-1"></a>point_cld_folder <span class="ot">&lt;-</span> <span class="st">&quot;../data/N1_400AGL_20MPH_TFOFF&quot;</span></span>
+<span id="cb2-3"><a href="primer.html#cb2-3" tabindex="-1"></a><span class="co"># is there data?</span></span>
+<span id="cb2-4"><a href="primer.html#cb2-4" tabindex="-1"></a><span class="fu">list.files</span>(point_cld_folder, <span class="at">pattern =</span> <span class="st">&quot;.*</span><span class="sc">\\</span><span class="st">.(laz|las)$&quot;</span>) <span class="sc">%&gt;%</span> <span class="fu">length</span>()</span></code></pre></div>
+<pre><code>## [1] 1</code></pre>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="primer.html#cb4-1" tabindex="-1"></a><span class="co"># what files are in here?</span></span>
+<span id="cb4-2"><a href="primer.html#cb4-2" tabindex="-1"></a><span class="fu">list.files</span>(point_cld_folder, <span class="at">pattern =</span> <span class="st">&quot;.*</span><span class="sc">\\</span><span class="st">.(laz|las)$&quot;</span>)[<span class="dv">1</span>]</span></code></pre></div>
+<pre><code>## [1] &quot;cloud0.las&quot;</code></pre>
+<p>again, this is not necessary for <code>cloud2trees</code> data processing but we can use <code>lidR</code> to read the point cloud folder as a catalog which doesn’t read in the actual points but just the point cloud header data which includes information on things like the spatial location of the data, the point density, and other point attributes</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="primer.html#cb6-1" tabindex="-1"></a><span class="co"># read folder as LAScatalog</span></span>
+<span id="cb6-2"><a href="primer.html#cb6-2" tabindex="-1"></a>ctg_temp <span class="ot">&lt;-</span> lidR<span class="sc">::</span><span class="fu">readLAScatalog</span>(point_cld_folder)</span>
+<span id="cb6-3"><a href="primer.html#cb6-3" tabindex="-1"></a><span class="co"># what information do we get about the point cloud?</span></span>
+<span id="cb6-4"><a href="primer.html#cb6-4" tabindex="-1"></a>ctg_temp</span></code></pre></div>
+<pre><code>## class       : LAScatalog (v1.2 format 3)
+## extent      : 489922, 490406.8, 4330448, 4331090 (xmin, xmax, ymin, ymax)
+## coord. ref. : WGS 84 / UTM zone 13N 
+## area        : 311012.7 m²
+## points      : 53.71 million points
+## type        : airborne
+## density     : 172.7 points/m²
+## density     : 140.2 pulses/m²
+## num. files  : 1</code></pre>
+<p>that’s a lot of points…can an ordinary or sub-optimal laptop handle it? we’ll find out.</p>
+<p>let’s look at the point cloud extent on a map to orient ourselves in space</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="primer.html#cb8-1" tabindex="-1"></a>ctg_temp <span class="sc">%&gt;%</span> </span>
+<span id="cb8-2"><a href="primer.html#cb8-2" tabindex="-1"></a>  cloud2trees<span class="sc">:::</span><span class="fu">check_las_ctg_empty</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb8-3"><a href="primer.html#cb8-3" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">pluck</span>(<span class="st">&quot;data&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-4"><a href="primer.html#cb8-4" tabindex="-1"></a>  mapview<span class="sc">::</span><span class="fu">mapview</span>(<span class="at">popup =</span> F, <span class="at">layer.name =</span> <span class="st">&quot;point cloud tile&quot;</span>)</span></code></pre></div>
+<div class="leaflet html-widget html-fill-item" id="htmlwidget-052affb68fc21e12fded" style="width:1008px;height:729.6px;"></div>
+<script type="application/json" data-for="htmlwidget-052affb68fc21e12fded">{"x":{"options":{"minZoom":1,"maxZoom":52,"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}},"preferCanvas":false,"bounceAtZoomLimits":false,"maxBounds":[[[-90,-370]],[[90,370]]]},"calls":[{"method":"addProviderTiles","args":["OpenStreetMap","OpenStreetMap","OpenStreetMap",{"errorTileUrl":"","noWrap":false,"detectRetina":false,"pane":"tilePane"}]},{"method":"addProviderTiles","args":["Esri.WorldImagery","Esri.WorldImagery","Esri.WorldImagery",{"errorTileUrl":"","noWrap":false,"detectRetina":false,"pane":"tilePane"}]},{"method":"createMapPane","args":["polygon",420]},{"method":"addPolygons","args":[[[[{"lng":[-105.1165874727519,-105.1165970028478,-105.1109880140838,-105.1109789424382,-105.1165874727519],"lat":[39.12313849136808,39.12891926521584,39.12892474065733,39.12314396568843,39.12313849136808]}]]],null,"point cloud tile",{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}},"pane":"polygon","stroke":true,"color":"#333333","weight":0.5,"opacity":0.9,"fill":true,"fillColor":"#6666FF","fillOpacity":0.6,"smoothFactor":1,"noClip":false},null,{"maxWidth":800,"minWidth":50,"autoPan":true,"keepInView":false,"closeButton":true,"closeOnClick":true,"className":""},"1",{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},{"stroke":true,"weight":1,"opacity":0.9,"fillOpacity":0.84,"bringToFront":false,"sendToBack":false}]},{"method":"addScaleBar","args":[{"maxWidth":100,"metric":true,"imperial":true,"updateWhenIdle":true,"position":"bottomleft"}]},{"method":"addLayersControl","args":[["OpenStreetMap","Esri.WorldImagery"],"point cloud tile",{"collapsed":true,"autoZIndex":true,"position":"topleft"}]},{"method":"addLegend","args":[{"colors":["#6666FF"],"labels":["point cloud tile"],"na_color":null,"na_label":"NA","opacity":1,"position":"topright","type":"factor","title":"","extra":null,"layerId":null,"className":"info legend","group":"point cloud tile"}]}],"limits":{"lat":[39.12313849136808,39.12892474065733],"lng":[-105.1165970028478,-105.1109789424382]},"fitBounds":[39.12313849136808,-105.1165970028478,39.12892474065733,-105.1109789424382,[]]},"evals":[],"jsHooks":{"render":[{"code":"function(el, x, data) {\n  return (\n      function(el, x, data) {\n      // get the leaflet map\n      var map = this; //HTMLWidgets.find('#' + el.id);\n      // we need a new div element because we have to handle\n      // the mouseover output separately\n      // debugger;\n      function addElement () {\n      // generate new div Element\n      var newDiv = $(document.createElement('div'));\n      // append at end of leaflet htmlwidget container\n      $(el).append(newDiv);\n      //provide ID and style\n      newDiv.addClass('lnlt');\n      newDiv.css({\"position\":\"relative\",\"bottomleft\":\"0px\",\"background-color\":\"rgba(255, 255, 255, 0.7)\",\"box-shadow\":\"0 0 2px #bbb\",\"background-clip\":\"padding-box\",\"margin\":\"0\",\"padding-left\":\"5px\",\"padding-right\":\"5px\",\"color\":\"#333\",\"font-size\":\"9px\",\"font-family\":\"\\\"Helvetica Neue\\\", Arial, Helvetica, sans-serif\",\"text-align\":\"left\",\"z-index\":\"700\"});\n      return newDiv;\n      }\n\n\n      // check for already existing lnlt class to not duplicate\n      var lnlt = $(el).find('.lnlt');\n\n      if(!lnlt.length) {\n      lnlt = addElement();\n\n      // grab the special div we generated in the beginning\n      // and put the mousmove output there\n\n      map.on('mousemove', function (e) {\n      if (e.originalEvent.ctrlKey) {\n      if (document.querySelector('.lnlt') === null) lnlt = addElement();\n      lnlt.text(\n                           ' lon: ' + (e.latlng.lng).toFixed(5) +\n                           ' | lat: ' + (e.latlng.lat).toFixed(5) +\n                           ' | zoom: ' + map.getZoom() +\n                           ' | x: ' + L.CRS.EPSG3857.project(e.latlng).x.toFixed(0) +\n                           ' | y: ' + L.CRS.EPSG3857.project(e.latlng).y.toFixed(0) +\n                           ' | epsg: 3857 ' +\n                           ' | proj4: +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +no_defs ');\n      } else {\n      if (document.querySelector('.lnlt') === null) lnlt = addElement();\n      lnlt.text(\n                      ' lon: ' + (e.latlng.lng).toFixed(5) +\n                      ' | lat: ' + (e.latlng.lat).toFixed(5) +\n                      ' | zoom: ' + map.getZoom() + ' ');\n      }\n      });\n\n      // remove the lnlt div when mouse leaves map\n      map.on('mouseout', function (e) {\n      var strip = document.querySelector('.lnlt');\n      if( strip !==null) strip.remove();\n      });\n\n      };\n\n      //$(el).keypress(67, function(e) {\n      map.on('preclick', function(e) {\n      if (e.originalEvent.ctrlKey) {\n      if (document.querySelector('.lnlt') === null) lnlt = addElement();\n      lnlt.text(\n                      ' lon: ' + (e.latlng.lng).toFixed(5) +\n                      ' | lat: ' + (e.latlng.lat).toFixed(5) +\n                      ' | zoom: ' + map.getZoom() + ' ');\n      var txt = document.querySelector('.lnlt').textContent;\n      console.log(txt);\n      //txt.innerText.focus();\n      //txt.select();\n      setClipboardText('\"' + txt + '\"');\n      }\n      });\n\n      }\n      ).call(this.getMap(), el, x, data);\n}","data":null},{"code":"function(el, x, data) {\n  return (function(el,x,data){\n           var map = this;\n\n           map.on('keypress', function(e) {\n               console.log(e.originalEvent.code);\n               var key = e.originalEvent.code;\n               if (key === 'KeyE') {\n                   var bb = this.getBounds();\n                   var txt = JSON.stringify(bb);\n                   console.log(txt);\n\n                   setClipboardText('\\'' + txt + '\\'');\n               }\n           })\n        }).call(this.getMap(), el, x, data);\n}","data":null}]}}</script>
+<p>i told you that we didn’t need to do any of that for <code>cloud2trees</code> data processing and to prove it, we’ll remove the <code>ctg_temp</code> object from our session</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="primer.html#cb9-1" tabindex="-1"></a><span class="fu">remove</span>(<span class="at">list =</span> <span class="fu">ls</span>()[<span class="fu">grep</span>(<span class="st">&quot;_temp&quot;</span>,<span class="fu">ls</span>())])</span>
+<span id="cb9-2"><a href="primer.html#cb9-2" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
+<pre><code>##           used  (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells 4022456 214.9    7505811 400.9  5214521 278.5
+## Vcells 5958889  45.5   12255594  93.6  8388607  64.0</code></pre>
+</div>
+<div id="itd-tuning" class="section level2 hasAnchor" number="2.2">
+<h2><span class="header-section-number">2.2</span> ITD Tuning<a href="primer.html#itd-tuning" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>from the <code>cloud2trees</code> readme:</p>
+<blockquote>
+<p>The <code>itd_tuning()</code> function is used to visually assess tree crown delineation results from different window size functions used for the detection of individual trees. <code>itd_tuning()</code> allows users to test different window size functions on a sample of data to determine which function is most suitable for the area being analyzed. The preferred function can then be used in the <code>ws</code> parameter in <code>raster2trees()</code> and <code>cloud2trees()</code>.</p>
+</blockquote>
+<p>let’s take this <code>cloud2trees::itd_tuning()</code> function for a spin with the parameter settings <code>chm_res_m = 0.25</code> since we plan on processing the entire data extent using a 0.25 m CHM resolution, <code>n_samples = 4</code> to get four 0.1 ha sample areas on which to visually assess the window functions, and <code>min_height = 1.37</code> to require that any potential tree has a height of at least 1.37 m to be considered a “tree”</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="primer.html#cb11-1" tabindex="-1"></a>itd_tuning_ans <span class="ot">&lt;-</span> </span>
+<span id="cb11-2"><a href="primer.html#cb11-2" tabindex="-1"></a>  cloud2trees<span class="sc">::</span><span class="fu">itd_tuning</span>(</span>
+<span id="cb11-3"><a href="primer.html#cb11-3" tabindex="-1"></a>    <span class="at">input_las_dir =</span> <span class="st">&quot;../data/N1_400AGL_20MPH_TFOFF/&quot;</span></span>
+<span id="cb11-4"><a href="primer.html#cb11-4" tabindex="-1"></a>    , <span class="at">n_samples =</span> <span class="dv">4</span></span>
+<span id="cb11-5"><a href="primer.html#cb11-5" tabindex="-1"></a>    , <span class="at">min_height =</span> <span class="fl">1.37</span></span>
+<span id="cb11-6"><a href="primer.html#cb11-6" tabindex="-1"></a>    , <span class="at">chm_res_m =</span> <span class="fl">0.25</span></span>
+<span id="cb11-7"><a href="primer.html#cb11-7" tabindex="-1"></a>  )</span></code></pre></div>
+<p>what does <code>cloud2trees::itd_tuning()</code> give us?</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="primer.html#cb12-1" tabindex="-1"></a><span class="fu">names</span>(itd_tuning_ans)</span></code></pre></div>
+<pre><code>## [1] &quot;plot_samples&quot;        &quot;ws_fn_list&quot;          &quot;plot_sample_summary&quot;
+## [4] &quot;crowns&quot;</code></pre>
+<p>it’s a named list. let’s check out the <code>plot_*</code> results</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="primer.html#cb14-1" tabindex="-1"></a>itd_tuning_ans<span class="sc">$</span>plot_samples</span>
+<span id="cb14-2"><a href="primer.html#cb14-2" tabindex="-1"></a><span class="co"># write the file to the disk for posterity</span></span>
+<span id="cb14-3"><a href="primer.html#cb14-3" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning_plot_samples1.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">11</span>, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/cXXcxjwB/itd-tuning-plot-samples1.jpg" alt="" width="80%" height="80%" style="display: block; margin: auto;" /></p>
+<p>the most noticeable difference between the window functions is with the segmentation of tall areas of the CHM using the <code>log_fn</code> compared to the other two. this function appears to not be separating tall trees appropriately: it is under-segmenting these areas resulting in too few tall trees. this under-segmentation by the <code>log_fn</code> can be seen most clearly in the top-left tall tree group of sample 1 and the top-left tall tree group of sample 4</p>
+<p>comparing the <code>lin_fn</code> (linear function) and <code>exp_fn</code> (exponential function) shows that both functions result in similar segmentation results for taller trees but the primary differences appear for shorter trees. The difference in short-tree segmentation between these two functions is most evident in sample 2 where the <code>lin_fn</code> predicts many more small trees than the <code>exp_fn</code>. This appears to be an over-segmentation (too many trees) by the <code>lin_fn</code> for shorter trees which is perhaps most clear in the area just above the very center of sample 2</p>
+<p>let’s check out the resulting tree distribution of the different window functions over these sample areas</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="primer.html#cb15-1" tabindex="-1"></a>itd_tuning_ans<span class="sc">$</span>plot_sample_summary</span>
+<span id="cb15-2"><a href="primer.html#cb15-2" tabindex="-1"></a><span class="co"># write the file to the disk for posterity</span></span>
+<span id="cb15-3"><a href="primer.html#cb15-3" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning_plot_sample_summary1.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">11</span>, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/JRMWVPzN/itd-tuning-plot-sample-summary1.jpg" alt="" width="80%" height="80%" style="display: block; margin: auto;" /></p>
+<p>these results confirm what we identified about the <code>log_fn</code> compared to the other two: that it under-segments taller trees. predicting too few tall trees by not separating multiple tree crowns has the effect of producing tall trees with very wide crowns. this result is shown by the outlier yellow points in the RHS plots where the crown is predicted to be wider than the tree is tall (unlikely for this forest type)</p>
+<p>let’s look at the default window function named <code>lin_fn</code> (i.e. linear function) from <code>cloud2trees</code> to see how we might adjust it to obtain different tree segmentation results</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="primer.html#cb16-1" tabindex="-1"></a>itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>lin_fn</span></code></pre></div>
+<pre><code>## function (x) 
+## {
+##     y &lt;- dplyr::case_when(is.na(x) ~ 0.001, x &lt; 0 ~ 0.001, x &lt; 
+##         2 ~ 1, x &gt; 30 ~ 5, TRUE ~ 0.75 + (x * 0.14))
+##     return(y)
+## }
+## &lt;bytecode: 0x0000028128dd3e58&gt;
+## &lt;environment: 0x0000028128dd11d0&gt;</code></pre>
+<p>it’s a function defining the window size (called <code>y</code>) based on the CHM height (called <code>x</code>)</p>
+<p>we can plot the two functions that we did not rule out based on the first set of <code>cloud2trees::itd_tuning()</code> samples</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="primer.html#cb18-1" tabindex="-1"></a><span class="co"># plot the ws fn</span></span>
+<span id="cb18-2"><a href="primer.html#cb18-2" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb18-3"><a href="primer.html#cb18-3" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>lin_fn, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;lin_fn&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb18-4"><a href="primer.html#cb18-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>log_fn, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;log_fn&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb18-5"><a href="primer.html#cb18-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>exp_fn, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;exp_fn&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb18-6"><a href="primer.html#cb18-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">xlim</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">42</span>) <span class="sc">+</span></span>
+<span id="cb18-7"><a href="primer.html#cb18-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;heights&quot;</span>, <span class="at">y =</span> <span class="st">&quot;ws&quot;</span>, <span class="at">color =</span> <span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb18-8"><a href="primer.html#cb18-8" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>()</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-18-1.png" alt="" width="1008" /></p>
+<p>the <code>lin_fn</code> (linear function) and <code>exp_fn</code> (exponential function) result in similar window sizes for higher CHM values but the <code>exp_fn</code> expands the window size for shorter areas compared to the <code>lin_fn</code>.</p>
+<p>let’s make a custom linear function that expands the search window for shorter trees but keeps roughly the same window size for taller trees between 15-25 m (we don’t expect many trees above this in our study area). looking at the plot of the two functions, we want to make a new, piecewise linear function that passes through (4,1.5) which is a point between the <code>exp_fn</code> and <code>lin_fn</code> in the 2-7.5 x-range</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="primer.html#cb19-1" tabindex="-1"></a><span class="co"># define a custom function</span></span>
+<span id="cb19-2"><a href="primer.html#cb19-2" tabindex="-1"></a>my_linear <span class="ot">&lt;-</span> <span class="cf">function</span>(x){</span>
+<span id="cb19-3"><a href="primer.html#cb19-3" tabindex="-1"></a>    y <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">case_when</span>(</span>
+<span id="cb19-4"><a href="primer.html#cb19-4" tabindex="-1"></a>      <span class="fu">is.na</span>(x) <span class="sc">~</span> <span class="fl">0.001</span></span>
+<span id="cb19-5"><a href="primer.html#cb19-5" tabindex="-1"></a>      , x <span class="sc">&lt;</span> <span class="fl">0.01</span> <span class="sc">~</span> <span class="fl">0.001</span></span>
+<span id="cb19-6"><a href="primer.html#cb19-6" tabindex="-1"></a>      <span class="co"># next piece:</span></span>
+<span id="cb19-7"><a href="primer.html#cb19-7" tabindex="-1"></a>        <span class="co"># we want it to pass through ~ (1.5,0.75)</span></span>
+<span id="cb19-8"><a href="primer.html#cb19-8" tabindex="-1"></a>        <span class="co"># m = (y2-y1)/(x2-x1) &gt;&gt; m = (0.75-0.001)/(1.5-0.01) = 0.5026846</span></span>
+<span id="cb19-9"><a href="primer.html#cb19-9" tabindex="-1"></a>        <span class="co"># b = y-(m*x) &gt;&gt; b = 0.001-(0.5026846*0.01) = -0.004026846</span></span>
+<span id="cb19-10"><a href="primer.html#cb19-10" tabindex="-1"></a>      , x <span class="sc">&lt;</span> <span class="fl">1.5</span> <span class="sc">~</span> <span class="sc">-</span><span class="fl">0.004026846</span> <span class="sc">+</span> x<span class="sc">*</span><span class="fl">0.5026846</span></span>
+<span id="cb19-11"><a href="primer.html#cb19-11" tabindex="-1"></a>      <span class="co"># next piece:</span></span>
+<span id="cb19-12"><a href="primer.html#cb19-12" tabindex="-1"></a>        <span class="co"># at x=1.5, first segment y = -0.004026846+1.5*0.5026846 = 0.75 &gt;&gt; (1.5,0.75)</span></span>
+<span id="cb19-13"><a href="primer.html#cb19-13" tabindex="-1"></a>        <span class="co"># connect to (3.0,1.0)</span></span>
+<span id="cb19-14"><a href="primer.html#cb19-14" tabindex="-1"></a>        <span class="co"># m = (1.0-0.75)/(3.0-1.5) = 0.1666667</span></span>
+<span id="cb19-15"><a href="primer.html#cb19-15" tabindex="-1"></a>        <span class="co"># b = 0.75-(0.1666667*1.5) = 0.4999999</span></span>
+<span id="cb19-16"><a href="primer.html#cb19-16" tabindex="-1"></a>      , x <span class="sc">&lt;</span> <span class="fl">3.0</span> <span class="sc">~</span> <span class="fl">0.4999999</span> <span class="sc">+</span> x<span class="sc">*</span><span class="fl">0.1666667</span> </span>
+<span id="cb19-17"><a href="primer.html#cb19-17" tabindex="-1"></a>      <span class="co"># next piece:</span></span>
+<span id="cb19-18"><a href="primer.html#cb19-18" tabindex="-1"></a>        <span class="co"># at x=3.0, first segment y = 0.4999999+3.0*0.1666667 = 1.0 &gt;&gt; (3.0,1.0)</span></span>
+<span id="cb19-19"><a href="primer.html#cb19-19" tabindex="-1"></a>        <span class="co"># connect to (25,3.75)</span></span>
+<span id="cb19-20"><a href="primer.html#cb19-20" tabindex="-1"></a>        <span class="co"># m = (3.75-1.0)/(25-3.0) = 0.125</span></span>
+<span id="cb19-21"><a href="primer.html#cb19-21" tabindex="-1"></a>        <span class="co"># b = 1.0-(0.125*3.0) = 0.625</span></span>
+<span id="cb19-22"><a href="primer.html#cb19-22" tabindex="-1"></a>      , x <span class="sc">&lt;</span> <span class="dv">25</span> <span class="sc">~</span> <span class="fl">0.625</span> <span class="sc">+</span> x<span class="sc">*</span><span class="fl">0.125</span></span>
+<span id="cb19-23"><a href="primer.html#cb19-23" tabindex="-1"></a>      <span class="co"># upper limit starts at (32.5,5)</span></span>
+<span id="cb19-24"><a href="primer.html#cb19-24" tabindex="-1"></a>      , x <span class="sc">&gt;</span> <span class="fl">32.5</span> <span class="sc">~</span> <span class="dv">5</span></span>
+<span id="cb19-25"><a href="primer.html#cb19-25" tabindex="-1"></a>      <span class="co"># next piece:</span></span>
+<span id="cb19-26"><a href="primer.html#cb19-26" tabindex="-1"></a>        <span class="co"># connect to (32.5,5)</span></span>
+<span id="cb19-27"><a href="primer.html#cb19-27" tabindex="-1"></a>        <span class="co"># m = (5-3.75)/(32.5-25) = 0.1666667</span></span>
+<span id="cb19-28"><a href="primer.html#cb19-28" tabindex="-1"></a>        <span class="co"># b = 3.75-(0.1666667*25) = -0.4166675</span></span>
+<span id="cb19-29"><a href="primer.html#cb19-29" tabindex="-1"></a>      , T <span class="sc">~</span> <span class="sc">-</span><span class="fl">0.4166675</span> <span class="sc">+</span> x<span class="sc">*</span><span class="fl">0.1666667</span></span>
+<span id="cb19-30"><a href="primer.html#cb19-30" tabindex="-1"></a>    )</span>
+<span id="cb19-31"><a href="primer.html#cb19-31" tabindex="-1"></a>    <span class="fu">return</span>(y)</span>
+<span id="cb19-32"><a href="primer.html#cb19-32" tabindex="-1"></a>}</span>
+<span id="cb19-33"><a href="primer.html#cb19-33" tabindex="-1"></a><span class="co"># my_linear</span></span></code></pre></div>
+<p>let’s visualize these functions we’ll use for the second <code>cloud2trees::itd_tuning()</code> sampling</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="primer.html#cb20-1" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb20-2"><a href="primer.html#cb20-2" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>lin_fn, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;lin_fn&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-3"><a href="primer.html#cb20-3" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> itd_tuning_ans<span class="sc">$</span>ws_fn_list<span class="sc">$</span>exp_fn, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;exp_fn&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-4"><a href="primer.html#cb20-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_function</span>(<span class="at">fun =</span> my_linear, <span class="fu">aes</span>(<span class="at">color =</span> <span class="st">&quot;my_linear&quot;</span>), <span class="at">lwd =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-5"><a href="primer.html#cb20-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">xlim</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">40</span>) <span class="sc">+</span></span>
+<span id="cb20-6"><a href="primer.html#cb20-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;heights&quot;</span>, <span class="at">y =</span> <span class="st">&quot;ws&quot;</span>, <span class="at">color =</span> <span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb20-7"><a href="primer.html#cb20-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>()</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-21-1.png" alt="" width="1008" /></p>
+<p>re-run tuning with new function</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="primer.html#cb21-1" tabindex="-1"></a><span class="co"># let&#39;s put these in a list to test with the best default function we saved from above</span></span>
+<span id="cb21-2"><a href="primer.html#cb21-2" tabindex="-1"></a>my_fn_list <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb21-3"><a href="primer.html#cb21-3" tabindex="-1"></a>  <span class="at">lin_fn =</span> cloud2trees<span class="sc">::</span><span class="fu">itd_ws_functions</span>()[[<span class="st">&quot;lin_fn&quot;</span>]]</span>
+<span id="cb21-4"><a href="primer.html#cb21-4" tabindex="-1"></a>  , <span class="at">exp_fn =</span> cloud2trees<span class="sc">::</span><span class="fu">itd_ws_functions</span>()[[<span class="st">&quot;exp_fn&quot;</span>]]</span>
+<span id="cb21-5"><a href="primer.html#cb21-5" tabindex="-1"></a>  , <span class="at">my_linear =</span> my_linear</span>
+<span id="cb21-6"><a href="primer.html#cb21-6" tabindex="-1"></a>)</span>
+<span id="cb21-7"><a href="primer.html#cb21-7" tabindex="-1"></a>itd_tuning_ans2 <span class="ot">&lt;-</span> </span>
+<span id="cb21-8"><a href="primer.html#cb21-8" tabindex="-1"></a>  cloud2trees<span class="sc">::</span><span class="fu">itd_tuning</span>(</span>
+<span id="cb21-9"><a href="primer.html#cb21-9" tabindex="-1"></a>    <span class="at">input_las_dir =</span> <span class="st">&quot;../data/N1_400AGL_20MPH_TFOFF/&quot;</span></span>
+<span id="cb21-10"><a href="primer.html#cb21-10" tabindex="-1"></a>    , <span class="at">ws_fn_list =</span> my_fn_list</span>
+<span id="cb21-11"><a href="primer.html#cb21-11" tabindex="-1"></a>    , <span class="at">n_samples =</span> <span class="dv">4</span></span>
+<span id="cb21-12"><a href="primer.html#cb21-12" tabindex="-1"></a>    , <span class="at">min_height =</span> <span class="fl">1.37</span></span>
+<span id="cb21-13"><a href="primer.html#cb21-13" tabindex="-1"></a>    , <span class="at">chm_res_m =</span> <span class="fl">0.25</span></span>
+<span id="cb21-14"><a href="primer.html#cb21-14" tabindex="-1"></a>  )</span></code></pre></div>
+<p>let’s check out the <code>plot_*</code> results</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="primer.html#cb22-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>plot_samples</span>
+<span id="cb22-2"><a href="primer.html#cb22-2" tabindex="-1"></a><span class="co"># write the file to the disk for posterity</span></span>
+<span id="cb22-3"><a href="primer.html#cb22-3" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning_plot_samples2.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">11</span>, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/SwgxKj2q/itd-tuning-plot-samples2.jpg" alt="" width="80%" height="80%" style="display: block; margin: auto;" /></p>
+<p>Our custom <code>my_linear</code> function appears to do a good job striking a balance between the default <code>lin_fn</code> which tended to undersegment taller trees an the <code>exp_fn</code> which tended to undersegment shorter trees. The custom function and the <code>exp_fn</code> yield similar tree segmentation results for sample 1 which is what we expected since that area consists primarily of taller trees and the biggest change we made to <code>my_linear</code> function was to limit the search window at the taller range and expand the search window for shorter trees so that less were detected compared to the default <code>lin_fn</code>. One notable difference with the <code>exp_fn</code> (exponential function) in sample 1 is in the lower left corner where the custom function limited crown sprawl for one of the taller objects in the scene an yielded more realistic crown shapes. Our custom <code>my_linear</code> function yields fewer small trees than the default <code>lin_fn</code> (but more than the <code>exp_fn</code>) since we allowed a larger window size at lower portions of the CHM with this effect most clear for the short trees (purple CHM regions) on sample 2.</p>
+<p>let’s check out the resulting tree distribution of the different window functions over these sample areas</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="primer.html#cb23-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>plot_sample_summary</span>
+<span id="cb23-2"><a href="primer.html#cb23-2" tabindex="-1"></a><span class="co"># write the file to the disk for posterity</span></span>
+<span id="cb23-3"><a href="primer.html#cb23-3" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning_plot_sample_summary2.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">11</span>, <span class="at">width =</span> <span class="dv">8</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span>
+<span id="cb23-4"><a href="primer.html#cb23-4" tabindex="-1"></a><span class="co"># save the crowns too?</span></span>
+<span id="cb23-5"><a href="primer.html#cb23-5" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> sf<span class="sc">::</span><span class="fu">st_write</span>(<span class="at">dsn =</span> <span class="st">&quot;../data/itd_tuning_crowns.gpkg&quot;</span>, <span class="at">quiet =</span> T, <span class="at">append =</span> F) </span></code></pre></div>
+<p><img src="https://i.ibb.co/gM8NnyyH/itd-tuning-plot-sample-summary2.jpg" alt="" width="80%" height="80%" style="display: block; margin: auto;" /></p>
+<p>let’s check out the crown polygon data we got from our second <code>itd_tuining()</code> iteration</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="primer.html#cb24-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 492
+## Columns: 9
+## $ sample_number    &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
+## $ ws_fn            &lt;chr&gt; &quot;lin_fn&quot;, &quot;lin_fn&quot;, &quot;lin_fn&quot;, &quot;lin_fn&quot;, &quot;lin_fn&quot;, &quot;li…
+## $ treeID           &lt;chr&gt; &quot;1_490149.4_4330784.4&quot;, &quot;2_490163.9_4330783.1&quot;, &quot;3_49…
+## $ tree_height_m    &lt;dbl&gt; 21.6631, 21.3840, 24.3616, 21.9198, 20.9949, 24.1610,…
+## $ tree_x           &lt;dbl&gt; 490149.4, 490163.9, 490154.6, 490179.9, 490169.9, 490…
+## $ tree_y           &lt;dbl&gt; 4330784, 4330783, 4330782, 4330782, 4330781, 4330779,…
+## $ crown_area_m2    &lt;dbl&gt; 1.8750, 35.5625, 40.3750, 27.2500, 49.6875, 27.4375, …
+## $ crown_diameter_m &lt;dbl&gt; 1.952562, 10.201103, 9.154917, 8.634958, 10.398317, 7…
+## $ geom             &lt;MULTIPOLYGON [m]&gt; MULTIPOLYGON (((490148.5 43..., MULTIPOL…</code></pre>
+<p>this data includes the crown polygons for each window function and 0.1 ha sample plot</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="primer.html#cb26-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb26-2"><a href="primer.html#cb26-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb26-3"><a href="primer.html#cb26-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">count</span>(sample_number,ws_fn)</span></code></pre></div>
+<pre><code>##    sample_number     ws_fn  n
+## 1              1    exp_fn 31
+## 2              1    lin_fn 25
+## 3              1 my_linear 33
+## 4              2    exp_fn 52
+## 5              2    lin_fn 56
+## 6              2 my_linear 57
+## 7              3    exp_fn 43
+## 8              3    lin_fn 40
+## 9              3 my_linear 44
+## 10             4    exp_fn 36
+## 11             4    lin_fn 34
+## 12             4 my_linear 41</code></pre>
+<p>let’s investigate the suspicious segments where crown diameter is greater than the tree height but limit our search to only trees &gt; 2m in height since it is believable that a 5 foot tree could have a 5 foot crown diameter but it is not believable that a 90 foot tree could have a 90 foot crown diameter, for example</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="primer.html#cb28-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb28-2"><a href="primer.html#cb28-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb28-3"><a href="primer.html#cb28-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
+<span id="cb28-4"><a href="primer.html#cb28-4" tabindex="-1"></a>    crown_diameter_m<span class="sc">&gt;</span>tree_height_m <span class="sc">&amp;</span></span>
+<span id="cb28-5"><a href="primer.html#cb28-5" tabindex="-1"></a>    tree_height_m<span class="sc">&gt;</span><span class="dv">2</span></span>
+<span id="cb28-6"><a href="primer.html#cb28-6" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb28-7"><a href="primer.html#cb28-7" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">count</span>(sample_number,ws_fn)</span></code></pre></div>
+<pre><code>##   sample_number  ws_fn n
+## 1             4 exp_fn 1</code></pre>
+<p>the <code>exp_fn</code> predicts a single tree with a crown diameter greater than height, let’s see the tree details for those questionable predictions</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="primer.html#cb30-1" tabindex="-1"></a>itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb30-2"><a href="primer.html#cb30-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
+<span id="cb30-3"><a href="primer.html#cb30-3" tabindex="-1"></a>    crown_diameter_m<span class="sc">&gt;</span>tree_height_m <span class="sc">&amp;</span></span>
+<span id="cb30-4"><a href="primer.html#cb30-4" tabindex="-1"></a>    tree_height_m<span class="sc">&gt;</span><span class="dv">2</span></span>
+<span id="cb30-5"><a href="primer.html#cb30-5" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb30-6"><a href="primer.html#cb30-6" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(sample_number,ws_fn,tree_height_m,crown_diameter_m,tree_x,tree_y)</span></code></pre></div>
+<pre><code>## Simple feature collection with 1 feature and 6 fields
+## Geometry type: MULTIPOLYGON
+## Dimension:     XY
+## Bounding box:  xmin: 490049.5 ymin: 4330561 xmax: 490051 ymax: 4330563
+## Projected CRS: WGS 84 / UTM zone 13N
+##   sample_number  ws_fn tree_height_m crown_diameter_m   tree_x  tree_y
+## 1             4 exp_fn        2.2017         2.358495 490050.1 4330562
+##                             geom
+## 1 MULTIPOLYGON (((490049.5 43...</code></pre>
+<p>let’s check the geometry types</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="primer.html#cb32-1" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_geometry_type</span>(itd_tuning_ans2<span class="sc">$</span>crowns) <span class="sc">%&gt;%</span> </span>
+<span id="cb32-2"><a href="primer.html#cb32-2" tabindex="-1"></a>  <span class="fu">droplevels</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb32-3"><a href="primer.html#cb32-3" tabindex="-1"></a>  <span class="fu">table</span>()</span></code></pre></div>
+<pre><code>## .
+## MULTIPOLYGON 
+##          492</code></pre>
+<p>note that there are <code>MULTIPOLYGON</code> geometries which means that the tree crown is, potentially, not a continuous, wholly connected object. This result is common when using rasterized data since the raster cells have potential to “connect” at the corners during segmentation. <code>cloud2trees</code> has functionality to handle these <code>MULTIPOLYGON</code> geometries by selecting the largest area polygon part by predicted segment (i.e. <code>treeID</code> from <code>cloud2trees</code>). let’s simplify the <code>MULTIPOLYGON</code> geometries, calculate the diameter of the new, simplified geometries</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="primer.html#cb34-1" tabindex="-1"></a>crowns_simplified <span class="ot">&lt;-</span> itd_tuning_ans2<span class="sc">$</span>crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb34-2"><a href="primer.html#cb34-2" tabindex="-1"></a>  <span class="co"># we&#39;re going to replace the treeID to ensure we have a </span></span>
+<span id="cb34-3"><a href="primer.html#cb34-3" tabindex="-1"></a>  <span class="co"># unique identifier since the data is a special case where </span></span>
+<span id="cb34-4"><a href="primer.html#cb34-4" tabindex="-1"></a>  <span class="co"># trees were segmented differently on the same geographic area</span></span>
+<span id="cb34-5"><a href="primer.html#cb34-5" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb34-6"><a href="primer.html#cb34-6" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">treeID =</span> dplyr<span class="sc">::</span><span class="fu">row_number</span>()) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-7"><a href="primer.html#cb34-7" tabindex="-1"></a>  cloud2trees<span class="sc">::</span><span class="fu">simplify_multipolygon_crowns</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb34-8"><a href="primer.html#cb34-8" tabindex="-1"></a>  <span class="co"># get the diameter which will be named `diameter_m`</span></span>
+<span id="cb34-9"><a href="primer.html#cb34-9" tabindex="-1"></a>  cloud2trees<span class="sc">:::</span><span class="fu">st_calculate_diameter</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb34-10"><a href="primer.html#cb34-10" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span>crown_diameter_m) <span class="sc">%&gt;%</span> </span>
+<span id="cb34-11"><a href="primer.html#cb34-11" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">rename</span>(<span class="at">crown_diameter_m=</span>diameter_m)</span>
+<span id="cb34-12"><a href="primer.html#cb34-12" tabindex="-1"></a><span class="co"># crowns_simplified %&gt;% dplyr::glimpse()</span></span></code></pre></div>
+<p>we should have the same number of predicted trees</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="primer.html#cb35-1" tabindex="-1"></a><span class="fu">identical</span>(</span>
+<span id="cb35-2"><a href="primer.html#cb35-2" tabindex="-1"></a>  <span class="fu">nrow</span>(crowns_simplified)</span>
+<span id="cb35-3"><a href="primer.html#cb35-3" tabindex="-1"></a>  , <span class="fu">nrow</span>(itd_tuning_ans2<span class="sc">$</span>crowns)</span>
+<span id="cb35-4"><a href="primer.html#cb35-4" tabindex="-1"></a>)</span></code></pre></div>
+<pre><code>## [1] TRUE</code></pre>
+<p>we can verify the geometry type in the data now</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="primer.html#cb37-1" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_geometry_type</span>(crowns_simplified) <span class="sc">%&gt;%</span> </span>
+<span id="cb37-2"><a href="primer.html#cb37-2" tabindex="-1"></a>  <span class="fu">droplevels</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb37-3"><a href="primer.html#cb37-3" tabindex="-1"></a>  <span class="fu">table</span>()</span></code></pre></div>
+<pre><code>## .
+## POLYGON 
+##     492</code></pre>
+<p>now let’s look for trees where the where crown diameter is greater than the tree height but limit our search to only trees &gt; 2m in height</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="primer.html#cb39-1" tabindex="-1"></a>crowns_simplified <span class="sc">%&gt;%</span> </span>
+<span id="cb39-2"><a href="primer.html#cb39-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb39-3"><a href="primer.html#cb39-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
+<span id="cb39-4"><a href="primer.html#cb39-4" tabindex="-1"></a>    crown_diameter_m<span class="sc">&gt;</span>tree_height_m <span class="sc">&amp;</span></span>
+<span id="cb39-5"><a href="primer.html#cb39-5" tabindex="-1"></a>    tree_height_m<span class="sc">&gt;</span><span class="dv">2</span></span>
+<span id="cb39-6"><a href="primer.html#cb39-6" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb39-7"><a href="primer.html#cb39-7" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">count</span>(sample_number,ws_fn)</span></code></pre></div>
+<pre><code>## # A tibble: 1 × 3
+##   sample_number ws_fn      n
+##           &lt;int&gt; &lt;chr&gt;  &lt;int&gt;
+## 1             4 exp_fn     1</code></pre>
+<p>now there is only a single record from the <code>exp_fn</code> where the crown diameter is larger than the tree height. let’s look at the specific record</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="primer.html#cb41-1" tabindex="-1"></a>crowns_simplified <span class="sc">%&gt;%</span> </span>
+<span id="cb41-2"><a href="primer.html#cb41-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb41-3"><a href="primer.html#cb41-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
+<span id="cb41-4"><a href="primer.html#cb41-4" tabindex="-1"></a>    crown_diameter_m<span class="sc">&gt;</span>tree_height_m <span class="sc">&amp;</span></span>
+<span id="cb41-5"><a href="primer.html#cb41-5" tabindex="-1"></a>    tree_height_m<span class="sc">&gt;</span><span class="dv">2</span></span>
+<span id="cb41-6"><a href="primer.html#cb41-6" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb41-7"><a href="primer.html#cb41-7" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(sample_number,ws_fn,tree_height_m,crown_diameter_m,tree_x,tree_y)</span></code></pre></div>
+<pre><code>## # A tibble: 1 × 6
+##   sample_number ws_fn  tree_height_m crown_diameter_m  tree_x   tree_y
+##           &lt;int&gt; &lt;chr&gt;          &lt;dbl&gt;            &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;
+## 1             4 exp_fn          2.20             2.36 490050. 4330562.</code></pre>
+<p>the diameter is barely larger than the height for this record which is a relatively small tree…seems like the issue is resolved</p>
+<p>we can quickly look at the height versus crown diameter scatter plot with the refined polygon geometries</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="primer.html#cb43-1" tabindex="-1"></a>crowns_simplified <span class="sc">%&gt;%</span> </span>
+<span id="cb43-2"><a href="primer.html#cb43-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb43-3"><a href="primer.html#cb43-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">rename</span>(<span class="at">sample =</span> sample_number) <span class="sc">%&gt;%</span></span>
+<span id="cb43-4"><a href="primer.html#cb43-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">x=</span>tree_height_m,<span class="at">y=</span>crown_diameter_m,<span class="at">color=</span>ws_fn)) <span class="sc">+</span></span>
+<span id="cb43-5"><a href="primer.html#cb43-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_abline</span>() <span class="sc">+</span></span>
+<span id="cb43-6"><a href="primer.html#cb43-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">size =</span> <span class="dv">3</span>,<span class="at">alpha=</span><span class="fl">0.88</span>) <span class="sc">+</span></span>
+<span id="cb43-7"><a href="primer.html#cb43-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">facet_grid</span>(</span>
+<span id="cb43-8"><a href="primer.html#cb43-8" tabindex="-1"></a>    <span class="co"># cols = dplyr::vars(ws_fn)</span></span>
+<span id="cb43-9"><a href="primer.html#cb43-9" tabindex="-1"></a>    <span class="at">cols =</span> dplyr<span class="sc">::</span><span class="fu">vars</span>(sample)</span>
+<span id="cb43-10"><a href="primer.html#cb43-10" tabindex="-1"></a>    , <span class="at">labeller =</span> ggplot2<span class="sc">::</span>label_both</span>
+<span id="cb43-11"><a href="primer.html#cb43-11" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb43-12"><a href="primer.html#cb43-12" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_color_viridis_d</span>(<span class="at">name=</span><span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb43-13"><a href="primer.html#cb43-13" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_continuous</span>(<span class="at">limits=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="cn">NA</span>), <span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="at">n=</span><span class="dv">6</span>)) <span class="sc">+</span></span>
+<span id="cb43-14"><a href="primer.html#cb43-14" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_y_continuous</span>(<span class="at">limits=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="cn">NA</span>), <span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="at">n=</span><span class="dv">6</span>)) <span class="sc">+</span></span>
+<span id="cb43-15"><a href="primer.html#cb43-15" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;height (m)&quot;</span>, <span class="at">y =</span> <span class="st">&quot;crown diameter (m)&quot;</span>) <span class="sc">+</span></span>
+<span id="cb43-16"><a href="primer.html#cb43-16" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
+<span id="cb43-17"><a href="primer.html#cb43-17" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(</span>
+<span id="cb43-18"><a href="primer.html#cb43-18" tabindex="-1"></a>    <span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span></span>
+<span id="cb43-19"><a href="primer.html#cb43-19" tabindex="-1"></a>    , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">size =</span> <span class="dv">9</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>)</span>
+<span id="cb43-20"><a href="primer.html#cb43-20" tabindex="-1"></a>  ) <span class="sc">+</span> </span>
+<span id="cb43-21"><a href="primer.html#cb43-21" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">guides</span>(</span>
+<span id="cb43-22"><a href="primer.html#cb43-22" tabindex="-1"></a>    <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">size =</span> <span class="dv">6</span>))</span>
+<span id="cb43-23"><a href="primer.html#cb43-23" tabindex="-1"></a>  )</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-38-1.png" alt="" width="1008" /></p>
+<p>looks pretty clean. let’s do one more visualization but we’re leaning toward our custom <code>my_linear</code> function</p>
+<div id="rgb-itd_tunining-visualizations" class="section level3 hasAnchor" number="2.2.1">
+<h3><span class="header-section-number">2.2.1</span> RGB <code>itd_tunining</code> Visualizations<a href="primer.html#rgb-itd_tunining-visualizations" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>with the crowns data we can explore alternative visualizations including overlaying the detected trees on the RGB data if available…we happen to have RGB data for a section of this study area, let’s load it</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="primer.html#cb44-1" tabindex="-1"></a>rgb_rast_fnm <span class="ot">&lt;-</span> <span class="st">&quot;../data/dom/dom.tif&quot;</span></span>
+<span id="cb44-2"><a href="primer.html#cb44-2" tabindex="-1"></a>rgb_rast <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(rgb_rast_fnm) <span class="sc">%&gt;%</span> </span>
+<span id="cb44-3"><a href="primer.html#cb44-3" tabindex="-1"></a>  <span class="co"># keep only rgb bands</span></span>
+<span id="cb44-4"><a href="primer.html#cb44-4" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">subset</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>))</span>
+<span id="cb44-5"><a href="primer.html#cb44-5" tabindex="-1"></a><span class="co"># rgb_rast %&gt;% </span></span>
+<span id="cb44-6"><a href="primer.html#cb44-6" tabindex="-1"></a><span class="co">#   terra::subset(c(4,1,2)) %&gt;% #nir-r-g</span></span>
+<span id="cb44-7"><a href="primer.html#cb44-7" tabindex="-1"></a><span class="co">#   terra::plotRGB()</span></span>
+<span id="cb44-8"><a href="primer.html#cb44-8" tabindex="-1"></a><span class="co"># rgb_rast %&gt;% </span></span>
+<span id="cb44-9"><a href="primer.html#cb44-9" tabindex="-1"></a><span class="co">#    terra::subset(c(1,2,3)) %&gt;% </span></span>
+<span id="cb44-10"><a href="primer.html#cb44-10" tabindex="-1"></a><span class="co">#   terra::plotRGB()</span></span></code></pre></div>
+<p>this is very fine-resolution data</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="primer.html#cb45-1" tabindex="-1"></a>rgb_rast</span></code></pre></div>
+<pre><code>## class       : SpatRaster 
+## size        : 28196, 23887, 3  (nrow, ncol, nlyr)
+## resolution  : 0.035, 0.035  (x, y)
+## extent      : 489747.1, 490583.1, 4330274, 4331261  (xmin, xmax, ymin, ymax)
+## coord. ref. : WGS 84 / UTM zone 13N (EPSG:32613) 
+## source      : dom.tif 
+## names       : dom_1, dom_2, dom_3</code></pre>
+<p>make a function to plot the crowns overlaid on the RGB</p>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="primer.html#cb47-1" tabindex="-1"></a><span class="co"># make a function to plot these detected crowns with rgb data</span></span>
+<span id="cb47-2"><a href="primer.html#cb47-2" tabindex="-1"></a>plt_rgb_rast_itd_crowns <span class="ot">&lt;-</span> <span class="cf">function</span>(<span class="at">sample_nmbr =</span> <span class="dv">1</span>, rgb_rast, itd_crowns, <span class="at">plt_lwd =</span> <span class="fl">0.5</span>, <span class="at">my_title =</span> <span class="st">&quot;&quot;</span>) {</span>
+<span id="cb47-3"><a href="primer.html#cb47-3" tabindex="-1"></a>  <span class="co"># crop</span></span>
+<span id="cb47-4"><a href="primer.html#cb47-4" tabindex="-1"></a>  crp_rgb_rast_temp <span class="ot">&lt;-</span> rgb_rast <span class="sc">%&gt;%</span> </span>
+<span id="cb47-5"><a href="primer.html#cb47-5" tabindex="-1"></a>    terra<span class="sc">::</span><span class="fu">subset</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-6"><a href="primer.html#cb47-6" tabindex="-1"></a>    terra<span class="sc">::</span><span class="fu">crop</span>(</span>
+<span id="cb47-7"><a href="primer.html#cb47-7" tabindex="-1"></a>      itd_crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb47-8"><a href="primer.html#cb47-8" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb47-9"><a href="primer.html#cb47-9" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">filter</span>(sample_number <span class="sc">==</span> sample_nmbr) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-10"><a href="primer.html#cb47-10" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_union</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb47-11"><a href="primer.html#cb47-11" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_bbox</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb47-12"><a href="primer.html#cb47-12" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_as_sfc</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb47-13"><a href="primer.html#cb47-13" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="fl">0.2</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-14"><a href="primer.html#cb47-14" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(rgb_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-15"><a href="primer.html#cb47-15" tabindex="-1"></a>        terra<span class="sc">::</span><span class="fu">vect</span>()</span>
+<span id="cb47-16"><a href="primer.html#cb47-16" tabindex="-1"></a>    )</span>
+<span id="cb47-17"><a href="primer.html#cb47-17" tabindex="-1"></a>  <span class="co"># convert raster to a data frame and create hex colors</span></span>
+<span id="cb47-18"><a href="primer.html#cb47-18" tabindex="-1"></a>  <span class="co"># ?grDevices::rgb</span></span>
+<span id="cb47-19"><a href="primer.html#cb47-19" tabindex="-1"></a>  rgb_df_temp <span class="ot">&lt;-</span></span>
+<span id="cb47-20"><a href="primer.html#cb47-20" tabindex="-1"></a>    crp_rgb_rast_temp <span class="sc">%&gt;%</span> </span>
+<span id="cb47-21"><a href="primer.html#cb47-21" tabindex="-1"></a>    terra<span class="sc">::</span><span class="fu">as.data.frame</span>(<span class="at">xy =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb47-22"><a href="primer.html#cb47-22" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">rename</span>(</span>
+<span id="cb47-23"><a href="primer.html#cb47-23" tabindex="-1"></a>      <span class="at">red =</span> <span class="dv">3</span>, <span class="at">green =</span> <span class="dv">4</span>, <span class="at">blue =</span> <span class="dv">5</span></span>
+<span id="cb47-24"><a href="primer.html#cb47-24" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb47-25"><a href="primer.html#cb47-25" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb47-26"><a href="primer.html#cb47-26" tabindex="-1"></a>      <span class="co"># rows that have missing color data</span></span>
+<span id="cb47-27"><a href="primer.html#cb47-27" tabindex="-1"></a>      <span class="at">is_missing =</span> <span class="fu">is.na</span>(red) <span class="sc">|</span> <span class="fu">is.na</span>(green) <span class="sc">|</span> <span class="fu">is.na</span>(blue)</span>
+<span id="cb47-28"><a href="primer.html#cb47-28" tabindex="-1"></a>      <span class="co"># hex using 0s for NAs to avoid grDevices::rgb error</span></span>
+<span id="cb47-29"><a href="primer.html#cb47-29" tabindex="-1"></a>      , <span class="at">hex_col =</span> grDevices<span class="sc">::</span><span class="fu">rgb</span>(</span>
+<span id="cb47-30"><a href="primer.html#cb47-30" tabindex="-1"></a>        <span class="fu">ifelse</span>(is_missing, <span class="dv">0</span>, red)</span>
+<span id="cb47-31"><a href="primer.html#cb47-31" tabindex="-1"></a>        , <span class="fu">ifelse</span>(is_missing, <span class="dv">0</span>, green)</span>
+<span id="cb47-32"><a href="primer.html#cb47-32" tabindex="-1"></a>        , <span class="fu">ifelse</span>(is_missing, <span class="dv">0</span>, blue)</span>
+<span id="cb47-33"><a href="primer.html#cb47-33" tabindex="-1"></a>        , <span class="at">maxColorValue =</span> <span class="dv">255</span></span>
+<span id="cb47-34"><a href="primer.html#cb47-34" tabindex="-1"></a>      )</span>
+<span id="cb47-35"><a href="primer.html#cb47-35" tabindex="-1"></a>      <span class="co"># back to NA</span></span>
+<span id="cb47-36"><a href="primer.html#cb47-36" tabindex="-1"></a>      , <span class="at">hex_col =</span> <span class="fu">ifelse</span>(is_missing, <span class="fu">as.character</span>(<span class="cn">NA</span>), hex_col)</span>
+<span id="cb47-37"><a href="primer.html#cb47-37" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb47-38"><a href="primer.html#cb47-38" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(is_missing))</span>
+<span id="cb47-39"><a href="primer.html#cb47-39" tabindex="-1"></a>      </span>
+<span id="cb47-40"><a href="primer.html#cb47-40" tabindex="-1"></a>    <span class="co"># dplyr::glimpse()</span></span>
+<span id="cb47-41"><a href="primer.html#cb47-41" tabindex="-1"></a>  </span>
+<span id="cb47-42"><a href="primer.html#cb47-42" tabindex="-1"></a>  <span class="co"># plt</span></span>
+<span id="cb47-43"><a href="primer.html#cb47-43" tabindex="-1"></a>  plt <span class="ot">&lt;-</span> ggplot2<span class="sc">::</span><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb47-44"><a href="primer.html#cb47-44" tabindex="-1"></a>    <span class="co"># add rgb base map</span></span>
+<span id="cb47-45"><a href="primer.html#cb47-45" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">geom_tile</span>(<span class="at">data =</span> rgb_df_temp, <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">fill =</span> hex_col), <span class="at">color =</span> <span class="cn">NA</span>) <span class="sc">+</span></span>
+<span id="cb47-46"><a href="primer.html#cb47-46" tabindex="-1"></a>    <span class="co"># use identity scale so the hex codes are used directly</span></span>
+<span id="cb47-47"><a href="primer.html#cb47-47" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">scale_fill_identity</span>(<span class="at">na.value =</span> <span class="st">&quot;transparent&quot;</span>) <span class="sc">+</span> <span class="co"># !!! don&#39;t take this out or RGB plot will kill your computer</span></span>
+<span id="cb47-48"><a href="primer.html#cb47-48" tabindex="-1"></a>    <span class="co"># overlay polygons</span></span>
+<span id="cb47-49"><a href="primer.html#cb47-49" tabindex="-1"></a>    <span class="co"># ggplot2::geom_sf(data = polys, fill = NA, color = &quot;red&quot;, linewidth = 0.5) +</span></span>
+<span id="cb47-50"><a href="primer.html#cb47-50" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">geom_sf</span>(</span>
+<span id="cb47-51"><a href="primer.html#cb47-51" tabindex="-1"></a>      <span class="at">data =</span> itd_crowns <span class="sc">%&gt;%</span> </span>
+<span id="cb47-52"><a href="primer.html#cb47-52" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">filter</span>(sample_number<span class="sc">==</span>sample_nmbr) <span class="sc">%&gt;%</span> </span>
+<span id="cb47-53"><a href="primer.html#cb47-53" tabindex="-1"></a>        <span class="co"># cloud2trees::simplify_multipolygon_crowns() %&gt;% </span></span>
+<span id="cb47-54"><a href="primer.html#cb47-54" tabindex="-1"></a>        <span class="co"># sf::st_make_valid() %&gt;% </span></span>
+<span id="cb47-55"><a href="primer.html#cb47-55" tabindex="-1"></a>        <span class="co"># dplyr::filter(sf::st_is_valid(.)) %&gt;% </span></span>
+<span id="cb47-56"><a href="primer.html#cb47-56" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(crp_rgb_rast_temp))</span>
+<span id="cb47-57"><a href="primer.html#cb47-57" tabindex="-1"></a>      , <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">color =</span> ws_fn)</span>
+<span id="cb47-58"><a href="primer.html#cb47-58" tabindex="-1"></a>      , <span class="at">fill =</span> <span class="cn">NA</span></span>
+<span id="cb47-59"><a href="primer.html#cb47-59" tabindex="-1"></a>      , <span class="at">lwd =</span> plt_lwd</span>
+<span id="cb47-60"><a href="primer.html#cb47-60" tabindex="-1"></a>      , <span class="at">inherit.aes =</span> F</span>
+<span id="cb47-61"><a href="primer.html#cb47-61" tabindex="-1"></a>    ) <span class="sc">+</span></span>
+<span id="cb47-62"><a href="primer.html#cb47-62" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">facet_grid</span>(<span class="at">cols =</span> dplyr<span class="sc">::</span><span class="fu">vars</span>(ws_fn)) <span class="sc">+</span></span>
+<span id="cb47-63"><a href="primer.html#cb47-63" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">scale_color_viridis_d</span>(<span class="at">name =</span> <span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb47-64"><a href="primer.html#cb47-64" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">coord_sf</span>(<span class="at">expand =</span> F) <span class="sc">+</span></span>
+<span id="cb47-65"><a href="primer.html#cb47-65" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">subtitle =</span> my_title) <span class="sc">+</span></span>
+<span id="cb47-66"><a href="primer.html#cb47-66" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">theme_void</span>() <span class="sc">+</span></span>
+<span id="cb47-67"><a href="primer.html#cb47-67" tabindex="-1"></a>    ggplot2<span class="sc">::</span><span class="fu">theme</span>(</span>
+<span id="cb47-68"><a href="primer.html#cb47-68" tabindex="-1"></a>      <span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span></span>
+<span id="cb47-69"><a href="primer.html#cb47-69" tabindex="-1"></a>      , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">&quot;bold&quot;</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">margin =</span> ggplot2<span class="sc">::</span><span class="fu">margin</span>(<span class="at">t =</span> <span class="dv">4</span>, <span class="at">b =</span> <span class="dv">4</span>))</span>
+<span id="cb47-70"><a href="primer.html#cb47-70" tabindex="-1"></a>      , <span class="at">strip.background =</span> ggplot2<span class="sc">::</span><span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">&quot;gray88&quot;</span>, <span class="at">color =</span> <span class="st">&quot;gray88&quot;</span>)</span>
+<span id="cb47-71"><a href="primer.html#cb47-71" tabindex="-1"></a>      , <span class="at">panel.spacing =</span> ggplot2<span class="sc">::</span><span class="fu">unit</span>(<span class="dv">1</span>,<span class="st">&quot;lines&quot;</span>)</span>
+<span id="cb47-72"><a href="primer.html#cb47-72" tabindex="-1"></a>    )</span>
+<span id="cb47-73"><a href="primer.html#cb47-73" tabindex="-1"></a>  <span class="fu">return</span>(plt)</span>
+<span id="cb47-74"><a href="primer.html#cb47-74" tabindex="-1"></a>}</span></code></pre></div>
+<p>plot the trees detected in sample 1 on the RGB</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="primer.html#cb48-1" tabindex="-1"></a><span class="fu">plt_rgb_rast_itd_crowns</span>(</span>
+<span id="cb48-2"><a href="primer.html#cb48-2" tabindex="-1"></a>  <span class="at">sample_nmbr =</span> <span class="dv">1</span></span>
+<span id="cb48-3"><a href="primer.html#cb48-3" tabindex="-1"></a>  , <span class="at">rgb_rast =</span> rgb_rast</span>
+<span id="cb48-4"><a href="primer.html#cb48-4" tabindex="-1"></a>  , <span class="at">itd_crowns =</span> crowns_simplified</span>
+<span id="cb48-5"><a href="primer.html#cb48-5" tabindex="-1"></a>  , <span class="at">my_title =</span> <span class="st">&quot;sample #1&quot;</span></span>
+<span id="cb48-6"><a href="primer.html#cb48-6" tabindex="-1"></a>)</span>
+<span id="cb48-7"><a href="primer.html#cb48-7" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning2_rgb_crowns_sample1.jpg&quot;</span>, <span class="at">height =</span> <span class="fl">5.5</span>, <span class="at">width =</span> <span class="fl">7.5</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/r2pqmTDQ/itd-tuning2-rgb-crowns-sample1.jpg" alt="" width="100%" height="100%" style="display: block; margin: auto;" /></p>
+<p>plot the trees detected in sample 2 on the RGB</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="primer.html#cb49-1" tabindex="-1"></a><span class="fu">plt_rgb_rast_itd_crowns</span>(</span>
+<span id="cb49-2"><a href="primer.html#cb49-2" tabindex="-1"></a>  <span class="at">sample_nmbr =</span> <span class="dv">2</span></span>
+<span id="cb49-3"><a href="primer.html#cb49-3" tabindex="-1"></a>  , <span class="at">rgb_rast =</span> rgb_rast</span>
+<span id="cb49-4"><a href="primer.html#cb49-4" tabindex="-1"></a>  , <span class="at">itd_crowns =</span> crowns_simplified</span>
+<span id="cb49-5"><a href="primer.html#cb49-5" tabindex="-1"></a>  , <span class="at">my_title =</span> <span class="st">&quot;sample #2&quot;</span></span>
+<span id="cb49-6"><a href="primer.html#cb49-6" tabindex="-1"></a>)</span>
+<span id="cb49-7"><a href="primer.html#cb49-7" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning2_rgb_crowns_sample2.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">4</span>, <span class="at">width =</span> <span class="fl">7.5</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/FkMK1PjN/itd-tuning2-rgb-crowns-sample2.jpg" alt="" width="100%" height="100%" style="display: block; margin: auto;" /></p>
+<p>plot the trees detected in sample 3 on the RGB</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="primer.html#cb50-1" tabindex="-1"></a><span class="fu">plt_rgb_rast_itd_crowns</span>(</span>
+<span id="cb50-2"><a href="primer.html#cb50-2" tabindex="-1"></a>  <span class="at">sample_nmbr =</span> <span class="dv">3</span></span>
+<span id="cb50-3"><a href="primer.html#cb50-3" tabindex="-1"></a>  , <span class="at">rgb_rast =</span> rgb_rast</span>
+<span id="cb50-4"><a href="primer.html#cb50-4" tabindex="-1"></a>  , <span class="at">itd_crowns =</span> crowns_simplified</span>
+<span id="cb50-5"><a href="primer.html#cb50-5" tabindex="-1"></a>  , <span class="at">my_title =</span> <span class="st">&quot;sample #3&quot;</span></span>
+<span id="cb50-6"><a href="primer.html#cb50-6" tabindex="-1"></a>)</span>
+<span id="cb50-7"><a href="primer.html#cb50-7" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggsave</span>(<span class="at">filename =</span> <span class="st">&quot;../data/itd_tuning2_rgb_crowns_sample3.jpg&quot;</span>, <span class="at">height =</span> <span class="dv">4</span>, <span class="at">width =</span> <span class="fl">7.5</span>, <span class="at">dpi =</span> <span class="st">&quot;print&quot;</span>)</span></code></pre></div>
+<p><img src="https://i.ibb.co/jvkrzmWG/itd-tuning2-rgb-crowns-sample3.jpg" alt="" width="100%" height="100%" style="display: block; margin: auto;" /></p>
+<p>looks good. let’s go with our custom <code>my_linear</code> function for tree detection over the full stand</p>
+</div>
+</div>
+<div id="point-cloud-processing-example" class="section level2 hasAnchor" number="2.3">
+<h2><span class="header-section-number">2.3</span> Point Cloud Processing Example<a href="primer.html#point-cloud-processing-example" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>This is a demonstration for a single example data set. We won’t show the processing of each individual data set of the study here to reduce clutter. Instead we’ll process all datasets using the methods demonstrated in this section and review the outputs and analyze the tree detection accuracy in the following sections.</p>
+<p>the <code>cloud2trees::cloud2trees()</code> function combines methods in the <code>cloud2trees</code> package for an all-in-one approach, we’ll the function to:</p>
+<p>We’ll set the options in the function to:</p>
+<ul>
+<li><code>accuracy_level = 2</code> - uses triangulation with high point density (20 pts/m2) to height normalize the points</li>
+<li><code>keep_intrmdt = T</code> - keeps intermediate files created in the processing (e.g. height-normalized points)</li>
+<li><code>dtm_res_m = 0.5</code> - sets the output DTM resolution to 0.5x0.5 m</li>
+<li><code>chm_res_m = 0.25</code> - sets the output CHM resolution to 0.25x0.25 m which is also used for tree detection</li>
+<li><code>min_height = 1.37</code> - the minimum height of a predicted segment that is required to be kept as a detected “tree”</li>
+<li><code>ws = my_linear</code> - the window function used in ITD</li>
+<li><code>estimate_tree_dbh = TRUE</code> - estimates DBH based on tree height</li>
+<li><code>estimate_tree_type = TRUE</code> - estimates FIA forest type group for the tree list</li>
+<li><code>estimate_tree_hmd = TRUE</code> - estimates height of maximum crown diameter for the trees</li>
+<li><code>hmd_tree_sample_n = 20000</code> - samples 20k trees to build HMD model for filling missing values</li>
+<li><code>hmd_estimate_missing_hmd = TRUE</code> - fills in HMD for values not successfully extracted from the point cloud</li>
+<li><code>estimate_tree_cbh = TRUE</code> - estimates crown base height for the trees</li>
+<li><code>cbh_tree_sample_n = 7500</code> - samples 7.5k trees to build CBH model for filling missing values</li>
+<li><code>cbh_estimate_missing_cbh = TRUE</code> - fills in CBH for values not successfully extracted from the point cloud</li>
+<li><code>estimate_biomass_method = c("landfire","cruz")</code> - estimates tree crown biomass and CBD</li>
+</ul>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="primer.html#cb51-1" tabindex="-1"></a><span class="co"># outdir</span></span>
+<span id="cb51-2"><a href="primer.html#cb51-2" tabindex="-1"></a>c2t_output_dir <span class="ot">&lt;-</span> <span class="st">&quot;../data/processed_N1_400AGL_20MPH_TFOFF&quot;</span></span>
+<span id="cb51-3"><a href="primer.html#cb51-3" tabindex="-1"></a><span class="cf">if</span>(<span class="sc">!</span><span class="fu">dir.exists</span>(c2t_output_dir)) <span class="fu">dir.create</span>(c2t_output_dir)</span>
+<span id="cb51-4"><a href="primer.html#cb51-4" tabindex="-1"></a>c2t_process_dir <span class="ot">&lt;-</span> <span class="fu">file.path</span>(c2t_output_dir, <span class="st">&quot;point_cloud_processing_delivery&quot;</span>)</span>
+<span id="cb51-5"><a href="primer.html#cb51-5" tabindex="-1"></a><span class="do">##############################################################</span></span>
+<span id="cb51-6"><a href="primer.html#cb51-6" tabindex="-1"></a><span class="co"># cloud2trees::cloud2trees</span></span>
+<span id="cb51-7"><a href="primer.html#cb51-7" tabindex="-1"></a><span class="do">##############################################################</span></span>
+<span id="cb51-8"><a href="primer.html#cb51-8" tabindex="-1"></a><span class="cf">if</span>(</span>
+<span id="cb51-9"><a href="primer.html#cb51-9" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">file.exists</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;chm_0.25m.tif&quot;</span>) )</span>
+<span id="cb51-10"><a href="primer.html#cb51-10" tabindex="-1"></a>  <span class="sc">||</span> <span class="sc">!</span><span class="fu">file.exists</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;dtm_0.5m.tif&quot;</span>) )</span>
+<span id="cb51-11"><a href="primer.html#cb51-11" tabindex="-1"></a>  <span class="sc">||</span> <span class="sc">!</span><span class="fu">file.exists</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;final_detected_tree_tops.gpkg&quot;</span>) )</span>
+<span id="cb51-12"><a href="primer.html#cb51-12" tabindex="-1"></a>  <span class="sc">||</span> <span class="sc">!</span><span class="fu">file.exists</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;final_detected_crowns.gpkg&quot;</span>) )</span>
+<span id="cb51-13"><a href="primer.html#cb51-13" tabindex="-1"></a>){</span>
+<span id="cb51-14"><a href="primer.html#cb51-14" tabindex="-1"></a>  <span class="co"># run it</span></span>
+<span id="cb51-15"><a href="primer.html#cb51-15" tabindex="-1"></a>  <span class="co"># cloud2trees</span></span>
+<span id="cb51-16"><a href="primer.html#cb51-16" tabindex="-1"></a>  cloud2trees_ans <span class="ot">&lt;-</span> cloud2trees<span class="sc">::</span><span class="fu">cloud2trees</span>(</span>
+<span id="cb51-17"><a href="primer.html#cb51-17" tabindex="-1"></a>    <span class="at">output_dir =</span> c2t_output_dir</span>
+<span id="cb51-18"><a href="primer.html#cb51-18" tabindex="-1"></a>    , <span class="at">input_las_dir =</span> point_cld_folder</span>
+<span id="cb51-19"><a href="primer.html#cb51-19" tabindex="-1"></a>    , <span class="at">accuracy_level =</span> <span class="dv">2</span></span>
+<span id="cb51-20"><a href="primer.html#cb51-20" tabindex="-1"></a>    , <span class="at">keep_intrmdt =</span> T</span>
+<span id="cb51-21"><a href="primer.html#cb51-21" tabindex="-1"></a>    , <span class="at">dtm_res_m =</span> <span class="fl">0.5</span></span>
+<span id="cb51-22"><a href="primer.html#cb51-22" tabindex="-1"></a>    , <span class="at">chm_res_m =</span> <span class="fl">0.25</span></span>
+<span id="cb51-23"><a href="primer.html#cb51-23" tabindex="-1"></a>    , <span class="at">min_height =</span> <span class="fl">1.37</span> <span class="co"># 1.37 = DBH</span></span>
+<span id="cb51-24"><a href="primer.html#cb51-24" tabindex="-1"></a>    , <span class="at">ws =</span> my_linear <span class="co"># a custom function</span></span>
+<span id="cb51-25"><a href="primer.html#cb51-25" tabindex="-1"></a>    <span class="do">###################################</span></span>
+<span id="cb51-26"><a href="primer.html#cb51-26" tabindex="-1"></a>    <span class="co"># optional parameters to get more tree attributes</span></span>
+<span id="cb51-27"><a href="primer.html#cb51-27" tabindex="-1"></a>    <span class="do">###################################</span></span>
+<span id="cb51-28"><a href="primer.html#cb51-28" tabindex="-1"></a>    , <span class="at">estimate_tree_dbh =</span> <span class="cn">TRUE</span> <span class="co"># DBH</span></span>
+<span id="cb51-29"><a href="primer.html#cb51-29" tabindex="-1"></a>    , <span class="at">estimate_tree_type =</span> <span class="cn">TRUE</span> <span class="co"># FIA type</span></span>
+<span id="cb51-30"><a href="primer.html#cb51-30" tabindex="-1"></a>    , <span class="at">estimate_tree_hmd =</span> <span class="cn">TRUE</span> <span class="co"># HMD</span></span>
+<span id="cb51-31"><a href="primer.html#cb51-31" tabindex="-1"></a>    , <span class="at">hmd_tree_sample_n =</span> <span class="dv">20000</span> <span class="co"># HMD</span></span>
+<span id="cb51-32"><a href="primer.html#cb51-32" tabindex="-1"></a>    , <span class="at">hmd_estimate_missing_hmd =</span> <span class="cn">TRUE</span> <span class="co"># HMD</span></span>
+<span id="cb51-33"><a href="primer.html#cb51-33" tabindex="-1"></a>    , <span class="at">estimate_tree_cbh =</span> <span class="cn">TRUE</span> <span class="co"># CBH</span></span>
+<span id="cb51-34"><a href="primer.html#cb51-34" tabindex="-1"></a>    , <span class="at">cbh_tree_sample_n =</span> <span class="dv">7500</span></span>
+<span id="cb51-35"><a href="primer.html#cb51-35" tabindex="-1"></a>    , <span class="at">cbh_estimate_missing_cbh =</span> <span class="cn">TRUE</span> <span class="co"># CBH</span></span>
+<span id="cb51-36"><a href="primer.html#cb51-36" tabindex="-1"></a>    , <span class="at">estimate_biomass_method =</span> <span class="fu">c</span>(<span class="st">&quot;landfire&quot;</span>,<span class="st">&quot;cruz&quot;</span>) <span class="co"># crown biomass and CBD</span></span>
+<span id="cb51-37"><a href="primer.html#cb51-37" tabindex="-1"></a>  )</span>
+<span id="cb51-38"><a href="primer.html#cb51-38" tabindex="-1"></a>  </span>
+<span id="cb51-39"><a href="primer.html#cb51-39" tabindex="-1"></a>}<span class="cf">else</span>{</span>
+<span id="cb51-40"><a href="primer.html#cb51-40" tabindex="-1"></a>  dtm_temp <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;dtm_0.5m.tif&quot;</span>) )</span>
+<span id="cb51-41"><a href="primer.html#cb51-41" tabindex="-1"></a>  chm_temp <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>( <span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;chm_0.25m.tif&quot;</span>) )</span>
+<span id="cb51-42"><a href="primer.html#cb51-42" tabindex="-1"></a>  crowns_temp <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(<span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;final_detected_crowns.gpkg&quot;</span>), <span class="at">quiet =</span> T)</span>
+<span id="cb51-43"><a href="primer.html#cb51-43" tabindex="-1"></a>  ttops_temp <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(<span class="fu">file.path</span>(c2t_process_dir, <span class="st">&quot;final_detected_tree_tops.gpkg&quot;</span>), <span class="at">quiet =</span> T)</span>
+<span id="cb51-44"><a href="primer.html#cb51-44" tabindex="-1"></a>  </span>
+<span id="cb51-45"><a href="primer.html#cb51-45" tabindex="-1"></a>  cloud2trees_ans <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb51-46"><a href="primer.html#cb51-46" tabindex="-1"></a>    <span class="st">&quot;dtm_rast&quot;</span> <span class="ot">=</span> dtm_temp</span>
+<span id="cb51-47"><a href="primer.html#cb51-47" tabindex="-1"></a>    , <span class="st">&quot;chm_rast&quot;</span> <span class="ot">=</span> chm_temp</span>
+<span id="cb51-48"><a href="primer.html#cb51-48" tabindex="-1"></a>    , <span class="st">&quot;crowns_sf&quot;</span> <span class="ot">=</span> crowns_temp</span>
+<span id="cb51-49"><a href="primer.html#cb51-49" tabindex="-1"></a>    , <span class="st">&quot;treetops_sf&quot;</span> <span class="ot">=</span> ttops_temp</span>
+<span id="cb51-50"><a href="primer.html#cb51-50" tabindex="-1"></a>  )</span>
+<span id="cb51-51"><a href="primer.html#cb51-51" tabindex="-1"></a>}</span></code></pre></div>
+<div id="raster-products" class="section level3 hasAnchor" number="2.3.1">
+<h3><span class="header-section-number">2.3.1</span> Raster Products<a href="primer.html#raster-products" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>there’s a DTM</p>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="primer.html#cb52-1" tabindex="-1"></a><span class="co"># plot to check out the fine-resolution DTM raster</span></span>
+<span id="cb52-2"><a href="primer.html#cb52-2" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>dtm_rast <span class="sc">%&gt;%</span> </span>
+<span id="cb52-3"><a href="primer.html#cb52-3" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plot</span>(<span class="at">col =</span> harrypotter<span class="sc">::</span><span class="fu">hp</span>(<span class="at">n=</span><span class="dv">100</span>, <span class="at">option =</span> <span class="st">&quot;mischief&quot;</span>), <span class="at">main =</span> <span class="st">&quot;DTM (m)&quot;</span>)</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-51-1.png" alt="" width="1008" /></p>
+<p>there’s a CHM</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="primer.html#cb53-1" tabindex="-1"></a><span class="co"># plot to check out the fine-resolution CHM raster</span></span>
+<span id="cb53-2"><a href="primer.html#cb53-2" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>chm_rast <span class="sc">%&gt;%</span> </span>
+<span id="cb53-3"><a href="primer.html#cb53-3" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plot</span>(<span class="at">col =</span> viridis<span class="sc">::</span><span class="fu">plasma</span>(<span class="at">n=</span><span class="dv">100</span>), <span class="at">main =</span> <span class="st">&quot;CHM (m)&quot;</span>)</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-52-1.png" alt="" width="1008" /></p>
+<p>let’s see some details about the CHM</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="primer.html#cb54-1" tabindex="-1"></a><span class="co"># what chm?</span></span>
+<span id="cb54-2"><a href="primer.html#cb54-2" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>chm_rast</span></code></pre></div>
+<pre><code>## class       : SpatRaster 
+## size        : 2566, 1939, 1  (nrow, ncol, nlyr)
+## resolution  : 0.25, 0.25  (x, y)
+## extent      : 489922, 490406.8, 4330448, 4331090  (xmin, xmax, ymin, ymax)
+## coord. ref. : WGS 84 / UTM zone 13N (EPSG:32613) 
+## source      : chm_0.25m.tif 
+## name        :     chm 
+## min value   :  1.3718 
+## max value   : 27.3758</code></pre>
+</div>
+<div id="tree-list" class="section level3 hasAnchor" number="2.3.2">
+<h3><span class="header-section-number">2.3.2</span> Tree list<a href="primer.html#tree-list" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>let’s check out the tree top point data (the crowns data will have the same data attributes but have polygon geometry instead of point geometry)</p>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="primer.html#cb56-1" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>treetops_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb56-2"><a href="primer.html#cb56-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">glimpse</span>()</span></code></pre></div>
+<pre><code>## Rows: 13,150
+## Columns: 5
+## $ treeID        &lt;chr&gt; &quot;1_490327.1_4331074.4&quot;, &quot;2_490327.6_4331074.4&quot;, &quot;3_49032…
+## $ tree_height_m &lt;dbl&gt; 1.8375, 1.8375, 1.8375, 2.7713, 2.9873, 2.9040, 4.8339, …
+## $ crown_area_m2 &lt;dbl&gt; 0.2500, 0.1250, 0.1250, 0.2500, 0.6250, 0.6250, 2.1250, …
+## $ dbh_cm        &lt;dbl&gt; 3.665011, 3.638346, 3.658594, 4.939101, 5.246245, 5.1429…
+## $ geom          &lt;POINT [m]&gt; POINT (490327.1 4331074), POINT (490327.6 4331074)…</code></pre>
+<p>that’s a lot of data</p>
+<p>let’s check the relationship between height and DBH as estimated by the regional allometric relationship</p>
+<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="primer.html#cb58-1" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>treetops_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb58-2"><a href="primer.html#cb58-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb58-3"><a href="primer.html#cb58-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">slice_sample</span>(<span class="at">prop =</span> <span class="fl">0.55</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb58-4"><a href="primer.html#cb58-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">x =</span> tree_height_m, <span class="at">y =</span> dbh_cm)) <span class="sc">+</span> </span>
+<span id="cb58-5"><a href="primer.html#cb58-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">&quot;navy&quot;</span>, <span class="at">alpha =</span> <span class="fl">0.6</span>) <span class="sc">+</span></span>
+<span id="cb58-6"><a href="primer.html#cb58-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;tree ht. (m)&quot;</span>, <span class="at">y =</span> <span class="st">&quot;tree DBH (cm)&quot;</span>) <span class="sc">+</span></span>
+<span id="cb58-7"><a href="primer.html#cb58-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="cn">NA</span>), <span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="at">n=</span><span class="dv">8</span>)) <span class="sc">+</span></span>
+<span id="cb58-8"><a href="primer.html#cb58-8" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_y_continuous</span>(<span class="at">limits =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="cn">NA</span>), <span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="at">n=</span><span class="dv">8</span>)) <span class="sc">+</span></span>
+<span id="cb58-9"><a href="primer.html#cb58-9" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>()</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-55-1.png" alt="" width="1008" /></p>
+<p>Let’s look at the distribution of tree diameter in our study area</p>
+<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="primer.html#cb59-1" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>treetops_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb59-2"><a href="primer.html#cb59-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb59-3"><a href="primer.html#cb59-3" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">x =</span> dbh_cm)) <span class="sc">+</span></span>
+<span id="cb59-4"><a href="primer.html#cb59-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">&quot;brown&quot;</span>, <span class="at">color =</span> <span class="st">&quot;brown&quot;</span>, <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb59-5"><a href="primer.html#cb59-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="dv">11</span>)) <span class="sc">+</span></span>
+<span id="cb59-6"><a href="primer.html#cb59-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;tree DBH (cm)&quot;</span>, <span class="at">y =</span> <span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb59-7"><a href="primer.html#cb59-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
+<span id="cb59-8"><a href="primer.html#cb59-8" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>(), <span class="at">axis.ticks.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>())</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-56-1.png" alt="" width="1008" /></p>
+<p>let’s look at the summary statistics</p>
+<div class="sourceCode" id="cb60"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb60-1"><a href="primer.html#cb60-1" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>treetops_sf<span class="sc">$</span>dbh_cm <span class="sc">%&gt;%</span> <span class="fu">summary</span>()</span></code></pre></div>
+<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##   3.027   5.341  11.006  18.007  31.627  54.495</code></pre>
+<p>lots of small trees. what if we only count trees that are at least 2 m in height?</p>
+<div class="sourceCode" id="cb62"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb62-1"><a href="primer.html#cb62-1" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>treetops_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb62-2"><a href="primer.html#cb62-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb62-3"><a href="primer.html#cb62-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(tree_height_m<span class="sc">&gt;=</span><span class="dv">2</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb62-4"><a href="primer.html#cb62-4" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">ggplot</span>(<span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">x =</span> dbh_cm)) <span class="sc">+</span></span>
+<span id="cb62-5"><a href="primer.html#cb62-5" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_density</span>(<span class="at">fill =</span> <span class="st">&quot;brown&quot;</span>, <span class="at">color =</span> <span class="st">&quot;brown&quot;</span>, <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb62-6"><a href="primer.html#cb62-6" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> scales<span class="sc">::</span><span class="fu">breaks_extended</span>(<span class="dv">11</span>)) <span class="sc">+</span></span>
+<span id="cb62-7"><a href="primer.html#cb62-7" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">labs</span>(<span class="at">x =</span> <span class="st">&quot;tree DBH (cm)&quot;</span>, <span class="at">y =</span> <span class="st">&quot;&quot;</span>) <span class="sc">+</span></span>
+<span id="cb62-8"><a href="primer.html#cb62-8" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
+<span id="cb62-9"><a href="primer.html#cb62-9" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>(), <span class="at">axis.ticks.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>())</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-58-1.png" alt="" width="1008" /></p>
+<p>still a two-aged stand</p>
+</div>
+<div id="tree-crowns" class="section level3 hasAnchor" number="2.3.3">
+<h3><span class="header-section-number">2.3.3</span> Tree Crowns<a href="primer.html#tree-crowns" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>let’s quickly look at the central 2.5 ha area of our RGB extent and the tree crowns detected</p>
+<div class="sourceCode" id="cb63"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb63-1"><a href="primer.html#cb63-1" tabindex="-1"></a>aoi_temp <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">ext</span>(rgb_rast) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-2"><a href="primer.html#cb63-2" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">vect</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb63-3"><a href="primer.html#cb63-3" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_as_sf</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb63-4"><a href="primer.html#cb63-4" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_set_crs</span>(terra<span class="sc">::</span><span class="fu">crs</span>(rgb_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-5"><a href="primer.html#cb63-5" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_centroid</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb63-6"><a href="primer.html#cb63-6" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="fu">sqrt</span>(<span class="dv">25000</span><span class="sc">/</span><span class="dv">4</span>),<span class="at">endCapStyle =</span> <span class="st">&quot;SQUARE&quot;</span>) <span class="do">## numerator = desired plot size in m2</span></span>
+<span id="cb63-7"><a href="primer.html#cb63-7" tabindex="-1"></a><span class="co"># plot</span></span>
+<span id="cb63-8"><a href="primer.html#cb63-8" tabindex="-1"></a>rgb_rast <span class="sc">%&gt;%</span> </span>
+<span id="cb63-9"><a href="primer.html#cb63-9" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">crop</span>(</span>
+<span id="cb63-10"><a href="primer.html#cb63-10" tabindex="-1"></a>    aoi_temp <span class="sc">%&gt;%</span> sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="dv">10</span>) <span class="sc">%&gt;%</span> terra<span class="sc">::</span><span class="fu">vect</span>()</span>
+<span id="cb63-11"><a href="primer.html#cb63-11" tabindex="-1"></a>    , <span class="at">mask =</span> T</span>
+<span id="cb63-12"><a href="primer.html#cb63-12" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-13"><a href="primer.html#cb63-13" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plotRGB</span>()</span>
+<span id="cb63-14"><a href="primer.html#cb63-14" tabindex="-1"></a><span class="co"># add crowns</span></span>
+<span id="cb63-15"><a href="primer.html#cb63-15" tabindex="-1"></a>crowns_temp <span class="ot">&lt;-</span> </span>
+<span id="cb63-16"><a href="primer.html#cb63-16" tabindex="-1"></a>  cloud2trees_ans<span class="sc">$</span>crowns_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb63-17"><a href="primer.html#cb63-17" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">inner_join</span>(</span>
+<span id="cb63-18"><a href="primer.html#cb63-18" tabindex="-1"></a>    cloud2trees_ans<span class="sc">$</span>treetops_sf <span class="sc">%&gt;%</span> </span>
+<span id="cb63-19"><a href="primer.html#cb63-19" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">filter</span>(tree_height_m<span class="sc">&gt;=</span><span class="dv">2</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-20"><a href="primer.html#cb63-20" tabindex="-1"></a>      sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(rgb_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-21"><a href="primer.html#cb63-21" tabindex="-1"></a>      sf<span class="sc">::</span><span class="fu">st_intersection</span>(aoi_temp) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-22"><a href="primer.html#cb63-22" tabindex="-1"></a>      sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb63-23"><a href="primer.html#cb63-23" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">select</span>(treeID)</span>
+<span id="cb63-24"><a href="primer.html#cb63-24" tabindex="-1"></a>    , <span class="at">by =</span> <span class="st">&quot;treeID&quot;</span></span>
+<span id="cb63-25"><a href="primer.html#cb63-25" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-26"><a href="primer.html#cb63-26" tabindex="-1"></a>  cloud2trees<span class="sc">::</span><span class="fu">simplify_multipolygon_crowns</span>()</span>
+<span id="cb63-27"><a href="primer.html#cb63-27" tabindex="-1"></a><span class="co"># add to plot</span></span>
+<span id="cb63-28"><a href="primer.html#cb63-28" tabindex="-1"></a>crowns_temp <span class="sc">%&gt;%</span> </span>
+<span id="cb63-29"><a href="primer.html#cb63-29" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(rgb_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb63-30"><a href="primer.html#cb63-30" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">vect</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb63-31"><a href="primer.html#cb63-31" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plot</span>(<span class="at">col =</span> <span class="cn">NA</span>, <span class="at">border =</span> <span class="st">&quot;cyan&quot;</span>, <span class="at">add =</span> T, <span class="at">lwd =</span> <span class="dv">1</span>)</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-59-1.png" alt="" width="1008" /></p>
+<p>looks good</p>
+<p>and the same area on the CHM</p>
+<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="primer.html#cb64-1" tabindex="-1"></a><span class="co"># plot</span></span>
+<span id="cb64-2"><a href="primer.html#cb64-2" tabindex="-1"></a>cloud2trees_ans<span class="sc">$</span>chm_rast <span class="sc">%&gt;%</span> </span>
+<span id="cb64-3"><a href="primer.html#cb64-3" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">crop</span>(</span>
+<span id="cb64-4"><a href="primer.html#cb64-4" tabindex="-1"></a>    aoi_temp <span class="sc">%&gt;%</span> </span>
+<span id="cb64-5"><a href="primer.html#cb64-5" tabindex="-1"></a>      sf<span class="sc">::</span><span class="fu">st_buffer</span>(<span class="dv">10</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb64-6"><a href="primer.html#cb64-6" tabindex="-1"></a>      sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(cloud2trees_ans<span class="sc">$</span>chm_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb64-7"><a href="primer.html#cb64-7" tabindex="-1"></a>      terra<span class="sc">::</span><span class="fu">vect</span>()</span>
+<span id="cb64-8"><a href="primer.html#cb64-8" tabindex="-1"></a>    , <span class="at">mask =</span> T</span>
+<span id="cb64-9"><a href="primer.html#cb64-9" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb64-10"><a href="primer.html#cb64-10" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plot</span>(<span class="at">col =</span> viridis<span class="sc">::</span><span class="fu">plasma</span>(<span class="at">n=</span><span class="dv">100</span>), <span class="at">alpha =</span> <span class="fl">0.9</span>, <span class="at">main =</span> <span class="st">&quot;CHM (m)&quot;</span>, <span class="at">axes =</span> F)</span>
+<span id="cb64-11"><a href="primer.html#cb64-11" tabindex="-1"></a><span class="co"># add crowns</span></span>
+<span id="cb64-12"><a href="primer.html#cb64-12" tabindex="-1"></a><span class="co"># add to plot</span></span>
+<span id="cb64-13"><a href="primer.html#cb64-13" tabindex="-1"></a>crowns_temp <span class="sc">%&gt;%</span> </span>
+<span id="cb64-14"><a href="primer.html#cb64-14" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_transform</span>(terra<span class="sc">::</span><span class="fu">crs</span>(cloud2trees_ans<span class="sc">$</span>chm_rast)) <span class="sc">%&gt;%</span> </span>
+<span id="cb64-15"><a href="primer.html#cb64-15" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">vect</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb64-16"><a href="primer.html#cb64-16" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">plot</span>(<span class="at">col =</span> <span class="cn">NA</span>, <span class="at">border =</span> <span class="st">&quot;cyan&quot;</span>, <span class="at">add =</span> T, <span class="at">lwd =</span> <span class="dv">1</span>)</span></code></pre></div>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-60-1.png" alt="" width="1008" /></p>
+<p>interesting</p>
+
+</div>
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="index.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="review-of-all-data-sets.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+  "sharing": {
+    "github": false,
+    "facebook": true,
+    "twitter": true,
+    "linkedin": false,
+    "weibo": false,
+    "instapaper": false,
+    "vk": false,
+    "whatsapp": false,
+    "all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+  },
+  "fontsettings": {
+    "theme": "white",
+    "family": "sans",
+    "size": 2
+  },
+  "edit": {
+    "link": null,
+    "text": null
+  },
+  "history": {
+    "link": null,
+    "text": null
+  },
+  "view": {
+    "link": null,
+    "text": null
+  },
+  "download": null,
+  "search": {
+    "engine": "fuse",
+    "options": null
+  },
+  "toc": {
+    "collapse": "subsection"
+  }
+});
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/latest.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>
