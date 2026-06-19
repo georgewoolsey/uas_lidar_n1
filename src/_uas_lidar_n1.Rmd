@@ -5224,6 +5224,12 @@ mod_glm_temp <- stats::glm(
 # summary(mod_glm_temp)
 ```
 
+the model form is: 
+
+$$
+\begin{split} \ln\left(\frac{\text{Pr(Tree Detected)}}{1 - \text{Pr(Tree Detected)}}\right) = & \beta_0 + \beta_1(\text{Tree Height}) + \beta_2(\text{Altitude}) + \beta_3(\text{Speed}) \\ & + \beta_4(\text{Altitude} \times \text{Speed}) \\ & + \beta_5(\text{Tree Height} \times \text{Altitude}) \\ & + \beta_6(\text{Tree Height} \times \text{Speed}) \end{split}
+$$
+
 logistic model of Pr(tree detected) coefficient table 
 
 ```{r}

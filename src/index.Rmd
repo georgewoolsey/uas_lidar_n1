@@ -1,0 +1,71 @@
+--- 
+title: "influence of UAS-lidar flight parameters on tree detection at N1 study site"
+author: "George Woolsey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+site: bookdown::bookdown_site
+output: 
+  bookdown::gitbook:
+    includes:
+      in_header: header.html
+documentclass: book
+book_filename: "uas_lidar_n1"
+output_dir: "../docs"
+language:
+  ui:
+    chapter_name: "Section "
+delete_merged_file: true
+bibliography: [packages.bib]
+biblio-style: apalike
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/research-institute-for-nature-and-forest.csl
+suppress-bibliography: true
+lang: en-US
+zotero: true
+link-citations: true
+description: ""
+---
+
+# Overview
+
+This analysis seeks to evaluate the influence of UAS-lidar flight parameters on forest inventory accuracy
+
+## Objective
+
+The primary objective of this research is to determine how variations in UAS-lidar flight configurations of altitude and speed influence the accuracy of individual tree detection, tree-level measurements (height and DBH), and stand-level structural quantification.
+
+## Data & Field Validation
+
+We collected UAS-lidar data and stem-mapped field inventory data within a 9.3 ha management unit located in the Manitou Experimental Forest in Colorado, USA. The field-collected reference data will serve as the ground-truth for all structural measurements, physical attribute dimensions, and stand-level aggregations. The overstory at the site is predominantly ponderosa pine (*Pinus ponderosa*), characterized by a distinct cohort of younger trees infilling canopy gaps left by a historical 1980s bark beetle outbreak, alongside a minor component of Douglas-fir (*Pseudotsuga menziesii*). Current management objectives of the stand and surrounding forest are focused on reducing hazardous fuel loads and restoring historical, heterogeneous spatial patterns to mitigate wildfire risk.
+
+## Point Cloud Processing via `cloud2trees`
+
+Raw spatial point clouds were processed, filtered, and segmented using the `cloud2trees` R [package](https://github.com/georgewoolsey/cloud2trees). This framework automates point cloud processing for individual tree forest inventories with tree-level measurements including location, DBH, CBH, and more.
+
+## Accuracy Evaluation
+
+* [**Detection Accuracy**](#detect_metrics_form): tree-level instance segmentation matching pairing UAS-detected trees with stem-mapped field trees. The resulting True Positive, False Positive, and False Negative counts are used to calculate precision, recall, and F-score.
+* [**Quantification Accuracy**](#quant_metrics_form): tree-level accuracy of physical attributes of tree height and DBH for the successfully matched tree pairs. We use RMSE to capture typical error magnitude, MAPE to express relative precision as a percentage, and ME to quantify overestimation or underestimation of tree form.
+* **Stand-Level Accuracy**: assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.
+
+```{r, include=FALSE, echo=FALSE}
+knitr::write_bib(c(
+  .packages(),
+  "bookdown"
+  , "knitr"
+  , "rmarkdown"
+  , "tidyverse"
+  , "viridis"
+  , "RColorBrewer"
+  , "scales"
+  , "latex2exp"
+  , "mapview"
+  , "kableExtra"
+  , "patchwork"
+  , "ggnewscale"
+  , "terra"
+  , "stars"
+  , "sf"
+  , "brms"
+  , "tidybayes"
+  , "parallel"
+), 'packages.bib')
+```
