@@ -30,7 +30,7 @@ tracking_df <-
     , meters_per_second = round(mph/2.237,1)
     # factor
     , dataset_factor = 
-      stringr::str_glue("Altitude: {altitude_m} | Speed: {meters_per_second}") %>%
+      stringr::str_glue("Altitude (m): {altitude_m} | Speed (m/s): {meters_per_second}") %>%
       forcats::as_factor() %>%
       forcats::fct_inorder(ordered = T)
     # , tf = tf=="on"

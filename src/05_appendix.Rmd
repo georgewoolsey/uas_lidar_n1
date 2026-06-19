@@ -1,8 +1,11 @@
 # Appendix
 
-This section is dedicated to analysis that was performed during evaluation but was not discussed in the manuscript for publication
+This section is dedicated to analysis that was performed during evaluation but was not discussed in the manuscript for publication including:
 
-## Volume Estimates
+* [Volume Estimation and Accuracy Evaluation](#vol_est)
+* [Tree-Level Species Predictions](#species_pred)
+
+## Volume Estimates {#vol_est}
 
 We'll try to predict volume using National Volume Estimator Library (NVEL) which contains the standard equations used by the USFS for estimating merchantable and total volume.
 
@@ -612,14 +615,16 @@ dplyr::glimpse()
 do it (attach species) for all predictions
 
 ```{r}
+# names(ground_truth_prediction_match_ans)
+# ground_truth_prediction_match_ans[[1]] %>% dplyr::glimpse()
 ground_truth_prediction_match_ans_updt <-
-  tracking_df$folder %>% 
+  tracking_df$dataset_factor %>% 
   purrr::map(function(x){
     # read training
     training_df <-
       readr::read_csv(
         file.path(
-          tracking_df %>% dplyr::filter(folder==x) %>% dplyr::pull(path)
+          tracking_df %>% dplyr::filter(dataset_factor==x) %>% dplyr::pull(path)
           , "point_cloud_processing_delivery"
           , "regional_dbh_height_model_training_data.csv"
         )
@@ -635,7 +640,7 @@ ground_truth_prediction_match_ans_updt <-
     # make a df of species to join with our predictions
     pred_ids <-
       ground_truth_prediction_match_ans[[x]]$pred_match_idx %>% 
-      purrr::discard(~.x==0)
+      purrr::discard(~.x==0) # gets rid of FN records
     set.seed(33)
     pred_spec_df <-
       dplyr::tibble(
@@ -649,15 +654,15 @@ ground_truth_prediction_match_ans_updt <-
           ) 
       )
     # add on to precitions
-    ground_truth_prediction_match_ans <- 
+    new_ground_truth_prediction_match_ans <- 
       ground_truth_prediction_match_ans[[x]] %>% 
       dplyr::left_join(
         pred_spec_df
         , by = "pred_match_idx"
       ) 
     # add volume
-    ground_truth_prediction_match_ans <- 
-      ground_truth_prediction_match_ans %>% 
+    new_ground_truth_prediction_match_ans <- 
+      new_ground_truth_prediction_match_ans %>% 
       # increments for dbh,ht
       dplyr::mutate(
         dia = floor(pred_dbh_cm*0.394) %>% as.integer()
@@ -700,9 +705,9 @@ ground_truth_prediction_match_ans_updt <-
         .cols = c(tidyselect::starts_with("grs_volume_"),tidyselect::starts_with("net_volume_"))
         , ~ paste0("pred_",.x,recycle0 = T)
       )
-    return(ground_truth_prediction_match_ans)
+    return(new_ground_truth_prediction_match_ans)
   })
-names(ground_truth_prediction_match_ans_updt) <- tracking_df$folder
+names(ground_truth_prediction_match_ans_updt) <- tracking_df$dataset_factor
 ```
 
 let's check out an example distribution of species for one of the UAS flights
@@ -733,19 +738,20 @@ looks good
 aggregate predicted volume within the stand by flight and attach to the aggregated data so we can calculate prediction error
 
 ```{r}
-agg_ground_truth_match_ans <- 
+# agg_ground_truth_match_ans$dataset_factor %>% class()
+agg_ground_truth_match_ans <-
   agg_ground_truth_match_ans %>% 
   dplyr::left_join(
     ground_truth_prediction_match_ans_updt %>%
-      purrr::list_rbind(names_to = "folder") %>%
+      purrr::list_rbind(names_to = "dataset_factor") %>%
       sf::st_drop_geometry() %>% 
       dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
       dplyr::select(
-        folder
+        dataset_factor
         , pred_match_idx
         , c(tidyselect::starts_with("pred_") & tidyselect::contains("_volume_"))
       ) %>% 
-      dplyr::group_by(folder) %>% 
+      dplyr::group_by(dataset_factor) %>% 
       dplyr::summarize(
         dplyr::across(
           .cols = tidyselect::contains("_volume_")
@@ -754,8 +760,11 @@ agg_ground_truth_match_ans <-
         # , n_trees = dplyr::n()
       ) %>% 
       dplyr::ungroup()
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>% 
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>%
   # diff cols
   dplyr::mutate(
     # 'diff_' columns are calculated as the predicted value minus the actual value
@@ -789,10 +798,9 @@ agg_ground_truth_match_ans %>%
   ) %>% 
   dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
   dplyr::mutate(
-    flight_tf = dplyr::case_when(
-      flight_tf ~ "On"
-      , !flight_tf ~ "Off"
-      , T ~ "error"
+    dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
     )
     , dplyr::across(
       .cols = c(
@@ -802,7 +810,7 @@ agg_ground_truth_match_ans %>%
       , .fn = ~ scales::percent(.x, accuracy = .1)
     )
     , dplyr::across(
-      .cols = c(flight_agl,flight_mph,tidyselect::ends_with("_trees"))
+      .cols = c(tidyselect::ends_with("_trees"))
       , .fn = ~ scales::comma(.x, accuracy = 1)
     )
     , dplyr::across(
@@ -832,7 +840,7 @@ agg_ground_truth_match_ans %>%
   kableExtra::kbl(
     caption = "Volume: Stand-Level Accuracy"
     , col.names = c(
-      "altitude (ft)", "speed (mph)", "Terrain Follow"
+      "altitude (m)", "speed (m/s)"
       , "reference", "predicted"
       , rep(c("reference","predicted","difference"), times = 2)
     )
@@ -842,7 +850,7 @@ agg_ground_truth_match_ans %>%
   kableExtra::kable_styling(font_size = 11.5) %>% 
   kableExtra::add_header_above(
     c(
-      " "=3
+      " "=2
       , "# Trees" = 2
       # , "Area" = 3
       , "Gross<br />Volume m<sup>3</sup>" = 3
@@ -850,8 +858,8 @@ agg_ground_truth_match_ans %>%
     )
     , escape = F
   ) %>% 
-  kableExtra::column_spec( c(3,seq(5,11,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
-  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+  kableExtra::column_spec( c(2,seq(4,10,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
 ```
 
 plot
@@ -951,13 +959,6 @@ another plot
 
 ```{r, fig.height=8.5}
 agg_ground_truth_match_ans %>% 
-  dplyr::mutate(
-    flight_tf = dplyr::case_when(
-      flight_tf ~ "terrain follow: On"
-      , !flight_tf ~ "terrain follow: Off"
-      , T ~ "error"
-    )
-  ) %>% 
   dplyr::select(
     dataset_factor, tidyselect::starts_with("flight_")
     # , diff_basal_area_m2_per_ha
@@ -993,22 +994,20 @@ agg_ground_truth_match_ans %>%
     , hjust = 0.5, vjust = 2.2
   ) +
   ggplot2::geom_point(
-    mapping = ggplot2::aes(color = flight_tf)
-    # mapping = ggplot2::aes(color = name)
+    mapping = ggplot2::aes(color = name)
     # , alpha = 0.7
     , size = 4
   ) +
   ggplot2::facet_grid(
-    cols = dplyr::vars(flight_agl)
-    , rows = dplyr::vars(flight_mph)
+    cols = dplyr::vars(flight_altitude_m)
+    , rows = dplyr::vars(flight_meters_per_second)
     , labeller = ggplot2::labeller( 
-      flight_agl = ~paste("Altitude:", .x, " (ft)") 
-      , flight_mph = ~paste("Speed:", .x, " (mph)") 
+      flight_altitude_m = ~paste("Altitude:", .x, " (m)") 
+      , flight_meters_per_second = ~paste("Speed:", .x, " (m/s)") 
     )
     , axes = "all_x"
   ) +
-  # harrypotter::scale_color_hp_d(option = "hermionegranger") +
-  ggplot2::scale_color_manual(values = c("gray55","gray11"), guide = "none") +
+  harrypotter::scale_color_hp_d(option = "hermionegranger") +
   ggplot2::scale_y_continuous(
     limits = c(0,NA)
     , labels = scales::comma
@@ -1038,9 +1037,9 @@ agg_ground_truth_match_ans %>%
 
 ok
 
-## Predict Species
+## Predict Species {#species_pred}
 
-let's demo option (3) to use the TreeMap imputed FIA plot tree list to build a species classification model based on height and tree location to attach tree species to our tree list. such a model would inherently account for the proportional distribution of different species. We'll try using [Softmax regression](https://solomon.quarto.pub/dbda2/22.html) with a model trained on the FIA tree list data to predict the tree species for our `cloud2trees` list.
+let's demo option (3) to predict tree-level species using the TreeMap imputed FIA plot tree list to build a species classification model based on height and tree location to attach tree species to our tree list. such a model would inherently account for the proportional distribution of different species. We'll try using [Softmax regression](https://solomon.quarto.pub/dbda2/22.html) with a model trained on the FIA tree list data to predict the tree species for our `cloud2trees` list.
 
 For the Softmax regression model the categorical (i.e. nominal) tree species will be our dependent variable and the most simple model will use tree height and tree location (X and Y coordinates) as independent variables. The training FIA tree list data (identified from the TreeMap imputed plots of the area of interest) includes tree height and we'll use the centroid of the TreeMap 30m raster cell to represent the individual tree X and Y location (i.e. each tree within the same cell will have the same coordinate). Considering the combined tree height and spatial location via a full interaction model (i.e. `height*x*y`) allows the model to capture how the species-height relationship varies across space.
 
@@ -1556,7 +1555,7 @@ brms_spec_i_mod <- brms::brm(
 
 this model with tree-level data was super slowwwwww and won't work for integration within `cloud2trees`
 
-let's try the hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle redundant TreeMap imputed plots.
+let's try the hierarchical model grouped by imputed FIA plot identifier that allows the intercept and the slope of height to vary by plot. This model form would inherently capture spatial clustering without needing explicit X and Y coordinates in the model while also allowing the use of model weights to handle repeated TreeMap imputed plots.
 
 ```{r, results=F, message=F, warning=F}
 # treemap_trees_df %>% dplyr::glimpse()
@@ -1589,6 +1588,7 @@ if(is.null(timer_temp)){
   timer_temp %>% 
     readr::write_csv(timer_f_temp)
 }
+# scales::comma(timer_temp$timer_brms_spec_h_mod_mins,accuracy=0.1)
 ```
 
 that took `r scales::comma(timer_temp$timer_brms_spec_h_mod_mins,accuracy=0.1)` minutes, much faster than the model with individual tree-level data, but still not great on the estimation time
@@ -1746,16 +1746,19 @@ gc()
 
 yep, that resembles the training data. let's map predicted species in space for each flight
 
-```{r, fig.height = 9.8, fig.width = 8.7}
+```{r, fig.height = 9.8, fig.width = 6.5}
 predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
   # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
   dplyr::inner_join(
     tracking_df %>% 
       dplyr::select(-c(path))
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>%
-  dplyr::arrange(dataset_factor, desc(species_symbol)) %>% 
+  dplyr::arrange(dataset_factor, species_symbol) %>% 
   # plot it
   # plt
   ggplot2::ggplot() +
@@ -1765,12 +1768,12 @@ predicted_trees %>%
     ) +
     ggplot2::geom_sf(
       mapping = ggplot2::aes(geometry = geom, color = species_symbol)
-      , size = 0.6, alpha = 0.88
+      , size = 0.5, alpha = 0.88
     ) +
     ggplot2::scale_color_manual(values = pal_species, drop = F) +
     ggplot2::facet_wrap(
       facets = dplyr::vars(dataset_factor)
-      , ncol = 3
+      , ncol = 2
     ) +
     ggplot2::theme_light() +
     ggplot2::theme(
@@ -1791,19 +1794,22 @@ predicted_trees %>%
       color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
       , fill = "none"
     )
-# ggplot2::ggsave(filename = "../data/spec_predicted.jpg", height = 9.8, width = 8.7, dpi = "print")
+# ggplot2::ggsave(filename = "../data/spec_predicted.jpg", height = 9.8, width = 6.5, dpi = "print")
 ```
 
 and table that
 
 ```{r}
 dta_temp <- predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
   # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
   dplyr::inner_join(
     tracking_df %>% 
       dplyr::select(-c(path))
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>%
   dplyr::select(
     dataset_factor
@@ -1823,9 +1829,8 @@ dta_temp %>%
   dplyr::select(-c(dataset_factor,pct)) %>% 
   tidyr::pivot_wider(values_from = n, names_from = species_symbol) %>% 
   dplyr::rename(
-    `altitude (ft)` = flight_agl
-    , `speed (mph)` = flight_mph
-    , `Terrain Follow` = flight_tf
+    `altitude (m)` = flight_altitude_m
+    , `speed (m/s)` = flight_meters_per_second
   ) %>% 
   # dplyr::glimpse()
   kableExtra::kbl(
@@ -1834,15 +1839,15 @@ dta_temp %>%
     # , digits = 2
   ) %>% 
   kableExtra::kable_styling() %>% 
-  kableExtra::column_spec(c(3), border_right = TRUE, include_thead = TRUE) %>% 
-  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
 ```
 
 notice the proportional allocation of species varies across the flights even though we used the same training data and species classification model. this variation arises from the uncertainty in the model which is integrated into our predicted tree list via the `brms::posterior_predict(... , ndraws = 1)` setting.
 
 we can plot the proportional distribution by flight
 
-```{r, fig.height=10}
+```{r, fig.height = 9.5, fig.width = 7}
 dta_temp %>% 
   dplyr::ungroup() %>% 
   dplyr::mutate(
@@ -1882,7 +1887,7 @@ dta_temp %>%
   ggplot2::facet_wrap(
     facets = dplyr::vars(dataset_factor)
     # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
+    , ncol = 2
     , axes = "all"
     # , switch = "y"
   ) +
@@ -1907,14 +1912,17 @@ gc()
 
 lastly, let's look at the height distribution within each species since species was predicted based on height and location
 
-```{r, fig.height=10}
+```{r, fig.height = 9.5, fig.width = 7}
 predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
   # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
   dplyr::inner_join(
     tracking_df %>% 
       dplyr::select(-c(path))
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>%
   dplyr::select(
     dataset_factor
@@ -1941,7 +1949,7 @@ predicted_trees %>%
   ggplot2::facet_wrap(
     facets = dplyr::vars(dataset_factor)
     # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
+    , ncol = 2
     , axes = "all"
     # , switch = "y"
   ) +
@@ -1960,14 +1968,17 @@ predicted_trees %>%
 
 let's try another way to visualize the height distribution by species
 
-```{r, fig.height=10}
+```{r, fig.height = 9.5, fig.width = 7}
 predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
-  dplyr::slice_sample(prop = 0.44, by = folder) %>% 
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
+  dplyr::slice_sample(prop = 0.44, by = dataset_factor) %>% 
   dplyr::inner_join(
     tracking_df %>% 
       dplyr::select(-c(path))
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>%
   dplyr::select(
     dataset_factor
@@ -1993,7 +2004,7 @@ predicted_trees %>%
   ggplot2::facet_wrap(
     facets = dplyr::vars(dataset_factor)
     # , rows = dplyr::vars(trtmnt_block)
-    , ncol = 3
+    , ncol = 2
     , axes = "all"
     # , switch = "y"
   ) +
@@ -2157,7 +2168,7 @@ accuracy metrics for a species classification model are calculated using a confu
 for this demonstration, we'll limit our evaluation to a single flight since all flights used the same species prediction model and we are evaluating the method moreso than the flight settings when it comes to the species prediction. since we have data across the different flight settings we'll just use the flight that resulted in the highest F-score noting that the flights were very similar in their detection accuracy
 
 ```{r}
-species_comp_temp <- 
+species_comp_temp <-
   forcats::lvls_union(list(
     validation_trees$species_symbol
     , predicted_trees %>% purrr::list_rbind() %>% dplyr::pull(species_symbol)
@@ -2182,7 +2193,7 @@ species_comp_temp <-
       purrr::pluck(
         agg_ground_truth_match_ans %>% 
           dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
-          dplyr::pull(folder)    
+          dplyr::pull(dataset_factor)    
       ) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::count(species_symbol) %>% 
@@ -2270,7 +2281,7 @@ species_comp_temp %>%
     names_from = species_symbol
     , values_from = prop
   ) %>% 
-  dplyr::rename(`_`=dta) %>% 
+  dplyr::rename(`data`=dta) %>% 
   kableExtra::kbl(
     caption = paste0(
       "Species Proportional Comparision"
@@ -2285,9 +2296,10 @@ species_comp_temp %>%
   kableExtra::add_header_above(
     c(" " = 1, "Species Tree Counts and Proportions" = nrow(species_comp_temp))
   )
+
 ```
 
-in the table above, we present the total overlap index of `r sum(species_comp_temp$overlap_pct) %>% scales::percent(accuracy = 0.1 )` which is sometimes referred to as Schoener's D index where a value of 1 means complete overlap (identical), while 0 means no overlap. we'll explore this concept of similarity/dissimilarity between the predicted and reference species compositions in more detail below
+in the table above, we calculated the total overlap index of `r sum(species_comp_temp$overlap_pct) %>% scales::percent(accuracy = 0.1 )` which is sometimes referred to as Schoener's D index where a value of 1 means complete overlap (identical), while 0 means no overlap. we'll explore this concept of similarity/dissimilarity between the predicted and reference species compositions in more detail below
 
 we can plot the predicted vs reference proportional distribution by species
 
@@ -2480,7 +2492,7 @@ species_comp_temp <-
       purrr::pluck(
         agg_ground_truth_match_ans %>% 
           dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
-          dplyr::pull(folder)    
+          dplyr::pull(dataset_factor)    
       ) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::mutate(
@@ -2874,6 +2886,7 @@ rf_model_vote_predictions <- function(mod_list, predict_df){
 #   ggplot2::ggplot() + 
 #   ggplot2::geom_sf(mapping = ggplot2::aes(color=species_symbol)) +
 #   ggplot2::scale_color_manual(values = pal_species)
+# names(predicted_trees)
 predicted_trees <-
   predicted_trees %>% 
   purrr::map(function(x){
@@ -2910,14 +2923,17 @@ predicted_trees <-
 
 let's map predicted species in space for each flight
 
-```{r, fig.height = 9.8, fig.width = 8.7}
+```{r, fig.height = 9.8, fig.width = 6.5}
 predicted_trees %>%
-  purrr::list_rbind(names_to = "folder") %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
   # sf::st_drop_geometry() %>% dplyr::count(folder) %>% 
   dplyr::inner_join(
     tracking_df %>% 
       dplyr::select(-c(path))
-    , by = "folder"
+    , by = "dataset_factor"
   ) %>%
   dplyr::arrange(dataset_factor, desc(species_symbol)) %>% 
   # plot it
@@ -2934,7 +2950,7 @@ predicted_trees %>%
     ggplot2::scale_color_manual(values = pal_species, drop = F) +
     ggplot2::facet_wrap(
       facets = dplyr::vars(dataset_factor)
-      , ncol = 3
+      , ncol = 2
     ) +
     ggplot2::theme_light() +
     ggplot2::theme(
@@ -2955,7 +2971,6 @@ predicted_trees %>%
       color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
       , fill = "none"
     )
-# ggplot2::ggsave(filename = "../data/spec_predicted.jpg", height = 9.8, width = 8.7, dpi = "print")
 ```
 
 #### RF Predicted Species Composition Accuracy
@@ -2990,7 +3005,7 @@ species_comp_temp <-
       purrr::pluck(
         agg_ground_truth_match_ans %>% 
           dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
-          dplyr::pull(folder)    
+          dplyr::pull(dataset_factor)    
       ) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::count(species_symbol) %>% 
@@ -3035,7 +3050,7 @@ species_comp_temp %>%
     names_from = species_symbol
     , values_from = prop
   ) %>% 
-  dplyr::rename(`_`=dta) %>% 
+  dplyr::rename(`data`=dta) %>% 
   kableExtra::kbl(
     caption = paste0(
       "Species Proportional Comparision"
@@ -3209,7 +3224,7 @@ species_comp_temp <-
       purrr::pluck(
         agg_ground_truth_match_ans %>% 
           dplyr::slice_max(n=1, order_by = f_score, with_ties = F) %>% 
-          dplyr::pull(folder)    
+          dplyr::pull(dataset_factor)    
       ) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::mutate(
@@ -3417,7 +3432,7 @@ let's update the volume estimates based on these new species predictions
 # validation_trees %>% dplyr::glimpse()
 
 ground_truth_prediction_match_ans_updt <-
-  tracking_df$folder %>% 
+  tracking_df$dataset_factor %>% 
   purrr::map(function(x){
     # add on to precitions
     ground_truth_prediction_match_ans <- 
@@ -3496,7 +3511,7 @@ ground_truth_prediction_match_ans_updt <-
       )
     return(ground_truth_prediction_match_ans)
   })
-names(ground_truth_prediction_match_ans_updt) <- tracking_df$folder
+names(ground_truth_prediction_match_ans_updt) <- tracking_df$dataset_factor
 
 # ground_truth_prediction_match_ans_updt[[1]] %>% dplyr::glimpse()
 # ground_truth_prediction_match_ans_updt[[1]] %>% 
@@ -3536,15 +3551,18 @@ agg_ground_truth_match_ans <-
   ))) %>% 
   dplyr::left_join(
     ground_truth_prediction_match_ans_updt %>%
-      purrr::list_rbind(names_to = "folder") %>%
+      purrr::list_rbind(names_to = "dataset_factor") %>%
+      dplyr::mutate(
+        dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+      ) %>% 
       sf::st_drop_geometry() %>% 
       dplyr::filter(match_grp %in% c("true positive","commission")) %>% 
       dplyr::select(
-        folder
+        dataset_factor
         , pred_match_idx
         , c(tidyselect::starts_with("pred_") & tidyselect::contains("_volume_"))
       ) %>% 
-      dplyr::group_by(folder) %>% 
+      dplyr::group_by(dataset_factor) %>% 
       dplyr::summarize(
         dplyr::across(
           .cols = tidyselect::contains("_volume_")
@@ -3553,7 +3571,10 @@ agg_ground_truth_match_ans <-
         # , n_trees = dplyr::n()
       ) %>% 
       dplyr::ungroup()
-    , by = "folder"
+    , by = "dataset_factor"
+  ) %>% 
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
   ) %>% 
   # diff cols
   dplyr::mutate(
@@ -3589,10 +3610,9 @@ agg_ground_truth_match_ans %>%
   ) %>% 
   dplyr::select(!tidyselect::starts_with("abs_diff_")) %>% 
   dplyr::mutate(
-    flight_tf = dplyr::case_when(
-      flight_tf ~ "On"
-      , !flight_tf ~ "Off"
-      , T ~ "error"
+    dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
     )
     , dplyr::across(
       .cols = c(
@@ -3602,7 +3622,7 @@ agg_ground_truth_match_ans %>%
       , .fn = ~ scales::percent(.x, accuracy = .1)
     )
     , dplyr::across(
-      .cols = c(flight_agl,flight_mph,tidyselect::ends_with("_trees"))
+      .cols = c(tidyselect::ends_with("_trees"))
       , .fn = ~ scales::comma(.x, accuracy = 1)
     )
     , dplyr::across(
@@ -3632,7 +3652,7 @@ agg_ground_truth_match_ans %>%
   kableExtra::kbl(
     caption = "Volume: Stand-Level Accuracy"
     , col.names = c(
-      "altitude (ft)", "speed (mph)", "Terrain Follow"
+      "altitude (m)", "speed (m/s)"
       , "reference", "predicted"
       , rep(c("reference","predicted","difference"), times = 2)
     )
@@ -3642,7 +3662,7 @@ agg_ground_truth_match_ans %>%
   kableExtra::kable_styling(font_size = 11.5) %>% 
   kableExtra::add_header_above(
     c(
-      " "=3
+      " "=2
       , "# Trees" = 2
       # , "Area" = 3
       , "Gross<br />Volume m<sup>3</sup>" = 3
@@ -3650,8 +3670,8 @@ agg_ground_truth_match_ans %>%
     )
     , escape = F
   ) %>% 
-  kableExtra::column_spec( c(3,seq(5,11,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
-  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+  kableExtra::column_spec( c(2,seq(4,10,by=3) ), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
 ```
 
 plot
