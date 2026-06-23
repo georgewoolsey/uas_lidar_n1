@@ -326,6 +326,221 @@ validation_trees %>%
   kableExtra::kable_styling()
 ```
 
+let's quickly look at the summary stats on tree size
+
+```{r, echo=FALSE, message=FALSE}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(field_tree_height_m,field_dbh_cm) %>% 
+  dplyr::mutate(dplyr::across(dplyr::everything(), ~round(.x,1))) %>% 
+  summary() %>% 
+  knitr::kable(format = "markdown", digits = 2)
+```
+
+the size distribution too
+
+```{r}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(field_tree_height_m,field_dbh_cm) %>% 
+  tidyr::pivot_longer(
+    cols = dplyr::everything()
+    , names_to = "metric"
+    , values_to = "value"
+    , values_drop_na = T
+  ) %>% 
+  dplyr::mutate(
+    tree_metric = metric %>% 
+      stringr::str_remove("(_rmse|_rrmse|_mean|_mape)$") %>% 
+      stringr::str_extract("(height|dbh)") %>% 
+      factor(
+        ordered = T
+        , levels = c(
+          "height"
+          , "dbh"
+        )
+        , labels = c(
+          "Height (m)"
+          , "DBH (cm)"
+        )
+      )
+  ) %>% 
+  # dplyr::glimpse()
+# plot dist
+  ggplot2::ggplot(mapping = ggplot2::aes(x = value)) +
+  ggplot2::geom_density(
+    mapping = ggplot2::aes(y=ggplot2::after_stat(scaled))
+    , alpha = 0.7
+    , fill = "maroon4", color = "maroon4"
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(tree_metric)
+    , scales = "free_x", axes = "all_x"
+  ) +
+  ggplot2::scale_y_continuous(NULL,breaks=NULL) +
+  ggplot2::scale_x_continuous(breaks=scales::breaks_extended(n=8)) +
+  ggplot2::labs(
+    x=""
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text.x = ggplot2::element_text(color = "black", face = "bold")
+    , panel.grid = ggplot2::element_blank()
+  )
+```
+
+height and DBH relationship
+
+```{r}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::slice_sample(prop = 0.77) %>% 
+  ggplot2::ggplot(mapping = ggplot2::aes(x = field_tree_height_m, y = field_dbh_cm)) + 
+  ggplot2::geom_point(color = "maroon4", alpha = 0.6) +
+  ggplot2::labs(x = "field tree ht. (m)", y = "field tree DBH (cm)") +
+  ggplot2::scale_x_continuous(limits = c(0,NA), breaks = scales::breaks_extended(n=8)) +
+  ggplot2::scale_y_continuous(limits = c(0,NA), breaks = scales::breaks_extended(n=8)) +
+  ggplot2::theme_light()
+```
+
+a distribution of trees by size class (bin) is another thing to look at
+
+```{r}
+# make ggplot2::cut_* bins pretty
+make_bins_pretty <- function(bin_factor, suffix = "") {
+  # convert factor to character and remove brackets and parens
+  clean_labels <- bin_factor %>%
+    as.character() %>%
+    stringr::str_replace_all(c("\\[" = "", "\\(" = "", "\\]" = "", "\\)" = "")) %>%
+    stringr::str_replace(",", "-")
+  
+  # suffix
+  if(stringr::str_squish(suffix) != "" && inherits(suffix,"character")){
+    clean_labels <- stringr::str_c(clean_labels, " ", suffix) %>% stringr::str_squish()
+  }
+  
+  # reorder based on the original factor levels 
+  forcats::fct_reorder(factor(clean_labels), as.numeric(bin_factor))
+}
+
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_height_m_bin = ggplot2::cut_width(field_tree_height_m, width = 5, boundary = 0) %>% 
+      make_bins_pretty(suffix = "m") %>% 
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
+  ) %>% 
+  dplyr::count(tree_height_m_bin) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.049
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_height_m_bin)
+  ) +
+  ggplot2::geom_col(
+    width = 0.6
+    , color = NA, alpha = 0.9, fill = "maroon4"
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, fontface = "bold")
+    # , color = "black"
+     , color = "black", size = 2.5, vjust = -0.2
+  ) +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.1))
+  ) +
+  ggplot2::labs(
+    x = "tree height", y = ""
+    , subtitle = "field-measured trees by tree height bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+```
+
+and DBH bins
+
+```{r}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_dbh_cm_bin = ggplot2::cut_width(field_dbh_cm, width = 12, boundary = 0) %>% 
+      make_bins_pretty(suffix = " cm") %>% 
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(floor(min(validation_trees$field_dbh_cm)),"-")) )
+  ) %>% 
+  dplyr::count(tree_dbh_cm_bin) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.049
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup() %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_dbh_cm_bin)
+  ) +
+  ggplot2::geom_col(
+    width = 0.6
+    , color = NA, alpha = 0.9, fill = "maroon4"
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, fontface = "bold")
+    # , color = "black"
+     , color = "black", size = 2.5, vjust = -0.2
+  ) +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.1))
+  ) +
+  ggplot2::labs(
+    x = "tree DBH", y = ""
+    , subtitle = "field-measured trees by tree DBH bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 7, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+```
+
 ```{r, include=F, eval=F}
 cloud2trees:::search_dir_final_detected(dir = file.path(tracking_df$path[1], "point_cloud_processing_delivery")) %>% 
   purrr::pluck("crowns_flist") %>% 
@@ -620,9 +835,12 @@ timer_df <-
         timer_total_time_mins = timer_cloud2raster_mins + timer_raster2trees_mins +
           timer_trees_dbh_mins + timer_trees_cbh_mins + timer_trees_type_mins +
           timer_trees_hmd_mins + timer_trees_biomass_mins
+        , timer_total_dbhonly_time_mins = timer_cloud2raster_mins + timer_raster2trees_mins +
+          timer_trees_dbh_mins
         , timer_tree_extraction_mins = timer_cloud2raster_mins + timer_raster2trees_mins
         , points_per_m2 = number_of_points/las_area_m2
         , timer_total_time_mins_per_ha = timer_total_time_mins/(las_area_m2/10000)
+        , timer_total_dbhonly_time_mins_per_ha = timer_total_dbhonly_time_mins/(las_area_m2/10000)
       ) %>% 
       dplyr::mutate(
         dplyr::across(
@@ -700,10 +918,80 @@ timer_df %>%
     )
     , escape = F
   ) %>% 
-  kableExtra::column_spec(c(2,5,11), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::column_spec(c(2,4,11), border_right = TRUE, include_thead = TRUE) %>% 
   kableExtra::collapse_rows(columns = c(1), valign = "top")
   
 ```
+
+for this forest inventory and our comparison to the field-measured data we only needed tree position, height, and DBH. let's make a condensed table with only those attributes
+
+```{r}
+timer_df %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_")
+    # data desc
+    , number_of_points
+    , points_per_m2
+    # timer
+    , timer_total_dbhonly_time_mins_per_ha
+    , timer_total_dbhonly_time_mins
+    , timer_tree_extraction_mins
+    , timer_trees_dbh_mins
+    , las_area_m2
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+     .cols = c(timer_tree_extraction_mins,timer_trees_dbh_mins)
+     , .fns = ~ paste0(scales::comma( (.x/(las_area_m2/10000)),accuracy=0.01), "<br/>(", scales::percent( (.x/timer_total_dbhonly_time_mins), accuracy = 0.1 ), ")")
+     , .names = "{.col}_full_lab"
+    )
+  ) %>% 
+  dplyr::select(-c(
+    timer_total_dbhonly_time_mins
+    , timer_tree_extraction_mins
+    , timer_trees_dbh_mins
+    , las_area_m2
+  )) %>% 
+  dplyr::mutate(
+    number_of_points = scales::comma((number_of_points/1000000),accuracy=0.1,suffix = " M")
+    , timer_total_dbhonly_time_mins_per_ha = scales::comma(timer_total_dbhonly_time_mins_per_ha,accuracy=0.01)
+    , dplyr::across(tidyselect::ends_with("_per_m2"), ~scales::comma(.x,accuracy = 1))
+  ) %>%
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    -c(
+      dataset_factor
+    )
+  ) %>% 
+  # ncol()
+  # dplyr::glimpse()
+  kableExtra::kbl(
+    caption = "Data Processing Summary (DBH only)"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      # data desc
+      , "# points", "points m<sup>-2</sup>"
+      # timer
+      , "TOTAL"
+      , "tree<br/>extraction", "DBH"
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11) %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=2
+      , "Input Data<br/>Description" = 2
+      , "Processing Time<br/>minutes ha<sup>-1</sup>" = 3
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec(c(2,4,7), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
+
+```
+
 
 how is the point density related to speed and altitude?
 
@@ -712,7 +1000,7 @@ timer_df %>%
   ggplot2::ggplot(
     mapping = aes(x = flight_altitude_m, y = points_per_m2, color = factor(flight_meters_per_second))
   ) +
-  ggplot2::geom_point(size = 4, alpha = 0.9) +
+  ggplot2::geom_point(size = 5.5, alpha = 0.9) +
   ggplot2::scale_color_manual(
     values = viridis::rocket(n = 3, begin = 0.9, end = 0.5)[c(1,3)]
   ) +
@@ -722,7 +1010,7 @@ timer_df %>%
   ) +
   ggplot2::labs(
     color = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ ")
-    , x = "Altitude (ft)"
+    , x = "Altitude (m)"
     , y = latex2exp::TeX("point cloud points  $m^{-2}$ ")
     , subtitle = "point cloud point density"
   ) +
@@ -746,9 +1034,9 @@ how is the processing time related to speed and altitude?
 ```{r}
 timer_df %>% 
   ggplot2::ggplot(
-    mapping = aes(x = flight_altitude_m, y = timer_total_time_mins_per_ha, color = factor(flight_meters_per_second))
+    mapping = aes(x = flight_altitude_m, y = timer_total_dbhonly_time_mins_per_ha, color = factor(flight_meters_per_second))
   ) +
-  ggplot2::geom_point(size = 4, alpha = 0.9) +
+  ggplot2::geom_point(size = 5.5, alpha = 0.9) +
   ggplot2::scale_color_manual(
     values = viridis::rocket(n = 3, begin = 0.9, end = 0.5)[c(1,3)]
   ) +
@@ -758,7 +1046,7 @@ timer_df %>%
   ) +
   ggplot2::labs(
     color = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ ")
-    , x = "Altitude (ft)"
+    , x = "Altitude (m)"
     , y = latex2exp::TeX("processing minutes  $ha^{-1}$")
     , subtitle = "point cloud point processing time"
   ) +
@@ -776,6 +1064,43 @@ timer_df %>%
 ```
 
 same relationship as with point density
+
+how is point cloud processing time related to point density?
+
+```{r}
+timer_df %>% 
+  ggplot2::ggplot(
+    mapping = aes(
+      x = points_per_m2, y = timer_total_dbhonly_time_mins_per_ha
+      , shape = factor(flight_meters_per_second)
+      , color = factor(flight_altitude_m)
+    )
+  ) +
+  ggplot2::geom_point(size = 5.5, alpha = 0.9) +
+  ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
+  ggplot2::scale_x_continuous(
+    labels=scales::comma
+    , breaks = scales::breaks_extended(n=8)
+  ) +
+  ggplot2::labs(
+    shape = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ ")
+    , x = latex2exp::TeX("points  $m^{-2}$ ")
+    , color = "Altitude (m)"
+    , y = latex2exp::TeX("processing minutes  $ha^{-1}$")
+    , subtitle = "point cloud point processing time"
+  ) +
+  ggplot2::theme_light() +
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text.x = ggplot2::element_text(size = 10, color = "black", face = "bold")
+    , strip.text.y = ggplot2::element_text(size = 10, color = "black", face = "bold")
+    , plot.title = ggplot2::element_text(size = 10)
+    , plot.subtitle = ggplot2::element_text(size = 10)
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, size = 6))
+  )
+```
 
 point cloud processing section time
 
