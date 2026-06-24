@@ -610,7 +610,7 @@ dta_temp <-
   dplyr::bind_rows() %>% 
   dplyr::left_join(
     agg_ground_truth_match_ans %>% 
-      dplyr::select(dataset_factor, tidyselect::ends_with("_rmse") , tidyselect::ends_with("_mape") )
+      dplyr::select(dataset_factor, tidyselect::ends_with("_rmse") , tidyselect::ends_with("_mape"), tidyselect::ends_with("_mean") )
     , by = "dataset_factor"
   )
   # dplyr::glimpse()
@@ -657,7 +657,7 @@ plt_fn_temp <- function(
     d %>% 
       ggplot2::ggplot(mapping = ggplot2::aes(y = .data[[y_var]], x = .data[[x_var]])) +
       ggplot2::geom_abline(color = "gray33", lwd = 1) +
-      ggplot2::geom_point(color = "navy", alpha = 0.7, size = 0.9) +
+      ggplot2::geom_point(color = "maroon4", alpha = 0.7, size = 0.9) +
       ggplot2::geom_smooth(lwd = 0.8, method = "lm", se=F, color = "gray", linetype = "dashed") +
       ggplot2::annotate(
         "text", 
@@ -676,13 +676,25 @@ plt_fn_temp <- function(
               dplyr::pull(1) %>% 
               unique() %>% 
               # scales::number(accuracy = 0.1, suffix = " (m²)")
-              scales::number(accuracy = 0.1, suffix = ifelse(which_col=="dbh_cm"," (cm)"," (m)") )
+              scales::number(
+                accuracy = ifelse(which_col=="dbh_cm",0.1,0.01)
+                , suffix = ifelse(which_col=="dbh_cm"," (cm)"," (m)") 
+              )
             , "\nMAPE = "
             , d %>% 
               dplyr::select(dplyr::all_of(paste0("pct_diff_",which_col, "_mape"))) %>% 
               dplyr::pull(1) %>% 
               unique() %>% 
               scales::percent(accuracy = 0.1)
+            , "\nME = "
+            , d %>% 
+              dplyr::select(dplyr::all_of(paste0("diff_",which_col, "_mean"))) %>% 
+              dplyr::pull(1) %>% 
+              unique() %>% 
+              scales::number(
+                accuracy = ifelse(which_col=="dbh_cm",0.1,0.01)
+                , suffix = ifelse(which_col=="dbh_cm"," (cm)"," (m)") 
+              )
             , "\n"
             , lmf_temp
             , "\n R² = "

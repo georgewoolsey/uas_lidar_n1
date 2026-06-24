@@ -541,6 +541,68 @@ validation_trees %>%
   )
 ```
 
+let's get a lot more detail on the tree measurements for DBH and height
+
+```{r}
+validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::rename(
+    tree_height_m = field_tree_height_m
+    , dbh_cm = field_dbh_cm
+  ) %>% 
+  dplyr::select(tree_height_m, dbh_cm) %>% 
+  dplyr::summarise(
+    dplyr::across(
+      dplyr::where(is.numeric)
+      , .fns = list(
+        mean = ~mean(.x,na.rm=T)
+        , sd = ~sd(.x,na.rm=T)
+        # , q10 = ~quantile(.x,na.rm=T,probs=0.1)
+        , median = ~quantile(.x,na.rm=T,probs=0.5)
+        # , q90 = ~quantile(.x,na.rm=T,probs=0.9)
+        # , min = ~min(.x,na.rm=T)
+        # , max = ~max(.x,na.rm=T)
+        , range = ~paste0(
+          scales::comma(min(.x,na.rm=T), accuracy = 0.1)
+          ,"-"
+          , scales::comma(max(.x,na.rm=T), accuracy = 0.1)
+        )
+      )
+    )
+    , n = dplyr::n()
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    n = scales::comma(n,accuracy=1)
+    , dplyr::across(
+      dplyr::where(is.numeric)
+      , ~scales::comma(.x,accuracy=0.1)
+    )
+    , `data` = "field-measured trees"
+  ) %>% 
+  dplyr::relocate(data,n) %>% 
+  # ncol()
+  kableExtra::kbl(
+    caption = "height and diameter distributions <br />field-measured trees"
+    , col.names = c(
+      "data","# trees"
+      , rep(c("Mean","Std Dev","Median","Range"), times = 2)
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::kable_styling(font_size = 12) %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=2
+      , "Height (m)" = 4
+      , "DBH (cm)" = 4
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec(seq(2,10,by=4), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = 1, valign = "top")  
+```
+
 ```{r, include=F, eval=F}
 cloud2trees:::search_dir_final_detected(dir = file.path(tracking_df$path[1], "point_cloud_processing_delivery")) %>% 
   purrr::pluck("crowns_flist") %>% 
@@ -734,6 +796,75 @@ predicted_trees %>%
 
 both the count of trees and the height and DBH distributions look very similar across the different flight settings...this may be an early indication of limited influence of the flight settings on tree detection and forest structure quantification
 
+let's get a lot more detail on the tree measurements for DBH and height
+
+```{r}
+predicted_trees %>% 
+  dplyr::bind_rows(.id = "dataset_factor") %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(is_in_stand) %>% 
+  dplyr::select(dataset_factor, tree_height_m, dbh_cm) %>% 
+  dplyr::inner_join(tracking_df, by="dataset_factor") %>% 
+  dplyr::mutate(
+    dplyr::across(tidyselect::starts_with("flight_"), as.factor)
+    , dataset_factor = forcats::fct_relevel(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>%
+  dplyr::select(tidyselect::starts_with("flight_"), tree_height_m, dbh_cm) %>% 
+  dplyr::group_by(dplyr::across(
+    tidyselect::starts_with("flight_")
+  )) %>% 
+  dplyr::summarise(
+    dplyr::across(
+      c(tree_height_m, dbh_cm)
+      , .fns = list(
+        mean = ~mean(.x,na.rm=T)
+        , sd = ~sd(.x,na.rm=T)
+        # , q10 = ~quantile(.x,na.rm=T,probs=0.1)
+        , median = ~quantile(.x,na.rm=T,probs=0.5)
+        # , q90 = ~quantile(.x,na.rm=T,probs=0.9)
+        # , min = ~min(.x,na.rm=T)
+        # , max = ~max(.x,na.rm=T)
+        , range = ~paste0(
+          scales::comma(min(.x,na.rm=T), accuracy = 0.1)
+          ,"-"
+          , scales::comma(max(.x,na.rm=T), accuracy = 0.1)
+        )
+      )
+    )
+    , n = dplyr::n()
+    , .groups = "drop_last"
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    n = scales::comma(n,accuracy=1)
+    , dplyr::across(
+      dplyr::where(is.numeric)
+      , ~scales::comma(.x,accuracy=0.1)
+    )
+  ) %>% 
+  dplyr::relocate(tidyselect::starts_with("flight_"),n) %>% 
+  # ncol()
+  kableExtra::kbl(
+    caption = "height and diameter distributions <br />UAS-detected trees"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)","# trees"
+      , rep(c("Mean","Std Dev","Median","Range"), times = 2)
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11) %>% 
+  kableExtra::add_header_above(
+    c(
+      " "=3
+      , "Height (m)" = 4
+      , "DBH (cm)" = 4
+    )
+    , escape = F
+  ) %>% 
+  kableExtra::column_spec(seq(3,11,by=4), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = 1, valign = "top")  
+```
+
 let's check out very high-level stand summary metrics
 
 ```{r}
@@ -808,6 +939,7 @@ predicted_trees %>%
   kableExtra::collapse_rows(columns = c(1), valign = "top")
   
 ```
+
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 # cloud2trees:::search_dir_final_detected(c2t_process_dir)
