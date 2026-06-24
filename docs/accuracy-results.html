@@ -270,63 +270,99 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li><a href="accuracy-results.html#stand_acc"><strong>Stand-Level Accuracy</strong></a>: assessment of stand-level measurement accuracy that compares aggregated forest inventory metrics derived from the entire field inventory against all UAS-predicted trees. We calculate absolute bias and relative percent differences for stand basal area and trees per hectare across the different flight configurations to evaluate total structural summary performance.</li>
 </ul>
 <p>aggregate the instance matching to get detection and quantification accuracy for each data set</p>
-<div class="sourceCode" id="cb120"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb120-1"><a href="accuracy-results.html#cb120-1" tabindex="-1"></a>agg_ground_truth_match_ans <span class="ot">&lt;-</span> </span>
-<span id="cb120-2"><a href="accuracy-results.html#cb120-2" tabindex="-1"></a>  ground_truth_prediction_match_ans <span class="sc">%&gt;%</span> </span>
-<span id="cb120-3"><a href="accuracy-results.html#cb120-3" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">compact</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb120-4"><a href="accuracy-results.html#cb120-4" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">map</span>(</span>
-<span id="cb120-5"><a href="accuracy-results.html#cb120-5" tabindex="-1"></a>    \(x)</span>
-<span id="cb120-6"><a href="accuracy-results.html#cb120-6" tabindex="-1"></a>    <span class="fu">agg_ground_truth_match</span>(x) <span class="sc">%&gt;%</span> </span>
-<span id="cb120-7"><a href="accuracy-results.html#cb120-7" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">bind_cols</span>(</span>
-<span id="cb120-8"><a href="accuracy-results.html#cb120-8" tabindex="-1"></a>        <span class="co"># add ba and stand area</span></span>
-<span id="cb120-9"><a href="accuracy-results.html#cb120-9" tabindex="-1"></a>        x <span class="sc">%&gt;%</span> </span>
-<span id="cb120-10"><a href="accuracy-results.html#cb120-10" tabindex="-1"></a>          sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb120-11"><a href="accuracy-results.html#cb120-11" tabindex="-1"></a>          dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb120-12"><a href="accuracy-results.html#cb120-12" tabindex="-1"></a>          dplyr<span class="sc">::</span><span class="fu">summarise</span>(</span>
-<span id="cb120-13"><a href="accuracy-results.html#cb120-13" tabindex="-1"></a>            dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb120-14"><a href="accuracy-results.html#cb120-14" tabindex="-1"></a>              <span class="fu">c</span>(ref_basal_area_m2,pred_basal_area_m2)</span>
-<span id="cb120-15"><a href="accuracy-results.html#cb120-15" tabindex="-1"></a>              , <span class="sc">~</span><span class="fu">sum</span>(.x,<span class="at">na.rm=</span>T)</span>
-<span id="cb120-16"><a href="accuracy-results.html#cb120-16" tabindex="-1"></a>            )</span>
-<span id="cb120-17"><a href="accuracy-results.html#cb120-17" tabindex="-1"></a>          ) <span class="sc">%&gt;%</span> </span>
-<span id="cb120-18"><a href="accuracy-results.html#cb120-18" tabindex="-1"></a>          dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb120-19"><a href="accuracy-results.html#cb120-19" tabindex="-1"></a>            <span class="at">stand_area_ha =</span> stand_boundary<span class="sc">$</span>stand_area_m2[<span class="dv">1</span>]<span class="sc">/</span><span class="dv">10000</span></span>
-<span id="cb120-20"><a href="accuracy-results.html#cb120-20" tabindex="-1"></a>            , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb120-21"><a href="accuracy-results.html#cb120-21" tabindex="-1"></a>              <span class="fu">c</span>(ref_basal_area_m2,pred_basal_area_m2)</span>
-<span id="cb120-22"><a href="accuracy-results.html#cb120-22" tabindex="-1"></a>              , <span class="sc">~</span> .x<span class="sc">/</span>stand_area_ha</span>
-<span id="cb120-23"><a href="accuracy-results.html#cb120-23" tabindex="-1"></a>              , <span class="at">.names =</span> <span class="st">&quot;{.col}_per_ha&quot;</span></span>
-<span id="cb120-24"><a href="accuracy-results.html#cb120-24" tabindex="-1"></a>            )</span>
-<span id="cb120-25"><a href="accuracy-results.html#cb120-25" tabindex="-1"></a>          )</span>
-<span id="cb120-26"><a href="accuracy-results.html#cb120-26" tabindex="-1"></a>      ) <span class="sc">%&gt;%</span> </span>
-<span id="cb120-27"><a href="accuracy-results.html#cb120-27" tabindex="-1"></a>      <span class="co"># comps not done in agg_ground_truth_match()</span></span>
-<span id="cb120-28"><a href="accuracy-results.html#cb120-28" tabindex="-1"></a>      dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb120-29"><a href="accuracy-results.html#cb120-29" tabindex="-1"></a>        <span class="at">ref_trees_per_ha =</span> (tp_n<span class="sc">+</span>fn_n)<span class="sc">/</span>stand_area_ha</span>
-<span id="cb120-30"><a href="accuracy-results.html#cb120-30" tabindex="-1"></a>        , <span class="at">pred_trees_per_ha =</span> (tp_n<span class="sc">+</span>fp_n)<span class="sc">/</span>stand_area_ha</span>
-<span id="cb120-31"><a href="accuracy-results.html#cb120-31" tabindex="-1"></a>        <span class="co"># &#39;diff_&#39; columns are calculated as the predicted value minus the actual value</span></span>
-<span id="cb120-32"><a href="accuracy-results.html#cb120-32" tabindex="-1"></a>        , <span class="at">diff_trees_per_ha =</span> pred_trees_per_ha<span class="sc">-</span>ref_trees_per_ha</span>
-<span id="cb120-33"><a href="accuracy-results.html#cb120-33" tabindex="-1"></a>        , <span class="at">diff_basal_area_m2 =</span> pred_basal_area_m2<span class="sc">-</span>ref_basal_area_m2</span>
-<span id="cb120-34"><a href="accuracy-results.html#cb120-34" tabindex="-1"></a>        , <span class="at">diff_basal_area_m2_per_ha =</span> pred_basal_area_m2_per_ha<span class="sc">-</span>ref_basal_area_m2_per_ha</span>
-<span id="cb120-35"><a href="accuracy-results.html#cb120-35" tabindex="-1"></a>        <span class="co"># &#39;abs_diff_&#39; columns are calculated as the predicted value minus the actual value</span></span>
-<span id="cb120-36"><a href="accuracy-results.html#cb120-36" tabindex="-1"></a>        , <span class="at">abs_diff_trees_per_ha =</span> <span class="fu">abs</span>(diff_trees_per_ha)</span>
-<span id="cb120-37"><a href="accuracy-results.html#cb120-37" tabindex="-1"></a>        , <span class="at">abs_diff_basal_area_m2 =</span> <span class="fu">abs</span>(diff_basal_area_m2)</span>
-<span id="cb120-38"><a href="accuracy-results.html#cb120-38" tabindex="-1"></a>        , <span class="at">abs_diff_basal_area_m2_per_ha =</span> <span class="fu">abs</span>(diff_basal_area_m2_per_ha)</span>
-<span id="cb120-39"><a href="accuracy-results.html#cb120-39" tabindex="-1"></a>        <span class="co"># &#39;pct_diff_&#39; columns are calculated as the predicted value minus the actual value divided by the actual value</span></span>
-<span id="cb120-40"><a href="accuracy-results.html#cb120-40" tabindex="-1"></a>        , <span class="at">pct_diff_trees_per_ha =</span> (pred_trees_per_ha<span class="sc">-</span>ref_trees_per_ha)<span class="sc">/</span>ref_trees_per_ha</span>
-<span id="cb120-41"><a href="accuracy-results.html#cb120-41" tabindex="-1"></a>        , <span class="at">pct_diff_basal_area_m2 =</span> (pred_basal_area_m2<span class="sc">-</span>ref_basal_area_m2)<span class="sc">/</span>ref_basal_area_m2</span>
-<span id="cb120-42"><a href="accuracy-results.html#cb120-42" tabindex="-1"></a>        , <span class="at">pct_diff_basal_area_m2_per_ha =</span> (pred_basal_area_m2_per_ha<span class="sc">-</span>ref_basal_area_m2_per_ha)<span class="sc">/</span>ref_basal_area_m2_per_ha</span>
-<span id="cb120-43"><a href="accuracy-results.html#cb120-43" tabindex="-1"></a>      )</span>
-<span id="cb120-44"><a href="accuracy-results.html#cb120-44" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb120-45"><a href="accuracy-results.html#cb120-45" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">&quot;dataset_factor&quot;</span>) </span>
-<span id="cb120-46"><a href="accuracy-results.html#cb120-46" tabindex="-1"></a><span class="co"># add tracking data cols</span></span>
-<span id="cb120-47"><a href="accuracy-results.html#cb120-47" tabindex="-1"></a>agg_ground_truth_match_ans <span class="ot">&lt;-</span> tracking_df <span class="sc">%&gt;%</span> </span>
-<span id="cb120-48"><a href="accuracy-results.html#cb120-48" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">left_join</span>(</span>
-<span id="cb120-49"><a href="accuracy-results.html#cb120-49" tabindex="-1"></a>    agg_ground_truth_match_ans</span>
-<span id="cb120-50"><a href="accuracy-results.html#cb120-50" tabindex="-1"></a>    , <span class="at">by =</span> <span class="st">&quot;dataset_factor&quot;</span></span>
-<span id="cb120-51"><a href="accuracy-results.html#cb120-51" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb120-52"><a href="accuracy-results.html#cb120-52" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb120-53"><a href="accuracy-results.html#cb120-53" tabindex="-1"></a>    <span class="at">dataset_factor =</span> <span class="fu">ordered</span>(dataset_factor, <span class="fu">levels</span>(tracking_df<span class="sc">$</span>dataset_factor))</span>
-<span id="cb120-54"><a href="accuracy-results.html#cb120-54" tabindex="-1"></a>  )</span>
-<span id="cb120-55"><a href="accuracy-results.html#cb120-55" tabindex="-1"></a><span class="co"># # huh?</span></span>
-<span id="cb120-56"><a href="accuracy-results.html#cb120-56" tabindex="-1"></a><span class="co"># agg_ground_truth_match_ans %&gt;% dplyr::glimpse()</span></span>
-<span id="cb120-57"><a href="accuracy-results.html#cb120-57" tabindex="-1"></a><span class="co"># levels(agg_ground_truth_match_ans$dataset_factor)</span></span></code></pre></div>
+<div class="sourceCode" id="cb120"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb120-1"><a href="accuracy-results.html#cb120-1" tabindex="-1"></a><span class="co"># aggregate field trees for stand-level comp</span></span>
+<span id="cb120-2"><a href="accuracy-results.html#cb120-2" tabindex="-1"></a>ref_temp <span class="ot">&lt;-</span></span>
+<span id="cb120-3"><a href="accuracy-results.html#cb120-3" tabindex="-1"></a>  validation_trees <span class="sc">%&gt;%</span> </span>
+<span id="cb120-4"><a href="accuracy-results.html#cb120-4" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb120-5"><a href="accuracy-results.html#cb120-5" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb120-6"><a href="accuracy-results.html#cb120-6" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">summarise</span>(</span>
+<span id="cb120-7"><a href="accuracy-results.html#cb120-7" tabindex="-1"></a>    <span class="co"># dplyr::across(</span></span>
+<span id="cb120-8"><a href="accuracy-results.html#cb120-8" tabindex="-1"></a>    <span class="co">#   c(field_tree_height_m, field_dbh_cm)</span></span>
+<span id="cb120-9"><a href="accuracy-results.html#cb120-9" tabindex="-1"></a>    <span class="co">#   , .fns = list(</span></span>
+<span id="cb120-10"><a href="accuracy-results.html#cb120-10" tabindex="-1"></a>    <span class="co">#     mean = ~mean(.x,na.rm=T)</span></span>
+<span id="cb120-11"><a href="accuracy-results.html#cb120-11" tabindex="-1"></a>    <span class="co">#     , sd = ~sd(.x,na.rm=T)</span></span>
+<span id="cb120-12"><a href="accuracy-results.html#cb120-12" tabindex="-1"></a>    <span class="co">#     # , q10 = ~quantile(.x,na.rm=T,probs=0.1)</span></span>
+<span id="cb120-13"><a href="accuracy-results.html#cb120-13" tabindex="-1"></a>    <span class="co">#     , median = ~quantile(.x,na.rm=T,probs=0.5)</span></span>
+<span id="cb120-14"><a href="accuracy-results.html#cb120-14" tabindex="-1"></a>    <span class="co">#     # , q90 = ~quantile(.x,na.rm=T,probs=0.9)</span></span>
+<span id="cb120-15"><a href="accuracy-results.html#cb120-15" tabindex="-1"></a>    <span class="co">#     , min = ~min(.x,na.rm=T)</span></span>
+<span id="cb120-16"><a href="accuracy-results.html#cb120-16" tabindex="-1"></a>    <span class="co">#     , max = ~max(.x,na.rm=T)</span></span>
+<span id="cb120-17"><a href="accuracy-results.html#cb120-17" tabindex="-1"></a>    <span class="co">#   )</span></span>
+<span id="cb120-18"><a href="accuracy-results.html#cb120-18" tabindex="-1"></a>    <span class="co"># )</span></span>
+<span id="cb120-19"><a href="accuracy-results.html#cb120-19" tabindex="-1"></a>    <span class="at">ref_n_trees =</span> dplyr<span class="sc">::</span><span class="fu">n</span>()</span>
+<span id="cb120-20"><a href="accuracy-results.html#cb120-20" tabindex="-1"></a>    , <span class="at">ref_basal_area_m2 =</span> <span class="fu">sum</span>(basal_area_m2)</span>
+<span id="cb120-21"><a href="accuracy-results.html#cb120-21" tabindex="-1"></a>  )</span>
+<span id="cb120-22"><a href="accuracy-results.html#cb120-22" tabindex="-1"></a>  <span class="co"># dplyr::rename_with(.fn = ~stringr::str_remove(.x,&quot;^field_&quot;))  </span></span>
+<span id="cb120-23"><a href="accuracy-results.html#cb120-23" tabindex="-1"></a></span>
+<span id="cb120-24"><a href="accuracy-results.html#cb120-24" tabindex="-1"></a><span class="co"># agg_ground_truth_match for all and add stand-level comp</span></span>
+<span id="cb120-25"><a href="accuracy-results.html#cb120-25" tabindex="-1"></a>agg_ground_truth_match_ans <span class="ot">&lt;-</span></span>
+<span id="cb120-26"><a href="accuracy-results.html#cb120-26" tabindex="-1"></a>  ground_truth_prediction_match_ans <span class="sc">%&gt;%</span> </span>
+<span id="cb120-27"><a href="accuracy-results.html#cb120-27" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">compact</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb120-28"><a href="accuracy-results.html#cb120-28" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">imap</span>(</span>
+<span id="cb120-29"><a href="accuracy-results.html#cb120-29" tabindex="-1"></a>    <span class="cf">function</span>(x,nm){</span>
+<span id="cb120-30"><a href="accuracy-results.html#cb120-30" tabindex="-1"></a>      <span class="co"># agg stand level for matching</span></span>
+<span id="cb120-31"><a href="accuracy-results.html#cb120-31" tabindex="-1"></a>      p <span class="ot">&lt;-</span> </span>
+<span id="cb120-32"><a href="accuracy-results.html#cb120-32" tabindex="-1"></a>        predicted_trees[[nm]] <span class="sc">%&gt;%</span> </span>
+<span id="cb120-33"><a href="accuracy-results.html#cb120-33" tabindex="-1"></a>        sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb120-34"><a href="accuracy-results.html#cb120-34" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">filter</span>(is_in_stand) <span class="sc">%&gt;%</span> </span>
+<span id="cb120-35"><a href="accuracy-results.html#cb120-35" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb120-36"><a href="accuracy-results.html#cb120-36" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">summarise</span>(</span>
+<span id="cb120-37"><a href="accuracy-results.html#cb120-37" tabindex="-1"></a>          <span class="co"># dplyr::across(</span></span>
+<span id="cb120-38"><a href="accuracy-results.html#cb120-38" tabindex="-1"></a>          <span class="co">#   c(tree_height_m, dbh_cm)</span></span>
+<span id="cb120-39"><a href="accuracy-results.html#cb120-39" tabindex="-1"></a>          <span class="co">#   , .fns = list(</span></span>
+<span id="cb120-40"><a href="accuracy-results.html#cb120-40" tabindex="-1"></a>          <span class="co">#     mean = ~mean(.x,na.rm=T)</span></span>
+<span id="cb120-41"><a href="accuracy-results.html#cb120-41" tabindex="-1"></a>          <span class="co">#     , sd = ~sd(.x,na.rm=T)</span></span>
+<span id="cb120-42"><a href="accuracy-results.html#cb120-42" tabindex="-1"></a>          <span class="co">#     # , q10 = ~quantile(.x,na.rm=T,probs=0.1)</span></span>
+<span id="cb120-43"><a href="accuracy-results.html#cb120-43" tabindex="-1"></a>          <span class="co">#     , median = ~quantile(.x,na.rm=T,probs=0.5)</span></span>
+<span id="cb120-44"><a href="accuracy-results.html#cb120-44" tabindex="-1"></a>          <span class="co">#     # , q90 = ~quantile(.x,na.rm=T,probs=0.9)</span></span>
+<span id="cb120-45"><a href="accuracy-results.html#cb120-45" tabindex="-1"></a>          <span class="co">#     , min = ~min(.x,na.rm=T)</span></span>
+<span id="cb120-46"><a href="accuracy-results.html#cb120-46" tabindex="-1"></a>          <span class="co">#     , max = ~max(.x,na.rm=T)</span></span>
+<span id="cb120-47"><a href="accuracy-results.html#cb120-47" tabindex="-1"></a>          <span class="co">#   )</span></span>
+<span id="cb120-48"><a href="accuracy-results.html#cb120-48" tabindex="-1"></a>          <span class="co"># )</span></span>
+<span id="cb120-49"><a href="accuracy-results.html#cb120-49" tabindex="-1"></a>          <span class="at">pred_n_trees =</span> dplyr<span class="sc">::</span><span class="fu">n</span>()</span>
+<span id="cb120-50"><a href="accuracy-results.html#cb120-50" tabindex="-1"></a>          , <span class="at">pred_basal_area_m2 =</span> <span class="fu">sum</span>(basal_area_m2)</span>
+<span id="cb120-51"><a href="accuracy-results.html#cb120-51" tabindex="-1"></a>        )</span>
+<span id="cb120-52"><a href="accuracy-results.html#cb120-52" tabindex="-1"></a>      <span class="co"># agg_ground_truth_match</span></span>
+<span id="cb120-53"><a href="accuracy-results.html#cb120-53" tabindex="-1"></a>        <span class="fu">agg_ground_truth_match</span>(x) <span class="sc">%&gt;%</span> </span>
+<span id="cb120-54"><a href="accuracy-results.html#cb120-54" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">bind_cols</span>(p,ref_temp) <span class="sc">%&gt;%</span> </span>
+<span id="cb120-55"><a href="accuracy-results.html#cb120-55" tabindex="-1"></a>        <span class="co"># comps not done in agg_ground_truth_match()</span></span>
+<span id="cb120-56"><a href="accuracy-results.html#cb120-56" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb120-57"><a href="accuracy-results.html#cb120-57" tabindex="-1"></a>          <span class="at">stand_area_ha =</span> stand_boundary<span class="sc">$</span>stand_area_m2[<span class="dv">1</span>]<span class="sc">/</span><span class="dv">10000</span></span>
+<span id="cb120-58"><a href="accuracy-results.html#cb120-58" tabindex="-1"></a>          , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
+<span id="cb120-59"><a href="accuracy-results.html#cb120-59" tabindex="-1"></a>            <span class="fu">c</span>(ref_basal_area_m2,pred_basal_area_m2)</span>
+<span id="cb120-60"><a href="accuracy-results.html#cb120-60" tabindex="-1"></a>            , <span class="sc">~</span> .x<span class="sc">/</span>stand_area_ha</span>
+<span id="cb120-61"><a href="accuracy-results.html#cb120-61" tabindex="-1"></a>            , <span class="at">.names =</span> <span class="st">&quot;{.col}_per_ha&quot;</span></span>
+<span id="cb120-62"><a href="accuracy-results.html#cb120-62" tabindex="-1"></a>          )</span>
+<span id="cb120-63"><a href="accuracy-results.html#cb120-63" tabindex="-1"></a>          , <span class="at">ref_trees_per_ha =</span> ref_n_trees<span class="sc">/</span>stand_area_ha</span>
+<span id="cb120-64"><a href="accuracy-results.html#cb120-64" tabindex="-1"></a>          , <span class="at">pred_trees_per_ha =</span> pred_n_trees<span class="sc">/</span>stand_area_ha</span>
+<span id="cb120-65"><a href="accuracy-results.html#cb120-65" tabindex="-1"></a>          <span class="co"># &#39;diff_&#39; columns are calculated as the predicted value minus the actual value</span></span>
+<span id="cb120-66"><a href="accuracy-results.html#cb120-66" tabindex="-1"></a>          , <span class="at">diff_trees_per_ha =</span> pred_trees_per_ha<span class="sc">-</span>ref_trees_per_ha</span>
+<span id="cb120-67"><a href="accuracy-results.html#cb120-67" tabindex="-1"></a>          , <span class="at">diff_basal_area_m2 =</span> pred_basal_area_m2<span class="sc">-</span>ref_basal_area_m2</span>
+<span id="cb120-68"><a href="accuracy-results.html#cb120-68" tabindex="-1"></a>          , <span class="at">diff_basal_area_m2_per_ha =</span> pred_basal_area_m2_per_ha<span class="sc">-</span>ref_basal_area_m2_per_ha</span>
+<span id="cb120-69"><a href="accuracy-results.html#cb120-69" tabindex="-1"></a>          <span class="co"># &#39;abs_diff_&#39; columns are calculated as the predicted value minus the actual value</span></span>
+<span id="cb120-70"><a href="accuracy-results.html#cb120-70" tabindex="-1"></a>          , <span class="at">abs_diff_trees_per_ha =</span> <span class="fu">abs</span>(diff_trees_per_ha)</span>
+<span id="cb120-71"><a href="accuracy-results.html#cb120-71" tabindex="-1"></a>          , <span class="at">abs_diff_basal_area_m2 =</span> <span class="fu">abs</span>(diff_basal_area_m2)</span>
+<span id="cb120-72"><a href="accuracy-results.html#cb120-72" tabindex="-1"></a>          , <span class="at">abs_diff_basal_area_m2_per_ha =</span> <span class="fu">abs</span>(diff_basal_area_m2_per_ha)</span>
+<span id="cb120-73"><a href="accuracy-results.html#cb120-73" tabindex="-1"></a>          <span class="co"># &#39;pct_diff_&#39; columns are calculated as the predicted value minus the actual value divided by the actual value</span></span>
+<span id="cb120-74"><a href="accuracy-results.html#cb120-74" tabindex="-1"></a>          , <span class="at">pct_diff_trees_per_ha =</span> (pred_trees_per_ha<span class="sc">-</span>ref_trees_per_ha)<span class="sc">/</span>ref_trees_per_ha</span>
+<span id="cb120-75"><a href="accuracy-results.html#cb120-75" tabindex="-1"></a>          , <span class="at">pct_diff_basal_area_m2 =</span> (pred_basal_area_m2<span class="sc">-</span>ref_basal_area_m2)<span class="sc">/</span>ref_basal_area_m2</span>
+<span id="cb120-76"><a href="accuracy-results.html#cb120-76" tabindex="-1"></a>          , <span class="at">pct_diff_basal_area_m2_per_ha =</span> (pred_basal_area_m2_per_ha<span class="sc">-</span>ref_basal_area_m2_per_ha)<span class="sc">/</span>ref_basal_area_m2_per_ha</span>
+<span id="cb120-77"><a href="accuracy-results.html#cb120-77" tabindex="-1"></a>        )</span>
+<span id="cb120-78"><a href="accuracy-results.html#cb120-78" tabindex="-1"></a>  }) <span class="sc">%&gt;%</span> </span>
+<span id="cb120-79"><a href="accuracy-results.html#cb120-79" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">&quot;dataset_factor&quot;</span>) </span>
+<span id="cb120-80"><a href="accuracy-results.html#cb120-80" tabindex="-1"></a></span>
+<span id="cb120-81"><a href="accuracy-results.html#cb120-81" tabindex="-1"></a></span>
+<span id="cb120-82"><a href="accuracy-results.html#cb120-82" tabindex="-1"></a><span class="co"># add tracking data cols</span></span>
+<span id="cb120-83"><a href="accuracy-results.html#cb120-83" tabindex="-1"></a>agg_ground_truth_match_ans <span class="ot">&lt;-</span> tracking_df <span class="sc">%&gt;%</span> </span>
+<span id="cb120-84"><a href="accuracy-results.html#cb120-84" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">left_join</span>(</span>
+<span id="cb120-85"><a href="accuracy-results.html#cb120-85" tabindex="-1"></a>    agg_ground_truth_match_ans</span>
+<span id="cb120-86"><a href="accuracy-results.html#cb120-86" tabindex="-1"></a>    , <span class="at">by =</span> <span class="st">&quot;dataset_factor&quot;</span></span>
+<span id="cb120-87"><a href="accuracy-results.html#cb120-87" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb120-88"><a href="accuracy-results.html#cb120-88" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb120-89"><a href="accuracy-results.html#cb120-89" tabindex="-1"></a>    <span class="at">dataset_factor =</span> <span class="fu">ordered</span>(dataset_factor, <span class="fu">levels</span>(tracking_df<span class="sc">$</span>dataset_factor))</span>
+<span id="cb120-90"><a href="accuracy-results.html#cb120-90" tabindex="-1"></a>  )</span>
+<span id="cb120-91"><a href="accuracy-results.html#cb120-91" tabindex="-1"></a><span class="co"># # huh?</span></span>
+<span id="cb120-92"><a href="accuracy-results.html#cb120-92" tabindex="-1"></a><span class="co"># agg_ground_truth_match_ans %&gt;% dplyr::glimpse()</span></span>
+<span id="cb120-93"><a href="accuracy-results.html#cb120-93" tabindex="-1"></a><span class="co"># levels(agg_ground_truth_match_ans$dataset_factor)</span></span></code></pre></div>
 <div id="detect_acc" class="section level2 hasAnchor" number="5.1">
 <h2><span class="header-section-number">5.1</span> Detection Accuracy Results<a href="accuracy-results.html#detect_acc" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>let’s table that</p>
@@ -1720,79 +1756,75 @@ MAPE
 <p>We’ll evaluate stand level aggregation accuracy for stand basal area and trees per hectare. For these stand metrics, we calculated the difference (<span class="math inline">\(predicted - reference\)</span>) to measure the bias in the original units (e.g., <span class="math inline">\(\frac{m^{2}}{ha}\)</span> for basal area) which indicates the over- or under-estimation of the stand structure. We also calculated the percent difference (<span class="math inline">\(\frac{predicted-reference}{reference}\)</span>) to measure the relative bias (scale-independent) to capture the magnitude of the error.</p>
 <p>let’s table the stand-level measurement error</p>
 <div class="sourceCode" id="cb137"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb137-1"><a href="accuracy-results.html#cb137-1" tabindex="-1"></a>agg_ground_truth_match_ans <span class="sc">%&gt;%</span> </span>
-<span id="cb137-2"><a href="accuracy-results.html#cb137-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb137-3"><a href="accuracy-results.html#cb137-3" tabindex="-1"></a>    <span class="at">ref_trees =</span> tp_n<span class="sc">+</span>fn_n</span>
-<span id="cb137-4"><a href="accuracy-results.html#cb137-4" tabindex="-1"></a>    , <span class="at">pred_trees =</span> tp_n<span class="sc">+</span>fp_n</span>
-<span id="cb137-5"><a href="accuracy-results.html#cb137-5" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-6"><a href="accuracy-results.html#cb137-6" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
-<span id="cb137-7"><a href="accuracy-results.html#cb137-7" tabindex="-1"></a>    dataset_factor, tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;flight_&quot;</span>)</span>
-<span id="cb137-8"><a href="accuracy-results.html#cb137-8" tabindex="-1"></a>    <span class="co"># , site_area_m2</span></span>
-<span id="cb137-9"><a href="accuracy-results.html#cb137-9" tabindex="-1"></a>    <span class="co"># detection</span></span>
-<span id="cb137-10"><a href="accuracy-results.html#cb137-10" tabindex="-1"></a>    , ref_trees</span>
-<span id="cb137-11"><a href="accuracy-results.html#cb137-11" tabindex="-1"></a>    , pred_trees</span>
-<span id="cb137-12"><a href="accuracy-results.html#cb137-12" tabindex="-1"></a>    <span class="co"># quantification</span></span>
-<span id="cb137-13"><a href="accuracy-results.html#cb137-13" tabindex="-1"></a>    , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_basal_area_m2_per_ha&quot;</span>)</span>
-<span id="cb137-14"><a href="accuracy-results.html#cb137-14" tabindex="-1"></a>    , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_trees_per_ha&quot;</span>)</span>
-<span id="cb137-15"><a href="accuracy-results.html#cb137-15" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-16"><a href="accuracy-results.html#cb137-16" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">!</span>tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;abs_diff_&quot;</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-17"><a href="accuracy-results.html#cb137-17" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
-<span id="cb137-18"><a href="accuracy-results.html#cb137-18" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb137-19"><a href="accuracy-results.html#cb137-19" tabindex="-1"></a>      tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;flight_&quot;</span>)</span>
-<span id="cb137-20"><a href="accuracy-results.html#cb137-20" tabindex="-1"></a>      , as.factor</span>
-<span id="cb137-21"><a href="accuracy-results.html#cb137-21" tabindex="-1"></a>    )</span>
-<span id="cb137-22"><a href="accuracy-results.html#cb137-22" tabindex="-1"></a>    , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb137-23"><a href="accuracy-results.html#cb137-23" tabindex="-1"></a>      <span class="at">.cols =</span> <span class="fu">c</span>(</span>
-<span id="cb137-24"><a href="accuracy-results.html#cb137-24" tabindex="-1"></a>        tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;pct_diff_&quot;</span>)</span>
-<span id="cb137-25"><a href="accuracy-results.html#cb137-25" tabindex="-1"></a>        , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_rate&quot;</span>)</span>
-<span id="cb137-26"><a href="accuracy-results.html#cb137-26" tabindex="-1"></a>      )</span>
-<span id="cb137-27"><a href="accuracy-results.html#cb137-27" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">percent</span>(.x, <span class="at">accuracy =</span> .<span class="dv">1</span>)</span>
+<span id="cb137-2"><a href="accuracy-results.html#cb137-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb137-3"><a href="accuracy-results.html#cb137-3" tabindex="-1"></a>    dataset_factor, tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;flight_&quot;</span>)</span>
+<span id="cb137-4"><a href="accuracy-results.html#cb137-4" tabindex="-1"></a>    <span class="co"># , site_area_m2</span></span>
+<span id="cb137-5"><a href="accuracy-results.html#cb137-5" tabindex="-1"></a>    <span class="co"># detection</span></span>
+<span id="cb137-6"><a href="accuracy-results.html#cb137-6" tabindex="-1"></a>    , ref_n_trees</span>
+<span id="cb137-7"><a href="accuracy-results.html#cb137-7" tabindex="-1"></a>    , pred_n_trees</span>
+<span id="cb137-8"><a href="accuracy-results.html#cb137-8" tabindex="-1"></a>    <span class="co"># quantification</span></span>
+<span id="cb137-9"><a href="accuracy-results.html#cb137-9" tabindex="-1"></a>    , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_basal_area_m2_per_ha&quot;</span>)</span>
+<span id="cb137-10"><a href="accuracy-results.html#cb137-10" tabindex="-1"></a>    , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_trees_per_ha&quot;</span>)</span>
+<span id="cb137-11"><a href="accuracy-results.html#cb137-11" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-12"><a href="accuracy-results.html#cb137-12" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">!</span>tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;abs_diff_&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-13"><a href="accuracy-results.html#cb137-13" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
+<span id="cb137-14"><a href="accuracy-results.html#cb137-14" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
+<span id="cb137-15"><a href="accuracy-results.html#cb137-15" tabindex="-1"></a>      tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;flight_&quot;</span>)</span>
+<span id="cb137-16"><a href="accuracy-results.html#cb137-16" tabindex="-1"></a>      , as.factor</span>
+<span id="cb137-17"><a href="accuracy-results.html#cb137-17" tabindex="-1"></a>    )</span>
+<span id="cb137-18"><a href="accuracy-results.html#cb137-18" tabindex="-1"></a>    , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
+<span id="cb137-19"><a href="accuracy-results.html#cb137-19" tabindex="-1"></a>      <span class="at">.cols =</span> <span class="fu">c</span>(</span>
+<span id="cb137-20"><a href="accuracy-results.html#cb137-20" tabindex="-1"></a>        tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;pct_diff_&quot;</span>)</span>
+<span id="cb137-21"><a href="accuracy-results.html#cb137-21" tabindex="-1"></a>        , tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_rate&quot;</span>)</span>
+<span id="cb137-22"><a href="accuracy-results.html#cb137-22" tabindex="-1"></a>      )</span>
+<span id="cb137-23"><a href="accuracy-results.html#cb137-23" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">percent</span>(.x, <span class="at">accuracy =</span> .<span class="dv">1</span>)</span>
+<span id="cb137-24"><a href="accuracy-results.html#cb137-24" tabindex="-1"></a>    )</span>
+<span id="cb137-25"><a href="accuracy-results.html#cb137-25" tabindex="-1"></a>    , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
+<span id="cb137-26"><a href="accuracy-results.html#cb137-26" tabindex="-1"></a>      <span class="at">.cols =</span> <span class="fu">c</span>(tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_trees&quot;</span>))</span>
+<span id="cb137-27"><a href="accuracy-results.html#cb137-27" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">comma</span>(.x, <span class="at">accuracy =</span> <span class="dv">1</span>)</span>
 <span id="cb137-28"><a href="accuracy-results.html#cb137-28" tabindex="-1"></a>    )</span>
 <span id="cb137-29"><a href="accuracy-results.html#cb137-29" tabindex="-1"></a>    , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb137-30"><a href="accuracy-results.html#cb137-30" tabindex="-1"></a>      <span class="at">.cols =</span> <span class="fu">c</span>(tidyselect<span class="sc">::</span><span class="fu">ends_with</span>(<span class="st">&quot;_trees&quot;</span>))</span>
-<span id="cb137-31"><a href="accuracy-results.html#cb137-31" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">comma</span>(.x, <span class="at">accuracy =</span> <span class="dv">1</span>)</span>
+<span id="cb137-30"><a href="accuracy-results.html#cb137-30" tabindex="-1"></a>      <span class="at">.cols =</span> dplyr<span class="sc">::</span><span class="fu">where</span>(is.numeric)</span>
+<span id="cb137-31"><a href="accuracy-results.html#cb137-31" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">comma</span>(.x, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
 <span id="cb137-32"><a href="accuracy-results.html#cb137-32" tabindex="-1"></a>    )</span>
-<span id="cb137-33"><a href="accuracy-results.html#cb137-33" tabindex="-1"></a>    , dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb137-34"><a href="accuracy-results.html#cb137-34" tabindex="-1"></a>      <span class="at">.cols =</span> dplyr<span class="sc">::</span><span class="fu">where</span>(is.numeric)</span>
-<span id="cb137-35"><a href="accuracy-results.html#cb137-35" tabindex="-1"></a>      , <span class="at">.fn =</span> <span class="sc">~</span> scales<span class="sc">::</span><span class="fu">comma</span>(.x, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
-<span id="cb137-36"><a href="accuracy-results.html#cb137-36" tabindex="-1"></a>    )</span>
-<span id="cb137-37"><a href="accuracy-results.html#cb137-37" tabindex="-1"></a>    <span class="co"># # one column for diff/pct</span></span>
-<span id="cb137-38"><a href="accuracy-results.html#cb137-38" tabindex="-1"></a>    , <span class="at">diff_basal_area_m2_per_ha =</span> <span class="fu">paste0</span>(diff_basal_area_m2_per_ha, <span class="st">&quot;&lt;br&gt;(&quot;</span>, pct_diff_basal_area_m2_per_ha, <span class="st">&quot;)&quot;</span>)</span>
-<span id="cb137-39"><a href="accuracy-results.html#cb137-39" tabindex="-1"></a>    , <span class="at">diff_trees_per_ha =</span> <span class="fu">paste0</span>(diff_trees_per_ha, <span class="st">&quot;&lt;br&gt;(&quot;</span>, pct_diff_trees_per_ha, <span class="st">&quot;)&quot;</span>)</span>
-<span id="cb137-40"><a href="accuracy-results.html#cb137-40" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-33"><a href="accuracy-results.html#cb137-33" tabindex="-1"></a>    <span class="co"># # one column for diff/pct</span></span>
+<span id="cb137-34"><a href="accuracy-results.html#cb137-34" tabindex="-1"></a>    , <span class="at">diff_basal_area_m2_per_ha =</span> <span class="fu">paste0</span>(diff_basal_area_m2_per_ha, <span class="st">&quot;&lt;br&gt;(&quot;</span>, pct_diff_basal_area_m2_per_ha, <span class="st">&quot;)&quot;</span>)</span>
+<span id="cb137-35"><a href="accuracy-results.html#cb137-35" tabindex="-1"></a>    , <span class="at">diff_trees_per_ha =</span> <span class="fu">paste0</span>(diff_trees_per_ha, <span class="st">&quot;&lt;br&gt;(&quot;</span>, pct_diff_trees_per_ha, <span class="st">&quot;)&quot;</span>)</span>
+<span id="cb137-36"><a href="accuracy-results.html#cb137-36" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-37"><a href="accuracy-results.html#cb137-37" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
+<span id="cb137-38"><a href="accuracy-results.html#cb137-38" tabindex="-1"></a>    <span class="sc">!</span>tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;pct_diff_&quot;</span>)</span>
+<span id="cb137-39"><a href="accuracy-results.html#cb137-39" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-40"><a href="accuracy-results.html#cb137-40" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(dataset_factor) <span class="sc">%&gt;%</span> </span>
 <span id="cb137-41"><a href="accuracy-results.html#cb137-41" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
-<span id="cb137-42"><a href="accuracy-results.html#cb137-42" tabindex="-1"></a>    <span class="sc">!</span>tidyselect<span class="sc">::</span><span class="fu">starts_with</span>(<span class="st">&quot;pct_diff_&quot;</span>)</span>
-<span id="cb137-43"><a href="accuracy-results.html#cb137-43" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-44"><a href="accuracy-results.html#cb137-44" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(dataset_factor) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-45"><a href="accuracy-results.html#cb137-45" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
-<span id="cb137-46"><a href="accuracy-results.html#cb137-46" tabindex="-1"></a>    <span class="sc">-</span><span class="fu">c</span>(</span>
-<span id="cb137-47"><a href="accuracy-results.html#cb137-47" tabindex="-1"></a>      dataset_factor</span>
-<span id="cb137-48"><a href="accuracy-results.html#cb137-48" tabindex="-1"></a>    )</span>
-<span id="cb137-49"><a href="accuracy-results.html#cb137-49" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-50"><a href="accuracy-results.html#cb137-50" tabindex="-1"></a>  <span class="co"># dplyr::glimpse()</span></span>
-<span id="cb137-51"><a href="accuracy-results.html#cb137-51" tabindex="-1"></a>  </span>
-<span id="cb137-52"><a href="accuracy-results.html#cb137-52" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kbl</span>(</span>
-<span id="cb137-53"><a href="accuracy-results.html#cb137-53" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Stand-Level Accuracy&quot;</span></span>
-<span id="cb137-54"><a href="accuracy-results.html#cb137-54" tabindex="-1"></a>    , <span class="at">col.names =</span> <span class="fu">c</span>(</span>
-<span id="cb137-55"><a href="accuracy-results.html#cb137-55" tabindex="-1"></a>      <span class="st">&quot;altitude (m)&quot;</span>, <span class="st">&quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;</span></span>
-<span id="cb137-56"><a href="accuracy-results.html#cb137-56" tabindex="-1"></a>      , <span class="st">&quot;reference&quot;</span>, <span class="st">&quot;predicted&quot;</span></span>
-<span id="cb137-57"><a href="accuracy-results.html#cb137-57" tabindex="-1"></a>      , <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;reference&quot;</span>,<span class="st">&quot;predicted&quot;</span>,<span class="st">&quot;difference&quot;</span>), <span class="at">times =</span> <span class="dv">2</span>)</span>
-<span id="cb137-58"><a href="accuracy-results.html#cb137-58" tabindex="-1"></a>    )</span>
-<span id="cb137-59"><a href="accuracy-results.html#cb137-59" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
-<span id="cb137-60"><a href="accuracy-results.html#cb137-60" tabindex="-1"></a>    <span class="co"># , digits = 2</span></span>
-<span id="cb137-61"><a href="accuracy-results.html#cb137-61" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-62"><a href="accuracy-results.html#cb137-62" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="fl">11.5</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-63"><a href="accuracy-results.html#cb137-63" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">add_header_above</span>(</span>
-<span id="cb137-64"><a href="accuracy-results.html#cb137-64" tabindex="-1"></a>    <span class="fu">c</span>(</span>
-<span id="cb137-65"><a href="accuracy-results.html#cb137-65" tabindex="-1"></a>      <span class="st">&quot; &quot;</span><span class="ot">=</span><span class="dv">2</span></span>
-<span id="cb137-66"><a href="accuracy-results.html#cb137-66" tabindex="-1"></a>      , <span class="st">&quot;# Trees&quot;</span> <span class="ot">=</span> <span class="dv">2</span></span>
-<span id="cb137-67"><a href="accuracy-results.html#cb137-67" tabindex="-1"></a>      <span class="co"># , &quot;Area&quot; = 3</span></span>
-<span id="cb137-68"><a href="accuracy-results.html#cb137-68" tabindex="-1"></a>      , <span class="st">&quot;Basal Area&lt;br /&gt;m&lt;sup&gt;2&lt;/sup&gt; ha&lt;sup&gt;-1&lt;/sup&gt;&quot;</span> <span class="ot">=</span> <span class="dv">3</span></span>
-<span id="cb137-69"><a href="accuracy-results.html#cb137-69" tabindex="-1"></a>      , <span class="st">&quot;Trees&lt;br /&gt;ha&lt;sup&gt;-1&lt;/sup&gt;&quot;</span> <span class="ot">=</span> <span class="dv">3</span></span>
-<span id="cb137-70"><a href="accuracy-results.html#cb137-70" tabindex="-1"></a>    )</span>
-<span id="cb137-71"><a href="accuracy-results.html#cb137-71" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
-<span id="cb137-72"><a href="accuracy-results.html#cb137-72" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-73"><a href="accuracy-results.html#cb137-73" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>( <span class="fu">c</span>(<span class="dv">2</span>,<span class="fu">seq</span>(<span class="dv">4</span>,<span class="dv">10</span>,<span class="at">by=</span><span class="dv">3</span>) ), <span class="at">border_right =</span> <span class="cn">TRUE</span>, <span class="at">include_thead =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb137-74"><a href="accuracy-results.html#cb137-74" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
+<span id="cb137-42"><a href="accuracy-results.html#cb137-42" tabindex="-1"></a>    <span class="sc">-</span><span class="fu">c</span>(</span>
+<span id="cb137-43"><a href="accuracy-results.html#cb137-43" tabindex="-1"></a>      dataset_factor</span>
+<span id="cb137-44"><a href="accuracy-results.html#cb137-44" tabindex="-1"></a>    )</span>
+<span id="cb137-45"><a href="accuracy-results.html#cb137-45" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-46"><a href="accuracy-results.html#cb137-46" tabindex="-1"></a>  <span class="co"># dplyr::glimpse()</span></span>
+<span id="cb137-47"><a href="accuracy-results.html#cb137-47" tabindex="-1"></a>  </span>
+<span id="cb137-48"><a href="accuracy-results.html#cb137-48" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kbl</span>(</span>
+<span id="cb137-49"><a href="accuracy-results.html#cb137-49" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;Stand-Level Accuracy&quot;</span></span>
+<span id="cb137-50"><a href="accuracy-results.html#cb137-50" tabindex="-1"></a>    , <span class="at">col.names =</span> <span class="fu">c</span>(</span>
+<span id="cb137-51"><a href="accuracy-results.html#cb137-51" tabindex="-1"></a>      <span class="st">&quot;altitude (m)&quot;</span>, <span class="st">&quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;</span></span>
+<span id="cb137-52"><a href="accuracy-results.html#cb137-52" tabindex="-1"></a>      , <span class="st">&quot;reference&quot;</span>, <span class="st">&quot;predicted&quot;</span></span>
+<span id="cb137-53"><a href="accuracy-results.html#cb137-53" tabindex="-1"></a>      , <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">&quot;reference&quot;</span>,<span class="st">&quot;predicted&quot;</span>,<span class="st">&quot;difference&quot;</span>), <span class="at">times =</span> <span class="dv">2</span>)</span>
+<span id="cb137-54"><a href="accuracy-results.html#cb137-54" tabindex="-1"></a>    )</span>
+<span id="cb137-55"><a href="accuracy-results.html#cb137-55" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
+<span id="cb137-56"><a href="accuracy-results.html#cb137-56" tabindex="-1"></a>    <span class="co"># , digits = 2</span></span>
+<span id="cb137-57"><a href="accuracy-results.html#cb137-57" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-58"><a href="accuracy-results.html#cb137-58" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="fl">11.5</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-59"><a href="accuracy-results.html#cb137-59" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">add_header_above</span>(</span>
+<span id="cb137-60"><a href="accuracy-results.html#cb137-60" tabindex="-1"></a>    <span class="fu">c</span>(</span>
+<span id="cb137-61"><a href="accuracy-results.html#cb137-61" tabindex="-1"></a>      <span class="st">&quot; &quot;</span><span class="ot">=</span><span class="dv">2</span></span>
+<span id="cb137-62"><a href="accuracy-results.html#cb137-62" tabindex="-1"></a>      , <span class="st">&quot;# Trees&quot;</span> <span class="ot">=</span> <span class="dv">2</span></span>
+<span id="cb137-63"><a href="accuracy-results.html#cb137-63" tabindex="-1"></a>      <span class="co"># , &quot;Area&quot; = 3</span></span>
+<span id="cb137-64"><a href="accuracy-results.html#cb137-64" tabindex="-1"></a>      , <span class="st">&quot;Basal Area&lt;br /&gt;m&lt;sup&gt;2&lt;/sup&gt; ha&lt;sup&gt;-1&lt;/sup&gt;&quot;</span> <span class="ot">=</span> <span class="dv">3</span></span>
+<span id="cb137-65"><a href="accuracy-results.html#cb137-65" tabindex="-1"></a>      , <span class="st">&quot;Trees&lt;br /&gt;ha&lt;sup&gt;-1&lt;/sup&gt;&quot;</span> <span class="ot">=</span> <span class="dv">3</span></span>
+<span id="cb137-66"><a href="accuracy-results.html#cb137-66" tabindex="-1"></a>    )</span>
+<span id="cb137-67"><a href="accuracy-results.html#cb137-67" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
+<span id="cb137-68"><a href="accuracy-results.html#cb137-68" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-69"><a href="accuracy-results.html#cb137-69" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>( <span class="fu">c</span>(<span class="dv">2</span>,<span class="fu">seq</span>(<span class="dv">4</span>,<span class="dv">10</span>,<span class="at">by=</span><span class="dv">3</span>) ), <span class="at">border_right =</span> <span class="cn">TRUE</span>, <span class="at">include_thead =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb137-70"><a href="accuracy-results.html#cb137-70" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
 <table class="table" style="font-size: 11.5px; margin-left: auto; margin-right: auto;">
 <caption style="font-size: initial !important;">
 <span id="tab:unnamed-chunk-123">Table 5.4: </span>Stand-Level Accuracy
@@ -1862,25 +1894,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,282
+5,267
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-27.3
+27.2
 </td>
 <td style="text-align:left;border-right:1px solid;">
-2.5<br>(10.3%)
+2.4<br>(9.8%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-568.3
+566.7
 </td>
 <td style="text-align:left;border-right:1px solid;">
-7.0<br>(1.2%)
+5.4<br>(1.0%)
 </td>
 </tr>
 <tr>
@@ -1891,25 +1923,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,500
+5,486
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-27.5
+27.3
 </td>
 <td style="text-align:left;border-right:1px solid;">
-2.7<br>(10.9%)
+2.6<br>(10.4%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-591.8
+590.3
 </td>
 <td style="text-align:left;border-right:1px solid;">
-30.4<br>(5.4%)
+28.9<br>(5.2%)
 </td>
 </tr>
 <tr>
@@ -1923,25 +1955,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,421
+5,408
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-27.9
+27.8
 </td>
 <td style="text-align:left;border-right:1px solid;">
-3.1<br>(12.6%)
+3.0<br>(12.2%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-583.3
+581.9
 </td>
 <td style="text-align:left;border-right:1px solid;">
-21.9<br>(3.9%)
+20.6<br>(3.7%)
 </td>
 </tr>
 <tr>
@@ -1952,25 +1984,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,508
+5,493
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-27.9
+27.8
 </td>
 <td style="text-align:left;border-right:1px solid;">
-3.2<br>(12.8%)
+3.1<br>(12.4%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-592.6
+591.0
 </td>
 <td style="text-align:left;border-right:1px solid;">
-31.3<br>(5.6%)
+29.7<br>(5.3%)
 </td>
 </tr>
 <tr>
@@ -1984,25 +2016,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,449
+5,438
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-28.4
+28.3
 </td>
 <td style="text-align:left;border-right:1px solid;">
-3.6<br>(14.6%)
+3.5<br>(14.2%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-586.3
+585.1
 </td>
 <td style="text-align:left;border-right:1px solid;">
-25.0<br>(4.4%)
+23.8<br>(4.2%)
 </td>
 </tr>
 <tr>
@@ -2013,25 +2045,25 @@ difference
 5,217
 </td>
 <td style="text-align:left;border-right:1px solid;">
-5,531
+5,516
 </td>
 <td style="text-align:left;">
 24.8
 </td>
 <td style="text-align:left;">
-28.4
+28.3
 </td>
 <td style="text-align:left;border-right:1px solid;">
-3.6<br>(14.7%)
+3.5<br>(14.3%)
 </td>
 <td style="text-align:left;">
 561.3
 </td>
 <td style="text-align:left;">
-595.1
+593.5
 </td>
 <td style="text-align:left;border-right:1px solid;">
-33.8<br>(6.0%)
+32.2<br>(5.7%)
 </td>
 </tr>
 </tbody>
@@ -2235,7 +2267,7 @@ difference
 <span id="cb139-106"><a href="accuracy-results.html#cb139-106" tabindex="-1"></a>    )</span>
 <span id="cb139-107"><a href="accuracy-results.html#cb139-107" tabindex="-1"></a>  )</span></code></pre></div>
 <p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-125-1.png" alt="" width="1008" /></p>
-<p>above we saw that the UAS generally overpredicted the DBH and the figure above shows that this bias propagated through to the stand-level basal area. as a result, basal area was overestimated across all flights with overestimations ranging from 10.3% to 14.7% across the tested flights</p>
+<p>above we saw that the UAS generally overpredicted the DBH and the figure above shows that this bias propagated through to the stand-level basal area. as a result, basal area was overestimated across all flights with overestimations ranging from 9.8% to 14.3% across the tested flights</p>
 <p>now we’ll look at the UAS bias in the original units for trees per hectare</p>
 <div class="sourceCode" id="cb140"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb140-1"><a href="accuracy-results.html#cb140-1" tabindex="-1"></a>agg_ground_truth_match_ans <span class="sc">%&gt;%</span> </span>
 <span id="cb140-2"><a href="accuracy-results.html#cb140-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
@@ -2351,7 +2383,7 @@ difference
 <span id="cb140-112"><a href="accuracy-results.html#cb140-112" tabindex="-1"></a>    )</span>
 <span id="cb140-113"><a href="accuracy-results.html#cb140-113" tabindex="-1"></a>  )</span></code></pre></div>
 <p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-126-1.png" alt="" width="1008" /></p>
-<p>stand-level predictions for trees per hectare vary by flight setting but all flights resulted in TPH estimates near the field-measured data. the largest TPH error was a 6.0% underestimation while the best performing flight resulted in a 1.2% error (i.e. nearly identical to the reference value). The remaining flights achieved TPH error rates between 3.9% and 5.6%.</p>
+<p>stand-level predictions for trees per hectare vary by flight setting but all flights resulted in TPH estimates near the field-measured data. the largest TPH error was a 5.7% underestimation while the best performing flight resulted in a 1.0% error (i.e. nearly identical to the reference value). The remaining flights achieved TPH error rates between 3.7% and 5.3%.</p>
 <p>the plots maybe don’t help us see the impact of different flight settings, let’s attempt that all on a single plot</p>
 <p><strong>basal area</strong></p>
 <div class="sourceCode" id="cb141"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb141-1"><a href="accuracy-results.html#cb141-1" tabindex="-1"></a>agg_ground_truth_match_ans <span class="sc">%&gt;%</span> </span>
@@ -2686,16 +2718,16 @@ p.value
 (Intercept)
 </td>
 <td style="text-align:right;">
-1.1934
+1.0639
 </td>
 <td style="text-align:right;">
-0.1476
+0.1720
 </td>
 <td style="text-align:right;">
-8.0879
+6.1848
 </td>
 <td style="text-align:right;">
-0.0149
+0.0252
 </td>
 </tr>
 <tr>
@@ -2703,16 +2735,16 @@ p.value
 altitude
 </td>
 <td style="text-align:right;">
-0.0198
+0.0202
 </td>
 <td style="text-align:right;">
-0.0016
+0.0018
 </td>
 <td style="text-align:right;">
-12.6886
+11.1349
 </td>
 <td style="text-align:right;">
-0.0062
+0.0080
 </td>
 </tr>
 <tr>
@@ -2720,16 +2752,16 @@ altitude
 speed
 </td>
 <td style="text-align:right;">
-0.0664
+0.0638
 </td>
 <td style="text-align:right;">
-0.0209
+0.0244
 </td>
 <td style="text-align:right;">
-3.1730
+2.6151
 </td>
 <td style="text-align:right;">
-0.0866
+0.1204
 </td>
 </tr>
 <tr>
@@ -2740,13 +2772,13 @@ altitude:speed
 -0.0005
 </td>
 <td style="text-align:right;">
-0.0002
+0.0003
 </td>
 <td style="text-align:right;">
--2.3581
+-1.9631
 </td>
 <td style="text-align:right;">
-0.1424
+0.1886
 </td>
 </tr>
 </tbody>
@@ -2852,16 +2884,16 @@ p.value
 altitude (m): 61 - 91
 </td>
 <td style="text-align:left;">
--0.531
+-0.546
 </td>
 <td style="text-align:left;">
-0.023
+0.027
 </td>
 <td style="text-align:left;">
--22.984
+-20.291
 </td>
 <td style="text-align:left;">
-0.017
+0.022
 </td>
 </tr>
 <tr>
@@ -2869,16 +2901,16 @@ altitude (m): 61 - 91
 altitude (m): 61 - 121
 </td>
 <td style="text-align:left;">
--1.062
+-1.093
 </td>
 <td style="text-align:left;">
-0.046
+0.054
 </td>
 <td style="text-align:left;">
--22.984
+-20.291
 </td>
 <td style="text-align:left;">
-0.017
+0.022
 </td>
 </tr>
 <tr>
@@ -2886,16 +2918,16 @@ altitude (m): 61 - 121
 altitude (m): 91 - 121
 </td>
 <td style="text-align:left;">
--0.531
+-0.546
 </td>
 <td style="text-align:left;">
-0.023
+0.027
 </td>
 <td style="text-align:left;">
--22.984
+-20.291
 </td>
 <td style="text-align:left;">
-0.017
+0.022
 </td>
 </tr>
 <tr>
@@ -2906,16 +2938,16 @@ altitude (m): 91 - 121
 altitude (m): 61 - 91
 </td>
 <td style="text-align:left;">
--0.496
+-0.513
 </td>
 <td style="text-align:left;">
-0.015
+0.017
 </td>
 <td style="text-align:left;">
--33.181
+-29.410
 </td>
 <td style="text-align:left;">
-0.008
+0.010
 </td>
 </tr>
 <tr>
@@ -2923,16 +2955,16 @@ altitude (m): 61 - 91
 altitude (m): 61 - 121
 </td>
 <td style="text-align:left;">
--0.993
+-1.026
 </td>
 <td style="text-align:left;">
-0.030
+0.035
 </td>
 <td style="text-align:left;">
--33.181
+-29.410
 </td>
 <td style="text-align:left;">
-0.008
+0.010
 </td>
 </tr>
 <tr>
@@ -2940,16 +2972,16 @@ altitude (m): 61 - 121
 altitude (m): 91 - 121
 </td>
 <td style="text-align:left;">
--0.496
+-0.513
 </td>
 <td style="text-align:left;">
-0.015
+0.017
 </td>
 <td style="text-align:left;">
--33.181
+-29.410
 </td>
 <td style="text-align:left;">
-0.008
+0.010
 </td>
 </tr>
 </tbody>
@@ -3063,13 +3095,13 @@ p.value
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--0.007
+-0.006
 </td>
 <td style="text-align:left;">
-0.019
+0.022
 </td>
 <td style="text-align:left;">
--0.389
+-0.259
 </td>
 <td style="text-align:left;">
 1.000
@@ -3083,16 +3115,16 @@ speed (m sec<sup>-1</sup>): 4 - 6.2
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--0.076
+-0.072
 </td>
 <td style="text-align:left;">
-0.019
+0.022
 </td>
 <td style="text-align:left;">
--3.988
+-3.257
 </td>
 <td style="text-align:left;">
-0.517
+0.745
 </td>
 </tr>
 <tr>
@@ -3103,16 +3135,16 @@ speed (m sec<sup>-1</sup>): 4 - 6.2
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--0.042
+-0.039
 </td>
 <td style="text-align:left;">
-0.012
+0.014
 </td>
 <td style="text-align:left;">
--3.445
+-2.767
 </td>
 <td style="text-align:left;">
-0.674
+0.986
 </td>
 </tr>
 </tbody>
@@ -3200,16 +3232,16 @@ p.value
 (Intercept)
 </td>
 <td style="text-align:right;">
--45.3221
+-48.0046
 </td>
 <td style="text-align:right;">
-17.7143
+17.7448
 </td>
 <td style="text-align:right;">
--2.5585
+-2.7053
 </td>
 <td style="text-align:right;">
-0.1248
+0.1138
 </td>
 </tr>
 <tr>
@@ -3217,16 +3249,16 @@ p.value
 altitude
 </td>
 <td style="text-align:right;">
-0.5375
+0.5536
 </td>
 <td style="text-align:right;">
-0.1871
+0.1874
 </td>
 <td style="text-align:right;">
-2.8727
+2.9534
 </td>
 <td style="text-align:right;">
-0.1028
+0.0981
 </td>
 </tr>
 <tr>
@@ -3234,16 +3266,16 @@ altitude
 speed
 </td>
 <td style="text-align:right;">
-8.1083
+8.2503
 </td>
 <td style="text-align:right;">
-2.5120
+2.5163
 </td>
 <td style="text-align:right;">
-3.2278
+3.2788
 </td>
 <td style="text-align:right;">
-0.0841
+0.0818
 </td>
 </tr>
 <tr>
@@ -3251,16 +3283,16 @@ speed
 altitude:speed
 </td>
 <td style="text-align:right;">
--0.0542
+-0.0562
 </td>
 <td style="text-align:right;">
-0.0265
+0.0266
 </td>
 <td style="text-align:right;">
--2.0441
+-2.1159
 </td>
 <td style="text-align:right;">
-0.1776
+0.1686
 </td>
 </tr>
 </tbody>
@@ -3365,16 +3397,16 @@ p.value
 altitude (m): 61 - 91
 </td>
 <td style="text-align:left;">
--9.618
+-9.859
 </td>
 <td style="text-align:left;">
-2.772
+2.777
 </td>
 <td style="text-align:left;">
--3.469
+-3.550
 </td>
 <td style="text-align:left;">
-0.666
+0.639
 </td>
 </tr>
 <tr>
@@ -3382,16 +3414,16 @@ altitude (m): 61 - 91
 altitude (m): 61 - 121
 </td>
 <td style="text-align:left;">
--19.235
+-19.719
 </td>
 <td style="text-align:left;">
-5.545
+5.554
 </td>
 <td style="text-align:left;">
--3.469
+-3.550
 </td>
 <td style="text-align:left;">
-0.666
+0.639
 </td>
 </tr>
 <tr>
@@ -3399,16 +3431,16 @@ altitude (m): 61 - 121
 altitude (m): 91 - 121
 </td>
 <td style="text-align:left;">
--9.618
+-9.859
 </td>
 <td style="text-align:left;">
-2.772
+2.777
 </td>
 <td style="text-align:left;">
--3.469
+-3.550
 </td>
 <td style="text-align:left;">
-0.666
+0.639
 </td>
 </tr>
 <tr>
@@ -3419,16 +3451,16 @@ altitude (m): 91 - 121
 altitude (m): 61 - 91
 </td>
 <td style="text-align:left;">
--6.038
+-6.147
 </td>
 <td style="text-align:left;">
-1.796
+1.799
 </td>
 <td style="text-align:left;">
--3.362
+-3.417
 </td>
 <td style="text-align:left;">
-0.704
+0.684
 </td>
 </tr>
 <tr>
@@ -3436,16 +3468,16 @@ altitude (m): 61 - 91
 altitude (m): 61 - 121
 </td>
 <td style="text-align:left;">
--12.076
+-12.295
 </td>
 <td style="text-align:left;">
-3.592
+3.598
 </td>
 <td style="text-align:left;">
--3.362
+-3.417
 </td>
 <td style="text-align:left;">
-0.704
+0.684
 </td>
 </tr>
 <tr>
@@ -3453,16 +3485,16 @@ altitude (m): 61 - 121
 altitude (m): 91 - 121
 </td>
 <td style="text-align:left;">
--6.038
+-6.147
 </td>
 <td style="text-align:left;">
-1.796
+1.799
 </td>
 <td style="text-align:left;">
--3.362
+-3.417
 </td>
 <td style="text-align:left;">
-0.704
+0.684
 </td>
 </tr>
 </tbody>
@@ -3576,13 +3608,13 @@ p.value
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--3.400
+-3.180
 </td>
 <td style="text-align:left;">
-2.261
+2.265
 </td>
 <td style="text-align:left;">
--1.504
+-1.404
 </td>
 <td style="text-align:left;">
 1.000
@@ -3596,16 +3628,16 @@ speed (m sec<sup>-1</sup>): 4 - 6.2
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--10.559
+-10.603
 </td>
 <td style="text-align:left;">
-2.291
+2.295
 </td>
 <td style="text-align:left;">
--4.609
+-4.620
 </td>
 <td style="text-align:left;">
-0.396
+0.394
 </td>
 </tr>
 <tr>
@@ -3616,16 +3648,16 @@ speed (m sec<sup>-1</sup>): 4 - 6.2
 speed (m sec<sup>-1</sup>): 4 - 6.2
 </td>
 <td style="text-align:left;">
--6.980
+-6.891
 </td>
 <td style="text-align:left;">
-1.454
+1.456
 </td>
 <td style="text-align:left;">
--4.801
+-4.732
 </td>
 <td style="text-align:left;">
-0.367
+0.377
 </td>
 </tr>
 </tbody>

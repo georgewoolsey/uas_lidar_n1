@@ -9,51 +9,87 @@ We have finally arrived to the part where we review the results of the accuracy 
 aggregate the instance matching to get detection and quantification accuracy for each data set
 
 ```{r}
-agg_ground_truth_match_ans <- 
+# aggregate field trees for stand-level comp
+ref_temp <-
+  validation_trees %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::ungroup() %>% 
+  dplyr::summarise(
+    # dplyr::across(
+    #   c(field_tree_height_m, field_dbh_cm)
+    #   , .fns = list(
+    #     mean = ~mean(.x,na.rm=T)
+    #     , sd = ~sd(.x,na.rm=T)
+    #     # , q10 = ~quantile(.x,na.rm=T,probs=0.1)
+    #     , median = ~quantile(.x,na.rm=T,probs=0.5)
+    #     # , q90 = ~quantile(.x,na.rm=T,probs=0.9)
+    #     , min = ~min(.x,na.rm=T)
+    #     , max = ~max(.x,na.rm=T)
+    #   )
+    # )
+    ref_n_trees = dplyr::n()
+    , ref_basal_area_m2 = sum(basal_area_m2)
+  )
+  # dplyr::rename_with(.fn = ~stringr::str_remove(.x,"^field_"))  
+
+# agg_ground_truth_match for all and add stand-level comp
+agg_ground_truth_match_ans <-
   ground_truth_prediction_match_ans %>% 
   purrr::compact() %>% 
-  purrr::map(
-    \(x)
-    agg_ground_truth_match(x) %>% 
-      dplyr::bind_cols(
-        # add ba and stand area
-        x %>% 
-          sf::st_drop_geometry() %>% 
-          dplyr::ungroup() %>% 
-          dplyr::summarise(
-            dplyr::across(
-              c(ref_basal_area_m2,pred_basal_area_m2)
-              , ~sum(.x,na.rm=T)
-            )
-          ) %>% 
-          dplyr::mutate(
-            stand_area_ha = stand_boundary$stand_area_m2[1]/10000
-            , dplyr::across(
-              c(ref_basal_area_m2,pred_basal_area_m2)
-              , ~ .x/stand_area_ha
-              , .names = "{.col}_per_ha"
-            )
+  purrr::imap(
+    function(x,nm){
+      # agg stand level for matching
+      p <- 
+        predicted_trees[[nm]] %>% 
+        sf::st_drop_geometry() %>% 
+        dplyr::filter(is_in_stand) %>% 
+        dplyr::ungroup() %>% 
+        dplyr::summarise(
+          # dplyr::across(
+          #   c(tree_height_m, dbh_cm)
+          #   , .fns = list(
+          #     mean = ~mean(.x,na.rm=T)
+          #     , sd = ~sd(.x,na.rm=T)
+          #     # , q10 = ~quantile(.x,na.rm=T,probs=0.1)
+          #     , median = ~quantile(.x,na.rm=T,probs=0.5)
+          #     # , q90 = ~quantile(.x,na.rm=T,probs=0.9)
+          #     , min = ~min(.x,na.rm=T)
+          #     , max = ~max(.x,na.rm=T)
+          #   )
+          # )
+          pred_n_trees = dplyr::n()
+          , pred_basal_area_m2 = sum(basal_area_m2)
+        )
+      # agg_ground_truth_match
+        agg_ground_truth_match(x) %>% 
+        dplyr::bind_cols(p,ref_temp) %>% 
+        # comps not done in agg_ground_truth_match()
+        dplyr::mutate(
+          stand_area_ha = stand_boundary$stand_area_m2[1]/10000
+          , dplyr::across(
+            c(ref_basal_area_m2,pred_basal_area_m2)
+            , ~ .x/stand_area_ha
+            , .names = "{.col}_per_ha"
           )
-      ) %>% 
-      # comps not done in agg_ground_truth_match()
-      dplyr::mutate(
-        ref_trees_per_ha = (tp_n+fn_n)/stand_area_ha
-        , pred_trees_per_ha = (tp_n+fp_n)/stand_area_ha
-        # 'diff_' columns are calculated as the predicted value minus the actual value
-        , diff_trees_per_ha = pred_trees_per_ha-ref_trees_per_ha
-        , diff_basal_area_m2 = pred_basal_area_m2-ref_basal_area_m2
-        , diff_basal_area_m2_per_ha = pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha
-        # 'abs_diff_' columns are calculated as the predicted value minus the actual value
-        , abs_diff_trees_per_ha = abs(diff_trees_per_ha)
-        , abs_diff_basal_area_m2 = abs(diff_basal_area_m2)
-        , abs_diff_basal_area_m2_per_ha = abs(diff_basal_area_m2_per_ha)
-        # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
-        , pct_diff_trees_per_ha = (pred_trees_per_ha-ref_trees_per_ha)/ref_trees_per_ha
-        , pct_diff_basal_area_m2 = (pred_basal_area_m2-ref_basal_area_m2)/ref_basal_area_m2
-        , pct_diff_basal_area_m2_per_ha = (pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha)/ref_basal_area_m2_per_ha
-      )
-  ) %>% 
+          , ref_trees_per_ha = ref_n_trees/stand_area_ha
+          , pred_trees_per_ha = pred_n_trees/stand_area_ha
+          # 'diff_' columns are calculated as the predicted value minus the actual value
+          , diff_trees_per_ha = pred_trees_per_ha-ref_trees_per_ha
+          , diff_basal_area_m2 = pred_basal_area_m2-ref_basal_area_m2
+          , diff_basal_area_m2_per_ha = pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha
+          # 'abs_diff_' columns are calculated as the predicted value minus the actual value
+          , abs_diff_trees_per_ha = abs(diff_trees_per_ha)
+          , abs_diff_basal_area_m2 = abs(diff_basal_area_m2)
+          , abs_diff_basal_area_m2_per_ha = abs(diff_basal_area_m2_per_ha)
+          # 'pct_diff_' columns are calculated as the predicted value minus the actual value divided by the actual value
+          , pct_diff_trees_per_ha = (pred_trees_per_ha-ref_trees_per_ha)/ref_trees_per_ha
+          , pct_diff_basal_area_m2 = (pred_basal_area_m2-ref_basal_area_m2)/ref_basal_area_m2
+          , pct_diff_basal_area_m2_per_ha = (pred_basal_area_m2_per_ha-ref_basal_area_m2_per_ha)/ref_basal_area_m2_per_ha
+        )
+  }) %>% 
   purrr::list_rbind(names_to = "dataset_factor") 
+
+
 # add tracking data cols
 agg_ground_truth_match_ans <- tracking_df %>% 
   dplyr::left_join(
@@ -874,16 +910,12 @@ let's table the stand-level measurement error
 
 ```{r}
 agg_ground_truth_match_ans %>% 
-  dplyr::mutate(
-    ref_trees = tp_n+fn_n
-    , pred_trees = tp_n+fp_n
-  ) %>% 
   dplyr::select(
     dataset_factor, tidyselect::starts_with("flight_")
     # , site_area_m2
     # detection
-    , ref_trees
-    , pred_trees
+    , ref_n_trees
+    , pred_n_trees
     # quantification
     , tidyselect::ends_with("_basal_area_m2_per_ha")
     , tidyselect::ends_with("_trees_per_ha")
