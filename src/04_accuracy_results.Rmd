@@ -2352,21 +2352,25 @@ preds_temp <-
     mod_glm_temp
     , ~ ref_tree_height_m + flight_altitude_m + flight_meters_per_second
     , at = list(
-      ref_tree_height_m = seq(
-        floor( min(tree_detect_df$ref_tree_height_m) )
-        , floor( max(tree_detect_df$ref_tree_height_m)*1.05 )
-        , by = 1
-      )
-      , flight_altitude_m = seq(
-        floor( min(tree_detect_df$flight_altitude_m) )
-        , floor( max(tree_detect_df$flight_altitude_m) )
-        , by = round(100/3.281)
-      )
-      , flight_meters_per_second = seq(
-        floor( min(tree_detect_df$flight_meters_per_second) )
-        , floor( max(tree_detect_df$flight_meters_per_second) )
-        , by = round(5/2.237,1)
-      )
+      ref_tree_height_m = 
+        seq(
+          floor( min(tree_detect_df$ref_tree_height_m) )
+          , floor( max(tree_detect_df$ref_tree_height_m)*1.05 )
+          , by = 1
+        )
+      , flight_altitude_m = 
+        unique(tree_detect_df$flight_altitude_m)
+        # seq(
+        #   floor( min(tree_detect_df$flight_altitude_m) )
+        #   , floor( max(tree_detect_df$flight_altitude_m) )
+        #   , by = round(100/3.281)
+        # )
+      , flight_meters_per_second = 
+        seq(
+          floor( min(tree_detect_df$flight_meters_per_second) )
+          , floor( max(tree_detect_df$flight_meters_per_second) )
+          , by = round(5/2.237)
+        )
     )
     , type = "response" # probabilities
   ) %>% 
@@ -2536,16 +2540,19 @@ em_temp <-
     , ~ flight_altitude_m + flight_meters_per_second
     , at = list(
       ref_tree_height_m = median(tree_detect_df$ref_tree_height_m)
-      , flight_altitude_m = seq(
-        floor( min(tree_detect_df$flight_altitude_m) )
-        , floor( max(tree_detect_df$flight_altitude_m) )
-        , by = round(100/3.281)
-      )
-      , flight_meters_per_second = seq(
-        floor( min(tree_detect_df$flight_meters_per_second) )
-        , floor( max(tree_detect_df$flight_meters_per_second) )
-        , by = round(5/2.237,1)
-      )
+      , flight_altitude_m = 
+        unique(tree_detect_df$flight_altitude_m)
+        # seq(
+        #   floor( min(tree_detect_df$flight_altitude_m) )
+        #   , floor( max(tree_detect_df$flight_altitude_m) )
+        #   , by = round(100/3.281)
+        # )
+      , flight_meters_per_second = 
+        seq(
+          floor( min(tree_detect_df$flight_meters_per_second) )
+          , floor( max(tree_detect_df$flight_meters_per_second) )
+          , by = round(5/2.237)
+        )
     )
     , type = "response" # probabilities
   )
