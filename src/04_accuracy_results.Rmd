@@ -370,7 +370,7 @@ dta_temp <-
   # dplyr::glimpse()
   # metric cuts/bins
   dplyr::mutate(
-    tree_height_m_bin = ggplot2::cut_width(ref_tree_height_m, width = 5, boundary = 0) %>% 
+    tree_height_m_bin = ggplot2::cut_width(ref_tree_height_m, width = 5, boundary = 0, closed = "left") %>% 
       make_bins_pretty(suffix = "m") %>% 
       forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
     , is_detected = match_grp %in% c("true positive")
@@ -455,7 +455,7 @@ dta_temp <-
   # dplyr::glimpse()
   # metric cuts/bins
   dplyr::mutate(
-    tree_height_m_bin = ggplot2::cut_width(pred_tree_height_m, width = 5, boundary = 0) %>% 
+    tree_height_m_bin = ggplot2::cut_width(pred_tree_height_m, width = 5, boundary = 0, closed = "left") %>% 
       make_bins_pretty(suffix = "m") %>% 
       forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
     , is_detected = match_grp %in% c("true positive")
@@ -824,7 +824,7 @@ gc()
 full distribution of predicted and reference values irrespective of correct or incorrect prediction match
 
 ```{r, fig.height = 10.5, fig.width = 8}
-ground_truth_prediction_match_ans %>%
+  ground_truth_prediction_match_ans %>%
   purrr::list_rbind(names_to = "dataset_factor") %>%
   dplyr::mutate(
     dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
@@ -900,9 +900,401 @@ remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
+let's dive deeper on the tree-level DBH accuracies. recall that over the entire range of tree sizes we found DBH RMSE values of ~`r agg_ground_truth_match_ans %>% dplyr::pull(diff_dbh_cm_rmse) %>% median() %>% scales::comma(accuracy = 0.1, suffix = " cm")`, ME of ~`r agg_ground_truth_match_ans %>% dplyr::pull(diff_dbh_cm_mean) %>% median() %>% scales::comma(accuracy = 0.1, suffix = " cm")`, with DBH MAPE of `r agg_ground_truth_match_ans %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)`. We also noticed that inaccuracies in DBH for small trees "pulled up" the linear regression fit line of predicted DBH on reference field DBH which diverged above the line of equality for stems of approximately <10 cm DBH.
+
+let's shift our focus to relative error (MAPE) while providing absolute context (RMSE and ME) as text or secondary metrics to look into the penalty we face due to inaccuracies in DBH for small stems. for example, a 3 cm error on a 6 cm small tree is a 50% relative error while that same 3 cm error on a 30 cm overstory tree is a minor 10% error. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying overstory and understory since it is a common value used in regional forest inventories.
+
+```{r}
+# 10 cm DBH, a common regional forest inventory breakpoint for describing overstory and understory forest densities
+ostory_dbh_temp <- 10
+# do it by data set
+dta_temp <- 
+  ground_truth_prediction_match_ans %>% 
+  purrr::map(
+    \(x)
+    x %>% 
+      sf::st_drop_geometry() %>% 
+      dplyr::filter(match_grp=="true positive") %>% 
+      dplyr::mutate(
+        tree_dbh_cm_bin = 
+          cut(ref_dbh_cm, breaks = c(0,ostory_dbh_temp,ceiling(max(validation_trees$field_dbh_cm))), right = F) %>% 
+          # ggplot2::cut_width(ref_dbh_cm, width = ostory_dbh_temp, boundary = 0, closed = "left")
+          make_bins_pretty(suffix = " cm") %>%
+          forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(floor(min(validation_trees$field_dbh_cm)),"-")) )
+      ) %>% 
+      # dplyr::count(tree_dbh_cm_bin)
+      dplyr::group_by(tree_dbh_cm_bin) %>% 
+      dplyr::group_modify(~agg_ground_truth_match(.x)) %>% 
+      dplyr::ungroup()
+      # dplyr::glimpse()
+  ) %>% 
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  )
+# dta_temp %>% dplyr::glimpse()
+```
+
+```{r, fig.height=10, fig.width=8}
+p_temp <- 
+  dta_temp %>% 
+  dplyr::mutate(
+    lab = 
+      paste0(
+        "MAPE = "
+        , scales::percent(pct_diff_dbh_cm_mape,accuracy = 0.1)
+        , "\nRMSE = "
+        , scales::number(
+            diff_dbh_cm_rmse
+            , accuracy = 0.1
+            , suffix = " (cm)"
+          )
+        , "\nME = "
+        , scales::number(
+            diff_dbh_cm_mean
+            , accuracy = 0.1
+            , suffix = " (cm)"
+          )
+        # , "\nn ="
+        # , scales::comma(tp_n, accuracy = 1)
+      )
+    , lab2 = 
+      paste0(
+        "RMSE = "
+        , scales::number(
+            diff_dbh_cm_rmse
+            , accuracy = 0.1
+            , suffix = " (cm)"
+          )
+        , "\nME = "
+        , scales::number(
+            diff_dbh_cm_mean
+            , accuracy = 0.1
+            , suffix = " (cm)"
+          )
+        # , "\nn ="
+        # , scales::comma(tp_n, accuracy = 1)
+      )
+    , lab1 = 
+      paste0(
+        "MAPE = "
+        , scales::percent(pct_diff_dbh_cm_mape,accuracy = 0.1)
+      )
+  ) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct_diff_dbh_cm_mape, x = tree_dbh_cm_bin)
+  ) +
+  ggplot2::geom_col(
+    width = 0.5
+    , color = NA, alpha = 0.9, fill = "maroon4"
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab1, fontface = "bold")
+    # , color = "black"
+     , color = "black", size = 3, vjust = -3
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab2)
+    # , color = "black"
+     , color = "black", size = 2.1, vjust = -0.2
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 2
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    # breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.25))
+  ) +
+  ggplot2::labs(
+    x = "", y = ""
+    , subtitle = "DBH prediction accuracy by reference tree DBH bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 9, angle = 45, hjust = 1, vjust = 1)
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+  )
+p_temp
+# ggplot2::ggsave("../data/dbh_acc_by_dbh_bin.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+```
+
+that looks like what we expected, with DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==2) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for overstory trees and DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==1) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for understory trees
+
+table that
+
+```{r}
+dta_temp %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(-c(path))
+    , by = "dataset_factor"
+  ) %>% 
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_"), tree_dbh_cm_bin
+    # , site_area_m2
+    # detection
+    , tp_n
+    # quantification
+    , tidyselect::ends_with("_mean")
+    , tidyselect::ends_with("_rmse")
+    , tidyselect::ends_with("_mape")
+  ) %>% 
+  # second select to arrange tree_metric
+  dplyr::select(
+    dataset_factor, tidyselect::starts_with("flight_"), tree_dbh_cm_bin
+    # , site_area_m2
+    # detection
+    , tp_n
+    # quantification
+    # , c(tidyselect::contains("volume") & !tidyselect::contains("paraboloid"))
+    , tidyselect::contains("area")
+    , tidyselect::contains("height")
+    , tidyselect::contains("diameter")
+    , tidyselect::contains("dbh")
+  ) %>% 
+  # names()
+  dplyr::mutate(
+    dplyr::across(
+      .cols = c(
+        tidyselect::ends_with("_mape")
+      )
+      , .fn = ~ scales::percent(.x, accuracy = 1)
+    )
+    , dplyr::across(
+      .cols = c(tidyselect::ends_with("_mean"))
+      , .fn = ~ scales::comma(.x, accuracy = 0.01)
+    )
+    , dplyr::across(
+      .cols = c(tidyselect::ends_with("_rmse"))
+      , .fn = ~ scales::comma(.x, accuracy = 0.01)
+    )
+  ) %>% 
+  dplyr::select(
+    !tidyselect::contains("_area_")
+    & !tidyselect::contains("diff_diameter_")
+    & !tidyselect::ends_with("_trees")
+    # & !tidyselect::ends_with("_n")
+    & !tidyselect::ends_with("_rate")
+  ) %>% 
+  dplyr::arrange(dataset_factor, tree_dbh_cm_bin) %>% 
+  dplyr::select(
+    -c(
+      dataset_factor
+    )
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
+    )
+  ) %>% 
+  # dplyr::glimpse()
+  # ncol()
+  kableExtra::kbl(
+    caption = "Quantification Accuracy by Tree Size"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      , "DBH bin"
+      , "TP predictions"
+      , rep(c("ME","RMSE","MAPE"), times = 2)
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11.5) %>% 
+  kableExtra::add_header_above(c(
+    " "=4
+    # , "Detection" = 3
+    # , "Area" = 3
+    , "Height (m)" = 3
+    , "DBH (cm)" = 3
+  )) %>% 
+  kableExtra::column_spec(seq(4,10,by=3), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+```
+
+that is interesting
+
+let's look into the DBH prediction error over the range of tree sizes and use LOESS smoothing to highlight the trend in relative prediction error
+
+```{r, fig.height = 10, fig.width = 8}
+# Data trends (dashed) are visualized using a LOESS (locally weighted scatterplot smoothing) regression. 
+# A span of 1.0 was utilized to include 100% of the observations in each local neighborhood, 
+# and the local polynomial degree was restricted to 1 (local linear regression) to prevent overfitting and boundary inflation at the data extremes.
+
+# The dashed line represents a locally estimated scatterplot smoothing (LOESS) trend line
+# , calculated with a smoothing parameter (span) of 1.0 and a local linear polynomial fit (degree = 1).
+p_temp <- 
+  ground_truth_prediction_match_ans %>%
+  # dplyr::mutate(pct_diff_dbh_cm = (pred_dbh_cm-ref_dbh_cm)/ref_dbh_cm) %>% 
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+    # swap the error calc
+    , pct_diff_dbh_cm = (pred_dbh_cm-ref_dbh_cm)/ref_dbh_cm
+  ) %>%
+  sf::st_drop_geometry() %>%
+  dplyr::filter(match_grp %in% c("true positive")) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct_diff_dbh_cm, x = ref_dbh_cm)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "gray33", lwd = 1) +
+  ggplot2::geom_point(color = "maroon4", alpha = 0.7, size = 0.7) +
+  ggplot2::geom_smooth(
+    method = "loess", se=F
+    , span = 1 # 0.75 = default
+    , method.args = list(degree = 1)
+    , lwd = 1, color = "gray", linetype = "dashed"
+  ) +
+  ggplot2::annotate(
+    "text"
+    , x = Inf
+    # , y = 0.045
+    , y = Inf
+    , label = "prediction > reference"
+    , hjust = 1.1
+    , vjust = 1.2
+    , parse = F
+    , size = 2.5
+  ) +
+  ggplot2::annotate(
+    "text"
+    , x = Inf
+    # , y = -0.04
+    , y = -Inf
+    , label = "prediction < reference"
+    , hjust = 1.1
+    , vjust = -0.4
+    , parse = F
+    , size = 2.5
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 2
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=8)) +
+  ggplot2::scale_y_continuous(
+    limits = c(-1,1)
+    # breaks = seq(-1,1,by=0.2)
+    , breaks = scales::breaks_extended(n = 8)
+    , labels = scales::percent
+  ) +
+  ggplot2::labs(
+    x = "field reference DBH (cm)", y = "relative DBH error"
+    , subtitle = "relative DBH error (%) by reference tree DBH"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text = ggplot2::element_text(size = 6)
+  )
+p_temp
+# ggplot2::ggsave("../data/dbh_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+```
+
+that's neat
+
+do it for height too
+
+```{r, fig.height = 10, fig.width = 8}
+# Data trends (dashed) are visualized using a LOESS (locally weighted scatterplot smoothing) regression. 
+# A span of 1.0 was utilized to include 100% of the observations in each local neighborhood, 
+# and the local polynomial degree was restricted to 1 (local linear regression) to prevent overfitting and boundary inflation at the data extremes.
+
+# The dashed line represents a locally estimated scatterplot smoothing (LOESS) trend line
+# , calculated with a smoothing parameter (span) of 1.0 and a local linear polynomial fit (degree = 1).
+p_temp <- 
+  ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+    # swap the error calc
+    , pct_diff_dbh_cm = (pred_tree_height_m-ref_tree_height_m)/ref_tree_height_m
+  ) %>%
+  sf::st_drop_geometry() %>%
+  dplyr::filter(match_grp %in% c("true positive")) %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct_diff_tree_height_m, x = ref_tree_height_m)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, color = "gray33", lwd = 1) +
+  ggplot2::geom_point(color = "maroon4", alpha = 0.7, size = 0.7) +
+  ggplot2::geom_smooth(
+    method = "loess", se=F
+    , span = 1 # 0.75 = default
+    , method.args = list(degree = 1)
+    , lwd = 1, color = "gray", linetype = "dashed"
+  ) +
+  ggplot2::annotate(
+    "text"
+    , x = Inf
+    # , y = 0.045
+    , y = Inf
+    , label = "prediction > reference"
+    , hjust = 1.1
+    , vjust = 1.2
+    , parse = F
+    , size = 2.5
+  ) +
+  ggplot2::annotate(
+    "text"
+    , x = Inf
+    # , y = -0.04
+    , y = -Inf
+    , label = "prediction < reference"
+    , hjust = 1.1
+    , vjust = -0.4
+    , parse = F
+    , size = 2.5
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 2
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=8)) +
+  ggplot2::scale_y_continuous(
+    limits = c(-1,1)
+    # breaks = seq(-1,1,by=0.2)
+    , breaks = scales::breaks_extended(n = 8)
+    , labels = scales::percent
+  ) +
+  ggplot2::labs(
+    x = "field reference height (m)", y = "relative height error"
+    , subtitle = "relative tree height error (%) by reference tree height"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text = ggplot2::element_text(size = 6)
+  )
+p_temp
+# ggplot2::ggsave("../data/ht_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+```
+
+that is also neat
+
 ## Stand-Level Accuracy Results{#stand_acc}
 
-In addition to the tree-level accuracy metrics (e.g. height RMSE and MAPE), we can also calculate stand-level accuracy metrics by aggregating estimates from the reference (ground truth) and predicted trees irrespective of wheter or not they were matched (i.e. true positive) during instance matching. 
+In addition to the tree-level accuracy metrics (e.g. height RMSE and MAPE), we can also calculate stand-level accuracy metrics by aggregating estimates from the reference (ground truth) and predicted trees irrespective of whether or not they were matched (i.e. true positive) during instance matching. 
 
 We'll evaluate stand level aggregation accuracy for stand basal area and trees per hectare. For these stand metrics, we calculated the difference ($predicted - reference$) to measure the bias in the original units (e.g., $\frac{m^{2}}{ha}$ for basal area) which indicates the over- or under-estimation of the stand structure. We also calculated the percent difference ($\frac{predicted-reference}{reference}$) to measure the relative bias (scale-independent) to capture the magnitude of the error.
 

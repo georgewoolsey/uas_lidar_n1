@@ -428,7 +428,7 @@ validation_trees %>%
   sf::st_drop_geometry() %>% 
   # metric cuts/bins
   dplyr::mutate(
-    tree_height_m_bin = ggplot2::cut_width(field_tree_height_m, width = 5, boundary = 0) %>% 
+    tree_height_m_bin = ggplot2::cut_width(field_tree_height_m, width = 5, boundary = 0, closed = "left") %>% 
       make_bins_pretty(suffix = "m") %>% 
       forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(my_tree_ht_m,"-")) )
   ) %>% 
@@ -488,7 +488,7 @@ validation_trees %>%
   sf::st_drop_geometry() %>% 
   # metric cuts/bins
   dplyr::mutate(
-    tree_dbh_cm_bin = ggplot2::cut_width(field_dbh_cm, width = 12, boundary = 0) %>% 
+    tree_dbh_cm_bin = ggplot2::cut_width(field_dbh_cm, width = 12, boundary = 0, closed = "left") %>% 
       make_bins_pretty(suffix = " cm") %>% 
       forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(floor(min(validation_trees$field_dbh_cm)),"-")) )
   ) %>% 
