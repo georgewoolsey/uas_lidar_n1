@@ -441,6 +441,143 @@ dta_temp %>%
 
 the trend of increasing detection rate with tree height demonstrated with this data aligns well with prior work using aerial point cloud data for single-tree forest inventories
 
+let's check this for overstory versus understory trees. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying overstory and understory since it is a common value used in regional forest inventories.
+
+```{r, fig.height=10}
+# 10 cm DBH, a common regional forest inventory breakpoint for describing overstory and understory forest densities
+ostory_dbh <- 10
+# plt
+dta_temp <- 
+  ground_truth_prediction_match_ans %>%
+  purrr::list_rbind(names_to = "dataset_factor") %>%
+  dplyr::mutate(
+    dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::filter(match_grp %in% c("true positive","omission")) %>% 
+  # dplyr::glimpse()
+  # metric cuts/bins
+  dplyr::mutate(
+    tree_dbh_cm_bin = 
+      cut(ref_dbh_cm, breaks = c(0,ostory_dbh,ceiling(max(validation_trees$field_dbh_cm))), right = F) %>% 
+      # ggplot2::cut_width(ref_dbh_cm, width = ostory_dbh, boundary = 0, closed = "left")
+      make_bins_pretty(suffix = " cm") %>%
+      forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(floor(min(validation_trees$field_dbh_cm)),"-")) )
+    , is_detected = match_grp %in% c("true positive")
+    , is_detected = as.numeric(is_detected)
+  ) %>% 
+  dplyr::count(dataset_factor, match_grp, tree_dbh_cm_bin) %>% 
+  dplyr::group_by(dataset_factor, tree_dbh_cm_bin) %>% 
+  dplyr::mutate(pct = n/sum(n,na.rm = T)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    lab = ifelse(
+      pct>0.095
+      , paste0(
+        scales::percent(pct,accuracy=1) 
+        ,"\n("
+        , scales::comma(n,accuracy=1) 
+        , ")"
+      )
+      , ""
+    )
+  ) %>% 
+  dplyr::ungroup()
+  
+dta_temp %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(y = pct, x = tree_dbh_cm_bin)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(fill = match_grp)
+    , width = 0.55
+    , color = NA, alpha = 0.9
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab, group = match_grp, fontface = "bold", color = match_grp)
+    # , color = "black"
+    , size = 3
+    , position = ggplot2::position_stack(vjust = 0.5)
+  ) +
+  ggplot2::scale_fill_manual(values = pal_match_grp) +
+  ggplot2::scale_color_manual(values = c("white","black"), guide = "none") +
+  ggplot2::scale_x_discrete(drop = F) +
+  ggplot2::scale_y_continuous(
+    breaks = seq(0,1,by=0.2)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.02))
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 2
+    , axes = "all"
+    # , switch = "y"
+  ) +
+  ggplot2::labs(
+    x = "reference tree DBH class"
+    , y = "", fill = ""
+    , subtitle = "Recall by reference tree DBH bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 8.5, angle = 0, face = "bold")
+    , axis.text.y = ggplot2::element_blank()
+    , axis.ticks.y = ggplot2::element_blank()
+    , panel.grid.major.x = ggplot2::element_blank()
+    , panel.grid.minor.x = ggplot2::element_blank()
+    , plot.subtitle = ggplot2::element_blank()
+  )
+
+```
+
+table that
+
+```{r}
+dta_temp %>% 
+  dplyr::select(-c(n,pct)) %>% 
+  dplyr::mutate(
+    match_grp = stringr::str_replace_all(match_grp," ","_")
+    , lab = stringr::str_replace_all(lab, "\n","<br />")
+  ) %>% 
+  tidyr::pivot_wider(names_from = match_grp,values_from = lab) %>% 
+  dplyr::inner_join(
+    tracking_df %>% 
+      dplyr::select(dataset_factor, tidyselect::starts_with("flight_"))
+    , by = "dataset_factor"
+  ) %>% 
+  dplyr::arrange(dataset_factor, tree_dbh_cm_bin) %>% 
+  dplyr::select(
+    -c(
+      dataset_factor
+    )
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
+    )
+  ) %>% 
+  dplyr::relocate(c(tree_dbh_cm_bin, true_positive)) %>% 
+  dplyr::relocate(tidyselect::starts_with("flight_")) %>% 
+  # ncol()
+  kableExtra::kbl(
+    caption = "Tree Detection by Tree Size"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      , "DBH bin"
+      , "true positive (TP)", "omission (FN)"
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling(font_size = 11.5) %>% 
+  kableExtra::collapse_rows(columns = c(1:2), valign = "top")
+```
+
 let's look at the commission rate (commission error) by tree height using the UAS-detected tree heights to determine if our ITD variable window function could be improved
 
 ```{r, fig.height=10}
@@ -905,8 +1042,6 @@ let's dive deeper on the tree-level DBH accuracies. recall that over the entire 
 let's shift our focus to relative error (MAPE) while providing absolute context (RMSE and ME) as text or secondary metrics to look into the penalty we face due to inaccuracies in DBH for small stems. for example, a 3 cm error on a 6 cm small tree is a 50% relative error while that same 3 cm error on a 30 cm overstory tree is a minor 10% error. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying overstory and understory since it is a common value used in regional forest inventories.
 
 ```{r}
-# 10 cm DBH, a common regional forest inventory breakpoint for describing overstory and understory forest densities
-ostory_dbh_temp <- 10
 # do it by data set
 dta_temp <- 
   ground_truth_prediction_match_ans %>% 
@@ -917,8 +1052,8 @@ dta_temp <-
       dplyr::filter(match_grp=="true positive") %>% 
       dplyr::mutate(
         tree_dbh_cm_bin = 
-          cut(ref_dbh_cm, breaks = c(0,ostory_dbh_temp,ceiling(max(validation_trees$field_dbh_cm))), right = F) %>% 
-          # ggplot2::cut_width(ref_dbh_cm, width = ostory_dbh_temp, boundary = 0, closed = "left")
+          cut(ref_dbh_cm, breaks = c(0,ostory_dbh,ceiling(max(validation_trees$field_dbh_cm))), right = F) %>% 
+          # ggplot2::cut_width(ref_dbh_cm, width = ostory_dbh, boundary = 0, closed = "left")
           make_bins_pretty(suffix = " cm") %>%
           forcats::fct_relabel(~ stringr::str_replace(.x, "^0-", paste0(floor(min(validation_trees$field_dbh_cm)),"-")) )
       ) %>% 
@@ -935,7 +1070,172 @@ dta_temp <-
 # dta_temp %>% dplyr::glimpse()
 ```
 
-```{r, fig.height=10, fig.width=8}
+```{r, fig.height=10, fig.width=8.3}
+dta_temp %>% 
+  dplyr::rename_with(~stringr::str_remove(.x,"^diff_") %>% stringr::str_remove("^pct_diff_")) %>% 
+  tidyr::pivot_longer(
+    cols = tidyselect::starts_with(c("dbh_cm_", "tree_height_m_"))
+    , names_to = "metric"
+    , values_to = "value"
+  ) %>% 
+  dplyr::mutate(
+    tree_metric = metric %>% 
+      stringr::str_remove("(_rmse|_rrmse|_mean|_mape)$") %>% 
+      stringr::str_extract("(height|dbh)") %>% 
+      factor(
+        ordered = T
+        , levels = c(
+          "height"
+          , "dbh"
+        )
+        , labels = c(
+          "Height (m)"
+          , "DBH (cm)"
+        )
+      )
+    , metric = stringr::str_extract(metric,"(_rmse|_rrmse|_mean|_mape)$") %>% 
+      stringr::str_remove("^_")
+  ) %>% 
+  tidyr::pivot_wider(names_from = metric, values_from = value) %>% 
+  dplyr::mutate(
+    lab = 
+      paste0(
+        "MAPE = "
+        , scales::percent(mape,accuracy = 0.1)
+        , "\nRMSE = "
+        , scales::number(
+            rmse
+            , accuracy = ifelse(stringr::str_starts(tolower(tree_metric),"dbh"), 0.1, 0.01)
+            , suffix = paste0(" ",word(tree_metric,-1))
+          )
+        , "\nME = "
+        , scales::number(
+            mean
+            , accuracy = ifelse(stringr::str_starts(tolower(tree_metric),"dbh"), 0.1, 0.01)
+            , suffix = paste0(" ",word(tree_metric,-1))
+          )
+        # , "\nn ="
+        # , scales::comma(tp_n, accuracy = 1)
+      )
+    , lab2 = 
+      paste0(
+        "RMSE = "
+        , scales::number(
+            rmse
+            , accuracy = ifelse(stringr::str_starts(tolower(tree_metric),"dbh"), 0.1, 0.01)
+            , suffix = paste0(" ",word(tree_metric,-1))
+          )
+        , "\nME = "
+        , scales::number(
+            mean
+            , accuracy = ifelse(stringr::str_starts(tolower(tree_metric),"dbh"), 0.1, 0.01)
+            , suffix = paste0(" ",word(tree_metric,-1))
+          )
+        # , "\nn ="
+        # , scales::comma(tp_n, accuracy = 1)
+      )
+    , lab1 = 
+      paste0(
+        "MAPE = "
+        , scales::percent(mape,accuracy = 0.1)
+      )
+    ## do something about the different factors to plot over
+    , xvar = forcats::fct_cross(tree_metric,tree_dbh_cm_bin)
+  ) %>% 
+  # dplyr::glimpse()
+  # dplyr::filter(dataset_factor=="Altitude (m): 61 | Speed (m/s): 4.5") %>% 
+ggplot2::ggplot(
+  mapping = ggplot2::aes(
+    y = mape
+    , x = xvar #interaction(tree_metric,tree_dbh_cm_bin, lex.order = TRUE)
+  )
+) + 
+  ggplot2::geom_vline(
+    data = ~
+      dplyr::distinct(.x, tree_metric, tree_dbh_cm_bin, xvar) %>%
+      dplyr::mutate(xvar = as.numeric(xvar)) %>%
+      dplyr::group_by(tree_metric) %>%
+      dplyr::summarise(midx = mean(xvar),maxx = max(xvar)) %>% 
+      dplyr::mutate(linex = maxx + 0.5) %>%
+      dplyr::filter(dplyr::row_number() < dplyr::n())
+    , ggplot2::aes(xintercept = linex)
+    , color = "gray66", lwd = 0.8
+  ) +
+  ggplot2::geom_col(
+    ggplot2::aes(fill = tree_dbh_cm_bin)
+    , width = 0.5
+    , color = NA, alpha = 0.95
+    # , fill = "maroon4"
+    , position = "dodge"
+  ) +
+  # add the parent factor labels
+  ggplot2::geom_text(
+    data = ~
+      dplyr::distinct(.x, tree_metric, tree_dbh_cm_bin, xvar) %>%
+      dplyr::mutate(xvar = as.numeric(xvar)) %>%
+      dplyr::group_by(tree_metric) %>%
+      dplyr::summarise(midx = mean(xvar))
+    , ggplot2::aes(x = midx, y = Inf, label = tree_metric)
+    , vjust = 1.5
+    , fontface = "bold"
+    , size = 3.4
+    , inherit.aes = FALSE
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab1, fontface = "bold")
+    # , color = "black"
+     , color = "black", size = 2.6, vjust = -3.15
+  ) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = lab2)
+    # , color = "black"
+     , color = "black", size = 2, vjust = -0.2
+  ) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor)
+    # , rows = dplyr::vars(trtmnt_block)
+    , ncol = 2
+    , axes = "all"
+    # , axis.labels = "all_x"
+    # , switch = "y"
+  ) +
+  
+  ggplot2::scale_fill_manual(
+    values = 
+      c("darkslategray4","darkslategray")
+      # c("deeppink3","maroon4")
+  ) +
+  ggplot2::scale_x_discrete(
+    # get rid of parent factor label
+    labels = ~stringr::str_remove(.x, "^.*:")
+  ) + 
+  ggplot2::scale_y_continuous(
+    # breaks = seq(0,1,by=0.2)
+    labels = scales::percent
+    , breaks = scales::breaks_extended(n=4)
+    , expand = ggplot2::expansion(mult = c(0,0.26))
+  ) +
+  ggplot2::labs(
+    x = "reference tree DBH class"
+    , y = "MAPE (relative error)"
+    , subtitle = "DBH prediction accuracy by reference tree DBH bin"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , axis.text.x = ggplot2::element_text(size = 8.5, angle = 0, face = "bold")
+    , axis.text.y = ggplot2::element_text(size = 5, angle = 0) #, hjust = 0.5)
+    # , axis.text.y = ggplot2::element_blank()
+    # , axis.ticks.y = ggplot2::element_blank()
+    , panel.grid.major.x = ggplot2::element_blank()
+    , panel.grid.minor.x = ggplot2::element_blank()
+    , plot.subtitle = ggplot2::element_blank()
+  )
+# ggplot2::ggsave("../data/dbh_acc_by_dbh_bin.jpg", height = 10, width = 8.3)
+```
+
+```{r, include=F, eval=F, fig.height=10, fig.width=8}
 p_temp <- 
   dta_temp %>% 
   dplyr::mutate(

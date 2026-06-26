@@ -765,29 +765,29 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 ## $ pct_diff_dbh_cm        &lt;dbl&gt; -0.04903725, 0.13689575, -0.14184655, 0.1711883…</code></pre>
 <p>this is neat, we have the geometry of both the reference and prediction trees as well as the difference between the metric columns we gave the function via the <code>comp_cols</code> argument</p>
 <p>let’s use the different geometries to plot the instance matching classification</p>
+<p>now, i need one more palette that fits in the theme and has 3 distinct colors that still look on-theme given the palettes currently used. feel free to use gray as one of the colors and the other two should be somewhat distinct and easy to see when plotted over a RGB imagery of a forest. here are the palettes currently in use: <code>pal1 &lt;- c("#660012FF","#E59950FF")</code>; 2) <code>pal2 &lt;- c("maroon4")</code>; 3) <code>pal3 &lt;- c("#f7c5a5ff","#f2704dff","#cb1b4fff")</code>; 4) <code>pal4 &lt;- c("#357ba2ff","#414081ff","#26172aff")</code>; 5) <code>pal5 &lt;- c("darkslategray4","darkslategray")</code>. suggest a few different options for me to choose from</p>
 <div class="sourceCode" id="cb107"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb107-1"><a href="accuracy-evaluation-1.html#cb107-1" tabindex="-1"></a><span class="co"># custom palette</span></span>
 <span id="cb107-2"><a href="accuracy-evaluation-1.html#cb107-2" tabindex="-1"></a>pal_match_grp <span class="ot">=</span> <span class="fu">c</span>(</span>
-<span id="cb107-3"><a href="accuracy-evaluation-1.html#cb107-3" tabindex="-1"></a>  <span class="st">&quot;omission&quot;</span><span class="ot">=</span>viridis<span class="sc">::</span><span class="fu">cividis</span>(<span class="dv">3</span>)[<span class="dv">1</span>]</span>
-<span id="cb107-4"><a href="accuracy-evaluation-1.html#cb107-4" tabindex="-1"></a>  <span class="co"># , &quot;commission&quot;= viridis::cividis(3)[2]</span></span>
-<span id="cb107-5"><a href="accuracy-evaluation-1.html#cb107-5" tabindex="-1"></a>  , <span class="st">&quot;commission&quot;</span><span class="ot">=</span> <span class="st">&quot;gray77&quot;</span></span>
-<span id="cb107-6"><a href="accuracy-evaluation-1.html#cb107-6" tabindex="-1"></a>  , <span class="st">&quot;true positive&quot;</span><span class="ot">=</span>viridis<span class="sc">::</span><span class="fu">cividis</span>(<span class="dv">3</span>)[<span class="dv">3</span>]</span>
-<span id="cb107-7"><a href="accuracy-evaluation-1.html#cb107-7" tabindex="-1"></a>)</span>
-<span id="cb107-8"><a href="accuracy-evaluation-1.html#cb107-8" tabindex="-1"></a><span class="co"># scales::show_col(pal_match_grp)</span></span>
-<span id="cb107-9"><a href="accuracy-evaluation-1.html#cb107-9" tabindex="-1"></a><span class="co"># plt</span></span>
-<span id="cb107-10"><a href="accuracy-evaluation-1.html#cb107-10" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb107-11"><a href="accuracy-evaluation-1.html#cb107-11" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_sf</span>(</span>
-<span id="cb107-12"><a href="accuracy-evaluation-1.html#cb107-12" tabindex="-1"></a>    <span class="at">data =</span> gt_temp <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(match_grp <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;true positive&quot;</span>,<span class="st">&quot;omission&quot;</span>))</span>
-<span id="cb107-13"><a href="accuracy-evaluation-1.html#cb107-13" tabindex="-1"></a>    , <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">geometry =</span> ref_geometry, <span class="at">color =</span> match_grp)</span>
-<span id="cb107-14"><a href="accuracy-evaluation-1.html#cb107-14" tabindex="-1"></a>    , <span class="at">size =</span> <span class="dv">3</span>, <span class="at">alpha =</span> <span class="fl">0.8</span></span>
-<span id="cb107-15"><a href="accuracy-evaluation-1.html#cb107-15" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb107-16"><a href="accuracy-evaluation-1.html#cb107-16" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_sf</span>(</span>
-<span id="cb107-17"><a href="accuracy-evaluation-1.html#cb107-17" tabindex="-1"></a>    <span class="at">data =</span> gt_temp <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(match_grp<span class="sc">==</span><span class="st">&quot;commission&quot;</span>)</span>
-<span id="cb107-18"><a href="accuracy-evaluation-1.html#cb107-18" tabindex="-1"></a>    , <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">geometry =</span> pred_geometry, <span class="at">color =</span> match_grp)</span>
-<span id="cb107-19"><a href="accuracy-evaluation-1.html#cb107-19" tabindex="-1"></a>    , <span class="at">size =</span> <span class="dv">3</span>, <span class="at">alpha =</span> <span class="fl">0.8</span></span>
-<span id="cb107-20"><a href="accuracy-evaluation-1.html#cb107-20" tabindex="-1"></a>  ) <span class="sc">+</span></span>
-<span id="cb107-21"><a href="accuracy-evaluation-1.html#cb107-21" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_color_manual</span>(<span class="at">values =</span> pal_match_grp) <span class="sc">+</span></span>
-<span id="cb107-22"><a href="accuracy-evaluation-1.html#cb107-22" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_void</span>() <span class="sc">+</span></span>
-<span id="cb107-23"><a href="accuracy-evaluation-1.html#cb107-23" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>, <span class="at">legend.title =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()) </span></code></pre></div>
+<span id="cb107-3"><a href="accuracy-evaluation-1.html#cb107-3" tabindex="-1"></a>  <span class="st">&quot;omission&quot;</span><span class="ot">=</span> <span class="st">&quot;plum3&quot;</span> <span class="co"># viridis::cividis(3)[1]</span></span>
+<span id="cb107-4"><a href="accuracy-evaluation-1.html#cb107-4" tabindex="-1"></a>  , <span class="st">&quot;commission&quot;</span><span class="ot">=</span> <span class="st">&quot;gray77&quot;</span></span>
+<span id="cb107-5"><a href="accuracy-evaluation-1.html#cb107-5" tabindex="-1"></a>  , <span class="st">&quot;true positive&quot;</span><span class="ot">=</span> <span class="st">&quot;darkgoldenrod2&quot;</span> <span class="co"># viridis::cividis(3)[3]</span></span>
+<span id="cb107-6"><a href="accuracy-evaluation-1.html#cb107-6" tabindex="-1"></a>)</span>
+<span id="cb107-7"><a href="accuracy-evaluation-1.html#cb107-7" tabindex="-1"></a><span class="co"># scales::show_col(pal_match_grp)</span></span>
+<span id="cb107-8"><a href="accuracy-evaluation-1.html#cb107-8" tabindex="-1"></a><span class="co"># plt</span></span>
+<span id="cb107-9"><a href="accuracy-evaluation-1.html#cb107-9" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb107-10"><a href="accuracy-evaluation-1.html#cb107-10" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_sf</span>(</span>
+<span id="cb107-11"><a href="accuracy-evaluation-1.html#cb107-11" tabindex="-1"></a>    <span class="at">data =</span> gt_temp <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(match_grp <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;true positive&quot;</span>,<span class="st">&quot;omission&quot;</span>))</span>
+<span id="cb107-12"><a href="accuracy-evaluation-1.html#cb107-12" tabindex="-1"></a>    , <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">geometry =</span> ref_geometry, <span class="at">color =</span> match_grp)</span>
+<span id="cb107-13"><a href="accuracy-evaluation-1.html#cb107-13" tabindex="-1"></a>    , <span class="at">size =</span> <span class="dv">3</span>, <span class="at">alpha =</span> <span class="fl">0.8</span></span>
+<span id="cb107-14"><a href="accuracy-evaluation-1.html#cb107-14" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb107-15"><a href="accuracy-evaluation-1.html#cb107-15" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">geom_sf</span>(</span>
+<span id="cb107-16"><a href="accuracy-evaluation-1.html#cb107-16" tabindex="-1"></a>    <span class="at">data =</span> gt_temp <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">filter</span>(match_grp<span class="sc">==</span><span class="st">&quot;commission&quot;</span>)</span>
+<span id="cb107-17"><a href="accuracy-evaluation-1.html#cb107-17" tabindex="-1"></a>    , <span class="at">mapping =</span> ggplot2<span class="sc">::</span><span class="fu">aes</span>(<span class="at">geometry =</span> pred_geometry, <span class="at">color =</span> match_grp)</span>
+<span id="cb107-18"><a href="accuracy-evaluation-1.html#cb107-18" tabindex="-1"></a>    , <span class="at">size =</span> <span class="dv">3</span>, <span class="at">alpha =</span> <span class="fl">0.8</span></span>
+<span id="cb107-19"><a href="accuracy-evaluation-1.html#cb107-19" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb107-20"><a href="accuracy-evaluation-1.html#cb107-20" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">scale_color_manual</span>(<span class="at">values =</span> pal_match_grp) <span class="sc">+</span></span>
+<span id="cb107-21"><a href="accuracy-evaluation-1.html#cb107-21" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_void</span>() <span class="sc">+</span></span>
+<span id="cb107-22"><a href="accuracy-evaluation-1.html#cb107-22" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>, <span class="at">legend.title =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()) </span></code></pre></div>
 <p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-98-1.png" alt="" width="1008" /></p>
 </div>
 <div id="example-detection-accuracy" class="section level3 hasAnchor" number="4.1.2">
@@ -1026,8 +1026,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="sourceCode" id="cb113"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb113-1"><a href="accuracy-evaluation-1.html#cb113-1" tabindex="-1"></a><span class="fu">remove</span>(<span class="at">list =</span> <span class="fu">ls</span>()[<span class="fu">grep</span>(<span class="st">&quot;_temp&quot;</span>,<span class="fu">ls</span>())])</span>
 <span id="cb113-2"><a href="accuracy-evaluation-1.html#cb113-2" tabindex="-1"></a><span class="fu">gc</span>()</span></code></pre></div>
 <pre><code>##            used  (Mb) gc trigger  (Mb)  max used  (Mb)
-## Ncells  5019048 268.1    7506780 401.0   7506780 401.0
-## Vcells 10705305  81.7  108643156 828.9 111414910 850.1</code></pre>
+## Ncells  5019154 268.1    7506801 401.0   7506801 401.0
+## Vcells 10969273  83.7  108947254 831.3 111705250 852.3</code></pre>
 </div>
 <div id="apply-instance-match" class="section level2 hasAnchor" number="4.3">
 <h2><span class="header-section-number">4.3</span> Apply Instance Match<a href="accuracy-evaluation-1.html#apply-instance-match" class="anchor-section" aria-label="Anchor link to header"></a></h2>

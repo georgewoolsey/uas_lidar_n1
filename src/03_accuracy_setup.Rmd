@@ -456,13 +456,14 @@ this is neat, we have the geometry of both the reference and prediction trees as
 
 let's use the different geometries to plot the instance matching classification
 
+now, i need one more palette that fits in the theme and has 3 distinct colors that still look on-theme given the palettes currently used. feel free to use gray as one of the colors and the other two should be somewhat distinct and easy to see when plotted over a RGB imagery of a forest. here are the palettes currently in use: `pal1 <- c("#660012FF","#E59950FF")`; 2) `pal2 <- c("maroon4")`; 3) `pal3 <- c("#f7c5a5ff","#f2704dff","#cb1b4fff")`; 4) `pal4 <- c("#357ba2ff","#414081ff","#26172aff")`; 5) `pal5 <- c("darkslategray4","darkslategray")`. suggest a few different options for me to choose from
+
 ```{r}
 # custom palette
 pal_match_grp = c(
-  "omission"=viridis::cividis(3)[1]
-  # , "commission"= viridis::cividis(3)[2]
+  "omission"= "plum3" # viridis::cividis(3)[1]
   , "commission"= "gray77"
-  , "true positive"=viridis::cividis(3)[3]
+  , "true positive"= "darkgoldenrod2" # viridis::cividis(3)[3]
 )
 # scales::show_col(pal_match_grp)
 # plt
@@ -823,7 +824,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands
