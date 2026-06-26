@@ -4795,59 +4795,63 @@ speed:tree ht
 <span id="cb163-4"><a href="accuracy-results.html#cb163-4" tabindex="-1"></a>    mod_glm_temp</span>
 <span id="cb163-5"><a href="accuracy-results.html#cb163-5" tabindex="-1"></a>    , <span class="sc">~</span> ref_tree_height_m <span class="sc">+</span> flight_altitude_m <span class="sc">+</span> flight_meters_per_second</span>
 <span id="cb163-6"><a href="accuracy-results.html#cb163-6" tabindex="-1"></a>    , <span class="at">at =</span> <span class="fu">list</span>(</span>
-<span id="cb163-7"><a href="accuracy-results.html#cb163-7" tabindex="-1"></a>      <span class="at">ref_tree_height_m =</span> <span class="fu">seq</span>(</span>
-<span id="cb163-8"><a href="accuracy-results.html#cb163-8" tabindex="-1"></a>        <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m) )</span>
-<span id="cb163-9"><a href="accuracy-results.html#cb163-9" tabindex="-1"></a>        , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m)<span class="sc">*</span><span class="fl">1.05</span> )</span>
-<span id="cb163-10"><a href="accuracy-results.html#cb163-10" tabindex="-1"></a>        , <span class="at">by =</span> <span class="dv">1</span></span>
-<span id="cb163-11"><a href="accuracy-results.html#cb163-11" tabindex="-1"></a>      )</span>
-<span id="cb163-12"><a href="accuracy-results.html#cb163-12" tabindex="-1"></a>      , <span class="at">flight_altitude_m =</span> <span class="fu">seq</span>(</span>
-<span id="cb163-13"><a href="accuracy-results.html#cb163-13" tabindex="-1"></a>        <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m) )</span>
-<span id="cb163-14"><a href="accuracy-results.html#cb163-14" tabindex="-1"></a>        , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m) )</span>
-<span id="cb163-15"><a href="accuracy-results.html#cb163-15" tabindex="-1"></a>        , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">100</span><span class="sc">/</span><span class="fl">3.281</span>)</span>
-<span id="cb163-16"><a href="accuracy-results.html#cb163-16" tabindex="-1"></a>      )</span>
-<span id="cb163-17"><a href="accuracy-results.html#cb163-17" tabindex="-1"></a>      , <span class="at">flight_meters_per_second =</span> <span class="fu">seq</span>(</span>
-<span id="cb163-18"><a href="accuracy-results.html#cb163-18" tabindex="-1"></a>        <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
-<span id="cb163-19"><a href="accuracy-results.html#cb163-19" tabindex="-1"></a>        , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
-<span id="cb163-20"><a href="accuracy-results.html#cb163-20" tabindex="-1"></a>        , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">5</span><span class="sc">/</span><span class="fl">2.237</span>,<span class="dv">1</span>)</span>
-<span id="cb163-21"><a href="accuracy-results.html#cb163-21" tabindex="-1"></a>      )</span>
-<span id="cb163-22"><a href="accuracy-results.html#cb163-22" tabindex="-1"></a>    )</span>
-<span id="cb163-23"><a href="accuracy-results.html#cb163-23" tabindex="-1"></a>    , <span class="at">type =</span> <span class="st">&quot;response&quot;</span> <span class="co"># probabilities</span></span>
-<span id="cb163-24"><a href="accuracy-results.html#cb163-24" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-25"><a href="accuracy-results.html#cb163-25" tabindex="-1"></a> dplyr<span class="sc">::</span><span class="fu">as_tibble</span>()</span>
-<span id="cb163-26"><a href="accuracy-results.html#cb163-26" tabindex="-1"></a><span class="co"># huh?</span></span>
-<span id="cb163-27"><a href="accuracy-results.html#cb163-27" tabindex="-1"></a><span class="co"># dplyr::glimpse(preds_temp)</span></span>
-<span id="cb163-28"><a href="accuracy-results.html#cb163-28" tabindex="-1"></a><span class="co"># table</span></span>
-<span id="cb163-29"><a href="accuracy-results.html#cb163-29" tabindex="-1"></a><span class="co"># fivenum(tree_detect_df$ref_tree_height_m)[c(1,3,5)]</span></span>
-<span id="cb163-30"><a href="accuracy-results.html#cb163-30" tabindex="-1"></a>preds_temp <span class="sc">%&gt;%</span></span>
-<span id="cb163-31"><a href="accuracy-results.html#cb163-31" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
-<span id="cb163-32"><a href="accuracy-results.html#cb163-32" tabindex="-1"></a>    ref_tree_height_m <span class="sc">%in%</span> </span>
-<span id="cb163-33"><a href="accuracy-results.html#cb163-33" tabindex="-1"></a>      (<span class="fu">quantile</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.05</span>,<span class="fl">0.25</span>,<span class="fl">0.5</span>,<span class="fl">0.75</span>,<span class="fl">0.95</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-34"><a href="accuracy-results.html#cb163-34" tabindex="-1"></a>        <span class="fu">round</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb163-35"><a href="accuracy-results.html#cb163-35" tabindex="-1"></a>        <span class="fu">unique</span>())</span>
-<span id="cb163-36"><a href="accuracy-results.html#cb163-36" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb163-37"><a href="accuracy-results.html#cb163-37" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
-<span id="cb163-38"><a href="accuracy-results.html#cb163-38" tabindex="-1"></a>    <span class="fu">c</span>(prob, asymp.LCL, asymp.UCL)</span>
-<span id="cb163-39"><a href="accuracy-results.html#cb163-39" tabindex="-1"></a>    , <span class="sc">~</span>scales<span class="sc">::</span><span class="fu">percent</span>(.x,<span class="at">accuracy=</span><span class="fl">0.1</span>)</span>
-<span id="cb163-40"><a href="accuracy-results.html#cb163-40" tabindex="-1"></a>  )) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-41"><a href="accuracy-results.html#cb163-41" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(ref_tree_height_m, flight_altitude_m, flight_meters_per_second, prob, asymp.LCL, asymp.UCL) <span class="sc">%&gt;%</span></span>
-<span id="cb163-42"><a href="accuracy-results.html#cb163-42" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(ref_tree_height_m, flight_altitude_m, flight_meters_per_second) <span class="sc">%&gt;%</span></span>
-<span id="cb163-43"><a href="accuracy-results.html#cb163-43" tabindex="-1"></a>  <span class="co"># dplyr::select(ref_tree_height_m, flight_meters_per_second, flight_altitude_m, prob, asymp.LCL, asymp.UCL) %&gt;%</span></span>
-<span id="cb163-44"><a href="accuracy-results.html#cb163-44" tabindex="-1"></a>  <span class="co"># dplyr::arrange(ref_tree_height_m, flight_meters_per_second, flight_altitude_m) %&gt;%</span></span>
-<span id="cb163-45"><a href="accuracy-results.html#cb163-45" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kbl</span>(</span>
-<span id="cb163-46"><a href="accuracy-results.html#cb163-46" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;tree detection probability at 5%, 25%, 50%, 75%, and 95% tree heights&quot;</span></span>
-<span id="cb163-47"><a href="accuracy-results.html#cb163-47" tabindex="-1"></a>    , <span class="at">col.names =</span> <span class="fu">c</span>(</span>
-<span id="cb163-48"><a href="accuracy-results.html#cb163-48" tabindex="-1"></a>      <span class="st">&quot;tree ht (m)&quot;</span></span>
-<span id="cb163-49"><a href="accuracy-results.html#cb163-49" tabindex="-1"></a>      , <span class="st">&quot;altitude (m)&quot;</span>, <span class="st">&quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;</span></span>
-<span id="cb163-50"><a href="accuracy-results.html#cb163-50" tabindex="-1"></a>      <span class="co"># , &quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;, &quot;altitude (m)&quot;</span></span>
-<span id="cb163-51"><a href="accuracy-results.html#cb163-51" tabindex="-1"></a>      , <span class="st">&quot;Pr(detection)&quot;</span>, <span class="st">&quot;lower bound&quot;</span>, <span class="st">&quot;upper bound&quot;</span></span>
-<span id="cb163-52"><a href="accuracy-results.html#cb163-52" tabindex="-1"></a>    )</span>
-<span id="cb163-53"><a href="accuracy-results.html#cb163-53" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
-<span id="cb163-54"><a href="accuracy-results.html#cb163-54" tabindex="-1"></a>    <span class="co"># , digits = 2</span></span>
-<span id="cb163-55"><a href="accuracy-results.html#cb163-55" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-56"><a href="accuracy-results.html#cb163-56" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb163-57"><a href="accuracy-results.html#cb163-57" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">3</span>), <span class="at">border_right =</span> <span class="cn">TRUE</span>, <span class="at">include_thead =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-58"><a href="accuracy-results.html#cb163-58" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb163-59"><a href="accuracy-results.html#cb163-59" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">scroll_box</span>(<span class="at">height =</span> <span class="st">&quot;7.5in&quot;</span>, <span class="at">width =</span> <span class="st">&quot;100%&quot;</span>)</span></code></pre></div>
+<span id="cb163-7"><a href="accuracy-results.html#cb163-7" tabindex="-1"></a>      <span class="at">ref_tree_height_m =</span> </span>
+<span id="cb163-8"><a href="accuracy-results.html#cb163-8" tabindex="-1"></a>        <span class="fu">seq</span>(</span>
+<span id="cb163-9"><a href="accuracy-results.html#cb163-9" tabindex="-1"></a>          <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m) )</span>
+<span id="cb163-10"><a href="accuracy-results.html#cb163-10" tabindex="-1"></a>          , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m)<span class="sc">*</span><span class="fl">1.05</span> )</span>
+<span id="cb163-11"><a href="accuracy-results.html#cb163-11" tabindex="-1"></a>          , <span class="at">by =</span> <span class="dv">1</span></span>
+<span id="cb163-12"><a href="accuracy-results.html#cb163-12" tabindex="-1"></a>        )</span>
+<span id="cb163-13"><a href="accuracy-results.html#cb163-13" tabindex="-1"></a>      , <span class="at">flight_altitude_m =</span> </span>
+<span id="cb163-14"><a href="accuracy-results.html#cb163-14" tabindex="-1"></a>        <span class="fu">unique</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m)</span>
+<span id="cb163-15"><a href="accuracy-results.html#cb163-15" tabindex="-1"></a>        <span class="co"># seq(</span></span>
+<span id="cb163-16"><a href="accuracy-results.html#cb163-16" tabindex="-1"></a>        <span class="co">#   floor( min(tree_detect_df$flight_altitude_m) )</span></span>
+<span id="cb163-17"><a href="accuracy-results.html#cb163-17" tabindex="-1"></a>        <span class="co">#   , floor( max(tree_detect_df$flight_altitude_m) )</span></span>
+<span id="cb163-18"><a href="accuracy-results.html#cb163-18" tabindex="-1"></a>        <span class="co">#   , by = round(100/3.281)</span></span>
+<span id="cb163-19"><a href="accuracy-results.html#cb163-19" tabindex="-1"></a>        <span class="co"># )</span></span>
+<span id="cb163-20"><a href="accuracy-results.html#cb163-20" tabindex="-1"></a>      , <span class="at">flight_meters_per_second =</span> </span>
+<span id="cb163-21"><a href="accuracy-results.html#cb163-21" tabindex="-1"></a>        <span class="fu">seq</span>(</span>
+<span id="cb163-22"><a href="accuracy-results.html#cb163-22" tabindex="-1"></a>          <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
+<span id="cb163-23"><a href="accuracy-results.html#cb163-23" tabindex="-1"></a>          , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
+<span id="cb163-24"><a href="accuracy-results.html#cb163-24" tabindex="-1"></a>          , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">5</span><span class="sc">/</span><span class="fl">2.237</span>)</span>
+<span id="cb163-25"><a href="accuracy-results.html#cb163-25" tabindex="-1"></a>        )</span>
+<span id="cb163-26"><a href="accuracy-results.html#cb163-26" tabindex="-1"></a>    )</span>
+<span id="cb163-27"><a href="accuracy-results.html#cb163-27" tabindex="-1"></a>    , <span class="at">type =</span> <span class="st">&quot;response&quot;</span> <span class="co"># probabilities</span></span>
+<span id="cb163-28"><a href="accuracy-results.html#cb163-28" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-29"><a href="accuracy-results.html#cb163-29" tabindex="-1"></a> dplyr<span class="sc">::</span><span class="fu">as_tibble</span>()</span>
+<span id="cb163-30"><a href="accuracy-results.html#cb163-30" tabindex="-1"></a><span class="co"># huh?</span></span>
+<span id="cb163-31"><a href="accuracy-results.html#cb163-31" tabindex="-1"></a><span class="co"># dplyr::glimpse(preds_temp)</span></span>
+<span id="cb163-32"><a href="accuracy-results.html#cb163-32" tabindex="-1"></a><span class="co"># table</span></span>
+<span id="cb163-33"><a href="accuracy-results.html#cb163-33" tabindex="-1"></a><span class="co"># fivenum(tree_detect_df$ref_tree_height_m)[c(1,3,5)]</span></span>
+<span id="cb163-34"><a href="accuracy-results.html#cb163-34" tabindex="-1"></a>preds_temp <span class="sc">%&gt;%</span></span>
+<span id="cb163-35"><a href="accuracy-results.html#cb163-35" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">filter</span>(</span>
+<span id="cb163-36"><a href="accuracy-results.html#cb163-36" tabindex="-1"></a>    ref_tree_height_m <span class="sc">%in%</span> </span>
+<span id="cb163-37"><a href="accuracy-results.html#cb163-37" tabindex="-1"></a>      (<span class="fu">quantile</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.05</span>,<span class="fl">0.25</span>,<span class="fl">0.5</span>,<span class="fl">0.75</span>,<span class="fl">0.95</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-38"><a href="accuracy-results.html#cb163-38" tabindex="-1"></a>        <span class="fu">round</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb163-39"><a href="accuracy-results.html#cb163-39" tabindex="-1"></a>        <span class="fu">unique</span>())</span>
+<span id="cb163-40"><a href="accuracy-results.html#cb163-40" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb163-41"><a href="accuracy-results.html#cb163-41" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(dplyr<span class="sc">::</span><span class="fu">across</span>(</span>
+<span id="cb163-42"><a href="accuracy-results.html#cb163-42" tabindex="-1"></a>    <span class="fu">c</span>(prob, asymp.LCL, asymp.UCL)</span>
+<span id="cb163-43"><a href="accuracy-results.html#cb163-43" tabindex="-1"></a>    , <span class="sc">~</span>scales<span class="sc">::</span><span class="fu">percent</span>(.x,<span class="at">accuracy=</span><span class="fl">0.1</span>)</span>
+<span id="cb163-44"><a href="accuracy-results.html#cb163-44" tabindex="-1"></a>  )) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-45"><a href="accuracy-results.html#cb163-45" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(ref_tree_height_m, flight_altitude_m, flight_meters_per_second, prob, asymp.LCL, asymp.UCL) <span class="sc">%&gt;%</span></span>
+<span id="cb163-46"><a href="accuracy-results.html#cb163-46" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">arrange</span>(ref_tree_height_m, flight_altitude_m, flight_meters_per_second) <span class="sc">%&gt;%</span></span>
+<span id="cb163-47"><a href="accuracy-results.html#cb163-47" tabindex="-1"></a>  <span class="co"># dplyr::select(ref_tree_height_m, flight_meters_per_second, flight_altitude_m, prob, asymp.LCL, asymp.UCL) %&gt;%</span></span>
+<span id="cb163-48"><a href="accuracy-results.html#cb163-48" tabindex="-1"></a>  <span class="co"># dplyr::arrange(ref_tree_height_m, flight_meters_per_second, flight_altitude_m) %&gt;%</span></span>
+<span id="cb163-49"><a href="accuracy-results.html#cb163-49" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kbl</span>(</span>
+<span id="cb163-50"><a href="accuracy-results.html#cb163-50" tabindex="-1"></a>    <span class="at">caption =</span> <span class="st">&quot;tree detection probability at 5%, 25%, 50%, 75%, and 95% tree heights&quot;</span></span>
+<span id="cb163-51"><a href="accuracy-results.html#cb163-51" tabindex="-1"></a>    , <span class="at">col.names =</span> <span class="fu">c</span>(</span>
+<span id="cb163-52"><a href="accuracy-results.html#cb163-52" tabindex="-1"></a>      <span class="st">&quot;tree ht (m)&quot;</span></span>
+<span id="cb163-53"><a href="accuracy-results.html#cb163-53" tabindex="-1"></a>      , <span class="st">&quot;altitude (m)&quot;</span>, <span class="st">&quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;</span></span>
+<span id="cb163-54"><a href="accuracy-results.html#cb163-54" tabindex="-1"></a>      <span class="co"># , &quot;speed (m sec&lt;sup&gt;-1&lt;/sup&gt;)&quot;, &quot;altitude (m)&quot;</span></span>
+<span id="cb163-55"><a href="accuracy-results.html#cb163-55" tabindex="-1"></a>      , <span class="st">&quot;Pr(detection)&quot;</span>, <span class="st">&quot;lower bound&quot;</span>, <span class="st">&quot;upper bound&quot;</span></span>
+<span id="cb163-56"><a href="accuracy-results.html#cb163-56" tabindex="-1"></a>    )</span>
+<span id="cb163-57"><a href="accuracy-results.html#cb163-57" tabindex="-1"></a>    , <span class="at">escape =</span> F</span>
+<span id="cb163-58"><a href="accuracy-results.html#cb163-58" tabindex="-1"></a>    <span class="co"># , digits = 2</span></span>
+<span id="cb163-59"><a href="accuracy-results.html#cb163-59" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-60"><a href="accuracy-results.html#cb163-60" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb163-61"><a href="accuracy-results.html#cb163-61" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">3</span>), <span class="at">border_right =</span> <span class="cn">TRUE</span>, <span class="at">include_thead =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-62"><a href="accuracy-results.html#cb163-62" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb163-63"><a href="accuracy-results.html#cb163-63" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">scroll_box</span>(<span class="at">height =</span> <span class="st">&quot;7.5in&quot;</span>, <span class="at">width =</span> <span class="st">&quot;100%&quot;</span>)</span></code></pre></div>
 <div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:7.5in; overflow-x: scroll; width:100%; ">
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
@@ -4877,14 +4881,14 @@ upper bound
 </thead>
 <tbody>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="6">
+<td style="text-align:right;vertical-align: top !important;" rowspan="9">
 2
 </td>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 54.2%
@@ -4898,24 +4902,38 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 54.8%
 </td>
 <td style="text-align:left;">
-53.5%
+53.4%
 </td>
 <td style="text-align:left;">
 56.1%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+55.4%
+</td>
+<td style="text-align:left;">
+54.0%
+</td>
+<td style="text-align:left;">
+56.8%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 91
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 54.7%
@@ -4929,10 +4947,10 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
-55.2%
+55.1%
 </td>
 <td style="text-align:left;">
 54.3%
@@ -4942,14 +4960,28 @@ upper bound
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-121
-</td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+8
 </td>
 <td style="text-align:left;">
-55.1%
+55.6%
+</td>
+<td style="text-align:left;">
+54.6%
+</td>
+<td style="text-align:left;">
+56.5%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+122
+</td>
+<td style="text-align:right;border-right:1px solid;">
+4
+</td>
+<td style="text-align:left;">
+55.2%
 </td>
 <td style="text-align:left;">
 53.3%
@@ -4960,27 +4992,41 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 55.5%
 </td>
 <td style="text-align:left;">
-54.2%
+54.1%
 </td>
 <td style="text-align:left;">
 56.8%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="6">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+55.8%
+</td>
+<td style="text-align:left;">
+54.4%
+</td>
+<td style="text-align:left;">
+57.2%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="9">
 3
 </td>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 55.2%
@@ -4994,24 +5040,38 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
-55.9%
+55.8%
 </td>
 <td style="text-align:left;">
-54.7%
+54.6%
 </td>
 <td style="text-align:left;">
 57.1%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+56.5%
+</td>
+<td style="text-align:left;">
+55.1%
+</td>
+<td style="text-align:left;">
+57.8%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 91
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 55.8%
@@ -5025,24 +5085,38 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
-56.3%
+56.2%
 </td>
 <td style="text-align:left;">
-55.5%
+55.4%
 </td>
 <td style="text-align:left;">
 57.0%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-121
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+56.7%
+</td>
+<td style="text-align:left;">
+55.8%
+</td>
+<td style="text-align:left;">
+57.6%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+122
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 56.3%
@@ -5056,27 +5130,41 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 56.6%
 </td>
 <td style="text-align:left;">
-55.4%
+55.3%
 </td>
 <td style="text-align:left;">
 57.8%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="6">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+56.9%
+</td>
+<td style="text-align:left;">
+55.6%
+</td>
+<td style="text-align:left;">
+58.2%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="9">
 6
 </td>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 58.4%
@@ -5090,24 +5178,7 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
-</td>
-<td style="text-align:left;">
-59.1%
-</td>
-<td style="text-align:left;">
-58.1%
-</td>
-<td style="text-align:left;">
-60.1%
-</td>
-</tr>
-<tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-91
-</td>
-<td style="text-align:right;border-right:1px solid;">
-4.0
+6
 </td>
 <td style="text-align:left;">
 59.0%
@@ -5121,24 +5192,69 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+8
 </td>
 <td style="text-align:left;">
-59.5%
+59.6%
 </td>
 <td style="text-align:left;">
-58.9%
+58.5%
+</td>
+<td style="text-align:left;">
+60.7%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+91
+</td>
+<td style="text-align:right;border-right:1px solid;">
+4
+</td>
+<td style="text-align:left;">
+59.0%
+</td>
+<td style="text-align:left;">
+58.0%
+</td>
+<td style="text-align:left;">
+60.0%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;border-right:1px solid;">
+6
+</td>
+<td style="text-align:left;">
+59.4%
+</td>
+<td style="text-align:left;">
+58.8%
 </td>
 <td style="text-align:left;">
 60.1%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-121
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+59.9%
+</td>
+<td style="text-align:left;">
+59.2%
+</td>
+<td style="text-align:left;">
+60.6%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+122
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 59.6%
@@ -5147,12 +5263,12 @@ upper bound
 58.1%
 </td>
 <td style="text-align:left;">
-61.0%
+61.1%
 </td>
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 59.9%
@@ -5165,14 +5281,28 @@ upper bound
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="6">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+60.2%
+</td>
+<td style="text-align:left;">
+59.0%
+</td>
+<td style="text-align:left;">
+61.3%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="9">
 17
 </td>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 69.5%
@@ -5186,24 +5316,38 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 69.9%
 </td>
 <td style="text-align:left;">
-68.8%
+68.7%
 </td>
 <td style="text-align:left;">
 71.1%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+70.3%
+</td>
+<td style="text-align:left;">
+69.1%
+</td>
+<td style="text-align:left;">
+71.6%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 91
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 70.1%
@@ -5217,10 +5361,10 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
-70.5%
+70.4%
 </td>
 <td style="text-align:left;">
 69.7%
@@ -5230,11 +5374,25 @@ upper bound
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-121
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+70.8%
+</td>
+<td style="text-align:left;">
+69.9%
+</td>
+<td style="text-align:left;">
+71.6%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+122
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 70.8%
@@ -5248,27 +5406,41 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 71.0%
 </td>
 <td style="text-align:left;">
-69.9%
+69.8%
 </td>
 <td style="text-align:left;">
-72.1%
+72.2%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="6">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+71.2%
+</td>
+<td style="text-align:left;">
+69.9%
+</td>
+<td style="text-align:left;">
+72.4%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="9">
 22
 </td>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 73.9%
@@ -5282,24 +5454,38 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 74.3%
 </td>
 <td style="text-align:left;">
-72.8%
+72.7%
 </td>
 <td style="text-align:left;">
 75.7%
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+74.6%
+</td>
+<td style="text-align:left;">
+73.0%
+</td>
+<td style="text-align:left;">
+76.2%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
 91
 </td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+4
 </td>
 <td style="text-align:left;">
 74.6%
@@ -5313,10 +5499,10 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
-74.9%
+74.8%
 </td>
 <td style="text-align:left;">
 73.9%
@@ -5326,14 +5512,28 @@ upper bound
 </td>
 </tr>
 <tr>
-<td style="text-align:right;vertical-align: top !important;" rowspan="2">
-121
-</td>
 <td style="text-align:right;border-right:1px solid;">
-4.0
+8
 </td>
 <td style="text-align:left;">
-75.2%
+75.1%
+</td>
+<td style="text-align:left;">
+74.0%
+</td>
+<td style="text-align:left;">
+76.1%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;vertical-align: top !important;" rowspan="3">
+122
+</td>
+<td style="text-align:right;border-right:1px solid;">
+4
+</td>
+<td style="text-align:left;">
+75.3%
 </td>
 <td style="text-align:left;">
 73.3%
@@ -5344,16 +5544,30 @@ upper bound
 </tr>
 <tr>
 <td style="text-align:right;border-right:1px solid;">
-6.2
+6
 </td>
 <td style="text-align:left;">
 75.4%
 </td>
 <td style="text-align:left;">
-74.0%
+73.9%
 </td>
 <td style="text-align:left;">
 76.8%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;border-right:1px solid;">
+8
+</td>
+<td style="text-align:left;">
+75.6%
+</td>
+<td style="text-align:left;">
+74.0%
+</td>
+<td style="text-align:left;">
+77.1%
 </td>
 </tr>
 </tbody>
@@ -5478,19 +5692,22 @@ upper bound
 <span id="cb166-4"><a href="accuracy-results.html#cb166-4" tabindex="-1"></a>    , <span class="sc">~</span> flight_altitude_m <span class="sc">+</span> flight_meters_per_second</span>
 <span id="cb166-5"><a href="accuracy-results.html#cb166-5" tabindex="-1"></a>    , <span class="at">at =</span> <span class="fu">list</span>(</span>
 <span id="cb166-6"><a href="accuracy-results.html#cb166-6" tabindex="-1"></a>      <span class="at">ref_tree_height_m =</span> <span class="fu">median</span>(tree_detect_df<span class="sc">$</span>ref_tree_height_m)</span>
-<span id="cb166-7"><a href="accuracy-results.html#cb166-7" tabindex="-1"></a>      , <span class="at">flight_altitude_m =</span> <span class="fu">seq</span>(</span>
-<span id="cb166-8"><a href="accuracy-results.html#cb166-8" tabindex="-1"></a>        <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m) )</span>
-<span id="cb166-9"><a href="accuracy-results.html#cb166-9" tabindex="-1"></a>        , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m) )</span>
-<span id="cb166-10"><a href="accuracy-results.html#cb166-10" tabindex="-1"></a>        , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">100</span><span class="sc">/</span><span class="fl">3.281</span>)</span>
-<span id="cb166-11"><a href="accuracy-results.html#cb166-11" tabindex="-1"></a>      )</span>
-<span id="cb166-12"><a href="accuracy-results.html#cb166-12" tabindex="-1"></a>      , <span class="at">flight_meters_per_second =</span> <span class="fu">seq</span>(</span>
-<span id="cb166-13"><a href="accuracy-results.html#cb166-13" tabindex="-1"></a>        <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
-<span id="cb166-14"><a href="accuracy-results.html#cb166-14" tabindex="-1"></a>        , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
-<span id="cb166-15"><a href="accuracy-results.html#cb166-15" tabindex="-1"></a>        , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">5</span><span class="sc">/</span><span class="fl">2.237</span>,<span class="dv">1</span>)</span>
-<span id="cb166-16"><a href="accuracy-results.html#cb166-16" tabindex="-1"></a>      )</span>
-<span id="cb166-17"><a href="accuracy-results.html#cb166-17" tabindex="-1"></a>    )</span>
-<span id="cb166-18"><a href="accuracy-results.html#cb166-18" tabindex="-1"></a>    , <span class="at">type =</span> <span class="st">&quot;response&quot;</span> <span class="co"># probabilities</span></span>
-<span id="cb166-19"><a href="accuracy-results.html#cb166-19" tabindex="-1"></a>  )</span></code></pre></div>
+<span id="cb166-7"><a href="accuracy-results.html#cb166-7" tabindex="-1"></a>      , <span class="at">flight_altitude_m =</span> </span>
+<span id="cb166-8"><a href="accuracy-results.html#cb166-8" tabindex="-1"></a>        <span class="fu">unique</span>(tree_detect_df<span class="sc">$</span>flight_altitude_m)</span>
+<span id="cb166-9"><a href="accuracy-results.html#cb166-9" tabindex="-1"></a>        <span class="co"># seq(</span></span>
+<span id="cb166-10"><a href="accuracy-results.html#cb166-10" tabindex="-1"></a>        <span class="co">#   floor( min(tree_detect_df$flight_altitude_m) )</span></span>
+<span id="cb166-11"><a href="accuracy-results.html#cb166-11" tabindex="-1"></a>        <span class="co">#   , floor( max(tree_detect_df$flight_altitude_m) )</span></span>
+<span id="cb166-12"><a href="accuracy-results.html#cb166-12" tabindex="-1"></a>        <span class="co">#   , by = round(100/3.281)</span></span>
+<span id="cb166-13"><a href="accuracy-results.html#cb166-13" tabindex="-1"></a>        <span class="co"># )</span></span>
+<span id="cb166-14"><a href="accuracy-results.html#cb166-14" tabindex="-1"></a>      , <span class="at">flight_meters_per_second =</span> </span>
+<span id="cb166-15"><a href="accuracy-results.html#cb166-15" tabindex="-1"></a>        <span class="fu">seq</span>(</span>
+<span id="cb166-16"><a href="accuracy-results.html#cb166-16" tabindex="-1"></a>          <span class="fu">floor</span>( <span class="fu">min</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
+<span id="cb166-17"><a href="accuracy-results.html#cb166-17" tabindex="-1"></a>          , <span class="fu">floor</span>( <span class="fu">max</span>(tree_detect_df<span class="sc">$</span>flight_meters_per_second) )</span>
+<span id="cb166-18"><a href="accuracy-results.html#cb166-18" tabindex="-1"></a>          , <span class="at">by =</span> <span class="fu">round</span>(<span class="dv">5</span><span class="sc">/</span><span class="fl">2.237</span>)</span>
+<span id="cb166-19"><a href="accuracy-results.html#cb166-19" tabindex="-1"></a>        )</span>
+<span id="cb166-20"><a href="accuracy-results.html#cb166-20" tabindex="-1"></a>    )</span>
+<span id="cb166-21"><a href="accuracy-results.html#cb166-21" tabindex="-1"></a>    , <span class="at">type =</span> <span class="st">&quot;response&quot;</span> <span class="co"># probabilities</span></span>
+<span id="cb166-22"><a href="accuracy-results.html#cb166-22" tabindex="-1"></a>  )</span></code></pre></div>
 <p>contrast of altitude levels at different flight speeds (see the table footnote for interpretation) for the median (6.5 m) tree</p>
 <div class="sourceCode" id="cb167"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb167-1"><a href="accuracy-results.html#cb167-1" tabindex="-1"></a><span class="co"># em_temp</span></span>
 <span id="cb167-2"><a href="accuracy-results.html#cb167-2" tabindex="-1"></a><span class="co"># pairwise test for non-zero differences</span></span>
@@ -5591,13 +5808,13 @@ altitude (m): 61 / 91
 </tr>
 <tr>
 <td style="text-align:left;border-right:1px solid;">
-altitude (m): 61 / 121
+altitude (m): 61 / 122
 </td>
 <td style="text-align:left;">
-0.954
+0.953
 </td>
 <td style="text-align:left;">
-0.044
+0.045
 </td>
 <td style="text-align:left;">
 -1.020
@@ -5608,10 +5825,10 @@ altitude (m): 61 / 121
 </tr>
 <tr>
 <td style="text-align:left;border-right:1px solid;">
-altitude (m): 91 / 121
+altitude (m): 91 / 122
 </td>
 <td style="text-align:left;">
-0.977
+0.976
 </td>
 <td style="text-align:left;">
 0.023
@@ -5625,36 +5842,19 @@ altitude (m): 91 / 121
 </tr>
 <tr>
 <td style="text-align:left;vertical-align: top !important;" rowspan="3">
-6.2
+6
 </td>
 <td style="text-align:left;border-right:1px solid;">
 altitude (m): 61 / 91
 </td>
 <td style="text-align:left;">
-0.983
+0.982
 </td>
 <td style="text-align:left;">
-0.015
+0.016
 </td>
 <td style="text-align:left;">
--1.095
-</td>
-<td style="text-align:left;">
-1.000
-</td>
-</tr>
-<tr>
-<td style="text-align:left;border-right:1px solid;">
-altitude (m): 61 / 121
-</td>
-<td style="text-align:left;">
-0.966
-</td>
-<td style="text-align:left;">
-0.030
-</td>
-<td style="text-align:left;">
--1.095
+-1.110
 </td>
 <td style="text-align:left;">
 1.000
@@ -5662,16 +5862,87 @@ altitude (m): 61 / 121
 </tr>
 <tr>
 <td style="text-align:left;border-right:1px solid;">
-altitude (m): 91 / 121
+altitude (m): 61 / 122
 </td>
 <td style="text-align:left;">
-0.983
+0.965
 </td>
 <td style="text-align:left;">
-0.015
+0.031
 </td>
 <td style="text-align:left;">
--1.095
+-1.110
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+altitude (m): 91 / 122
+</td>
+<td style="text-align:left;">
+0.982
+</td>
+<td style="text-align:left;">
+0.016
+</td>
+<td style="text-align:left;">
+-1.110
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;vertical-align: top !important;" rowspan="3">
+8
+</td>
+<td style="text-align:left;border-right:1px solid;">
+altitude (m): 61 / 91
+</td>
+<td style="text-align:left;">
+0.988
+</td>
+<td style="text-align:left;">
+0.017
+</td>
+<td style="text-align:left;">
+-0.669
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+altitude (m): 61 / 122
+</td>
+<td style="text-align:left;">
+0.977
+</td>
+<td style="text-align:left;">
+0.035
+</td>
+<td style="text-align:left;">
+-0.669
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+altitude (m): 91 / 122
+</td>
+<td style="text-align:left;">
+0.988
+</td>
+<td style="text-align:left;">
+0.018
+</td>
+<td style="text-align:left;">
+-0.669
 </td>
 <td style="text-align:left;">
 1.000
@@ -5785,37 +6056,71 @@ p.value
 </thead>
 <tbody>
 <tr>
-<td style="text-align:left;">
-121
+<td style="text-align:left;vertical-align: top !important;" rowspan="3">
+122
 </td>
 <td style="text-align:left;border-right:1px solid;">
-speed (m sec<sup>-1</sup>): 4 / 6.2
+speed (m sec<sup>-1</sup>): 4 / 6
 </td>
 <td style="text-align:left;">
-0.987
+0.988
 </td>
 <td style="text-align:left;">
-0.019
+0.017
 </td>
 <td style="text-align:left;">
--0.695
+-0.671
 </td>
 <td style="text-align:left;">
 1.000
 </td>
 </tr>
 <tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 4 / 8
+</td>
 <td style="text-align:left;">
+0.977
+</td>
+<td style="text-align:left;">
+0.034
+</td>
+<td style="text-align:left;">
+-0.671
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 6 / 8
+</td>
+<td style="text-align:left;">
+0.988
+</td>
+<td style="text-align:left;">
+0.017
+</td>
+<td style="text-align:left;">
+-0.671
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;vertical-align: top !important;" rowspan="3">
 61
 </td>
 <td style="text-align:left;border-right:1px solid;">
-speed (m sec<sup>-1</sup>): 4 / 6.2
+speed (m sec<sup>-1</sup>): 4 / 6
 </td>
 <td style="text-align:left;">
-0.974
+0.976
 </td>
 <td style="text-align:left;">
-0.019
+0.017
 </td>
 <td style="text-align:left;">
 -1.375
@@ -5825,17 +6130,85 @@ speed (m sec<sup>-1</sup>): 4 / 6.2
 </td>
 </tr>
 <tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 4 / 8
+</td>
 <td style="text-align:left;">
+0.953
+</td>
+<td style="text-align:left;">
+0.033
+</td>
+<td style="text-align:left;">
+-1.375
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 6 / 8
+</td>
+<td style="text-align:left;">
+0.976
+</td>
+<td style="text-align:left;">
+0.017
+</td>
+<td style="text-align:left;">
+-1.375
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;vertical-align: top !important;" rowspan="3">
 91
 </td>
 <td style="text-align:left;border-right:1px solid;">
-speed (m sec<sup>-1</sup>): 4 / 6.2
+speed (m sec<sup>-1</sup>): 4 / 6
 </td>
 <td style="text-align:left;">
-0.980
+0.982
 </td>
 <td style="text-align:left;">
-0.012
+0.011
+</td>
+<td style="text-align:left;">
+-1.562
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 4 / 8
+</td>
+<td style="text-align:left;">
+0.965
+</td>
+<td style="text-align:left;">
+0.022
+</td>
+<td style="text-align:left;">
+-1.562
+</td>
+<td style="text-align:left;">
+1.000
+</td>
+</tr>
+<tr>
+<td style="text-align:left;border-right:1px solid;">
+speed (m sec<sup>-1</sup>): 6 / 8
+</td>
+<td style="text-align:left;">
+0.982
+</td>
+<td style="text-align:left;">
+0.011
 </td>
 <td style="text-align:left;">
 -1.562

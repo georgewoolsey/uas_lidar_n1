@@ -823,7 +823,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands
