@@ -445,11 +445,11 @@ dta_temp %>%
 
 the trend of increasing detection rate with tree height demonstrated with this data aligns well with prior work using aerial point cloud data for single-tree forest inventories
 
-let's check this for overstory versus understory trees. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying overstory and understory since it is a common value used in regional forest inventories.
+let's check this for merchantable versus sub-merchantable trees. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying merchantable and sub-merchantable since it is a common value used in regional forest inventories.
 
-```{r, fig.height=10}
-# 10 cm DBH, a common regional forest inventory breakpoint for describing overstory and understory forest densities
-ostory_dbh <- 10
+```{r, fig.height=10, fig.width=8.3}
+# 10 cm DBH, a common regional forest inventory breakpoint for describing merchantable and sub-merchantable forest densities
+ostory_dbh <- 10 # = ~ 4 inches *2.54
 # plt
 dta_temp <- 
   ground_truth_prediction_match_ans %>%
@@ -528,7 +528,7 @@ dta_temp %>%
   ggplot2::theme_light()+
   ggplot2::theme(
     legend.position = "top"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
     , axis.text.x = ggplot2::element_text(size = 8.5, angle = 0, face = "bold")
     , axis.text.y = ggplot2::element_blank()
     , axis.ticks.y = ggplot2::element_blank()
@@ -536,7 +536,10 @@ dta_temp %>%
     , panel.grid.minor.x = ggplot2::element_blank()
     , plot.subtitle = ggplot2::element_blank()
   )
+```
 
+```{r, include=F, eval=T, results=F}
+ggplot2::ggsave("../data/det_acc_by_dbh_bin.jpg", height = 10, width = 8.3)
 ```
 
 table that
@@ -900,7 +903,7 @@ plt_fn_temp <- function(
       ) +
       ggplot2::theme_light() +
       ggplot2::theme(
-        strip.text = ggplot2::element_text(face = "bold", color = "black")
+        strip.text = ggplot2::element_text(size = 10, face = "bold", color = "black")
       ) 
   }
 # get the plottttttttttttttttttt
@@ -915,12 +918,13 @@ dbh_plt_temp <-
   patchwork::wrap_plots(dbh_plts_temp, ncol = 2) + 
   patchwork::plot_annotation(
     subtitle = "Predicted DBH versus Reference DBH"
-    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_text(face = "bold"))
+    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_blank()) # ggplot2::element_text(face = "bold"))
   ) &
   ggplot2::theme(
     axis.title = ggplot2::element_text(size = 6)
     , axis.text = ggplot2::element_text(size = 6)
   )
+ggplot2::ggsave("../data/dbh_pred_v_ref.jpg", plot = dbh_plt_temp, height = 9.6, width = 8.7)
 # dbh_plt_temp
 # get the plottttttttttttttttttt
 ht_plts_temp <- 
@@ -934,17 +938,17 @@ ht_plt_temp <-
   patchwork::wrap_plots(ht_plts_temp, ncol = 2) + 
   patchwork::plot_annotation(
     subtitle = "Predicted Height versus Reference Height"
-    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_text(face = "bold"))
+    , theme = ggplot2::theme(plot.subtitle = ggplot2::element_blank()) # ggplot2::element_text(face = "bold"))
   ) &
   ggplot2::theme(
     axis.title = ggplot2::element_text(size = 6)
     , axis.text = ggplot2::element_text(size = 6)
   )
 # ht_plt_temp
-# ggplot2::ggsave(plot = ht_plt_temp, filename = "../data/heyhtscatter.jpg", height = 9, width = 8.95, dpi = "print")
+ggplot2::ggsave("../data/ht_pred_v_ref.jpg", plot = ht_plt_temp, height = 9.6, width = 8.7)
 ```
 
-**DBH**
+**DBH: predicted vs reference**
 
 ```{r, fig.height = 9.6, fig.width = 8.7}
 dbh_plt_temp
@@ -952,7 +956,7 @@ dbh_plt_temp
 
 the UAS-predicted DBH values are directionally correct as evidenced by the high correlation coefficient of approximately `r scales::comma(summary(lm(pred_dbh_cm~ref_dbh_cm , data = ground_truth_prediction_match_ans[[1]] %>% dplyr::filter(match_grp=="true positive")))$r.squared, accuracy=0.01)` across all tested flights. there is a size-dependent bias of DBH predictions with the UAS tending to overpredict the diameter of small and intermediate trees while underpredicting the diameter of the largest trees. the total measurement error remains reasonable for forest inventory with the RMSE of approximately `r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse),accuracy = 0.01)` cm (`r scales::comma(median(agg_ground_truth_match_ans$diff_dbh_cm_rmse)/2.54,accuracy = 0.01)` in) and the average magnitude of the DBH prediction error quantified by MAPE is approximately `r scales::percent(median(agg_ground_truth_match_ans$pct_diff_dbh_cm_mape),accuracy = 1)` across the flights
 
-**height**
+**height: predicted vs reference**
 
 ```{r, fig.height = 9.6, fig.width = 8.7}
 ht_plt_temp
@@ -967,8 +971,8 @@ gc()
 
 full distribution of predicted and reference values irrespective of correct or incorrect prediction match
 
-```{r, fig.height = 10.5, fig.width = 8}
-  ground_truth_prediction_match_ans %>%
+```{r, fig.height = 10, fig.width = 8.3}
+ground_truth_prediction_match_ans %>%
   purrr::list_rbind(names_to = "dataset_factor") %>%
   dplyr::mutate(
     dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
@@ -1032,8 +1036,8 @@ full distribution of predicted and reference values irrespective of correct or i
   ggplot2::theme_light() +
   ggplot2::theme(
     legend.position = "top"
-    , strip.text.x = ggplot2::element_text(size = 10, color = "black", face = "bold")
-    , strip.text.y.left =  ggplot2::element_text(size = 9, angle = 0, color = "black", face = "bold")
+    , strip.text.x = ggplot2::element_text(size = 9, color = "black", face = "bold")
+    , strip.text.y.left =  ggplot2::element_text(size = 8.5, angle = 0, color = "black", face = "bold")
     , axis.text.x = ggplot2::element_text(size = 6)
     , panel.grid = ggplot2::element_blank()
   )
@@ -1041,13 +1045,14 @@ full distribution of predicted and reference values irrespective of correct or i
 ```
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+ggplot2::ggsave("../data/dists_pred_v_ref.jpg", height = 10, width = 8.3)
 remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
 
 let's dive deeper on the tree-level DBH accuracies. recall that over the entire range of tree sizes we found DBH RMSE values of ~`r agg_ground_truth_match_ans %>% dplyr::pull(diff_dbh_cm_rmse) %>% median() %>% scales::comma(accuracy = 0.1, suffix = " cm")`, ME of ~`r agg_ground_truth_match_ans %>% dplyr::pull(diff_dbh_cm_mean) %>% median() %>% scales::comma(accuracy = 0.1, suffix = " cm")`, with DBH MAPE of `r agg_ground_truth_match_ans %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)`. We also noticed that inaccuracies in DBH for small trees "pulled up" the linear regression fit line of predicted DBH on reference field DBH which diverged above the line of equality for stems of approximately <10 cm DBH.
 
-let's shift our focus to relative error (MAPE) while providing absolute context (RMSE and ME) as text or secondary metrics to look into the penalty we face due to inaccuracies in DBH for small stems. for example, a 3 cm error on a 6 cm small tree is a 50% relative error while that same 3 cm error on a 30 cm overstory tree is a minor 10% error. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying overstory and understory since it is a common value used in regional forest inventories.
+let's shift our focus to relative error (MAPE) while providing absolute context (RMSE and ME) as text or secondary metrics to look into the penalty we face due to inaccuracies in DBH for small stems. for example, a 3 cm error on a 6 cm small tree is a 50% relative error while that same 3 cm error on a 30 cm merchantable tree is a minor 10% error. we'll use 10 cm (`r scales::comma(10/2.54,accuracy=0.1,suffix = " in")`) DBH as a threshold for classifying merchantable and sub-merchantable since it is a common value used in regional forest inventories.
 
 ```{r}
 # do it by data set
@@ -1338,7 +1343,7 @@ p_temp
 # ggplot2::ggsave("../data/dbh_acc_by_dbh_bin.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
 ```
 
-that looks like what we expected, with DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==2) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for overstory trees and DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==1) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for understory trees
+that looks like what we expected, with DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==2) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for merchantable trees and DBH MAPE of ~`r dta_temp %>% dplyr::filter(as.numeric(tree_dbh_cm_bin)==1) %>% dplyr::pull(pct_diff_dbh_cm_mape) %>% median() %>% scales::percent(accuracy = 0.1)` for sub-merchantable trees
 
 table that
 
@@ -1437,7 +1442,7 @@ that is interesting
 
 let's look into the DBH prediction error over the range of tree sizes and use LOESS smoothing to highlight the trend in relative prediction error
 
-```{r, fig.height = 10, fig.width = 8}
+```{r, fig.height = 10, fig.width = 8.3}
 # Data trends (dashed) are visualized using a LOESS (locally weighted scatterplot smoothing) regression. 
 # A span of 1.0 was utilized to include 100% of the observations in each local neighborhood, 
 # and the local polynomial degree was restricted to 1 (local linear regression) to prevent overfitting and boundary inflation at the data extremes.
@@ -1515,14 +1520,14 @@ p_temp <-
     , axis.text = ggplot2::element_text(size = 6)
   )
 p_temp
-ggplot2::ggsave("../data/dbh_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+ggplot2::ggsave("../data/dbh_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8.3)
 ```
 
 that's neat
 
 do it for height too
 
-```{r, fig.height = 10, fig.width = 8}
+```{r, fig.height = 10, fig.width = 8.3}
 # Data trends (dashed) are visualized using a LOESS (locally weighted scatterplot smoothing) regression. 
 # A span of 1.0 was utilized to include 100% of the observations in each local neighborhood, 
 # and the local polynomial degree was restricted to 1 (local linear regression) to prevent overfitting and boundary inflation at the data extremes.
@@ -1599,7 +1604,7 @@ p_temp <-
     , axis.text = ggplot2::element_text(size = 6)
   )
 p_temp
-ggplot2::ggsave("../data/ht_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+ggplot2::ggsave("../data/ht_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8.3)
 ```
 
 that is also neat
@@ -2744,10 +2749,10 @@ ggplot2::ggplot(
     )
     , alpha = 0.05, color = NA
   ) +
-  ggplot2::geom_line(lwd = 1.2, alpha = 0.85) +
+  ggplot2::geom_line(lwd = 1.05, alpha = 0.85) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_altitude_m)
-    , labeller = ggplot2::labeller( flight_altitude_m = ~paste("Altitude:", .x, " (m)") )
+    , labeller = ggplot2::labeller( flight_altitude_m = ~paste("altitude:", .x, " (m)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "rocket", begin = 0.9, end = 0.5) +
   ggplot2::scale_fill_viridis_d(option = "rocket", begin = 0.9, end = 0.5) +
@@ -2762,7 +2767,7 @@ ggplot2::ggplot(
     , breaks = scales::breaks_extended(n=8)
   ) +
   ggplot2::labs(
-    color = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ "), fill = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ ")
+    color = latex2exp::TeX("speed  $m \\cdot sec^{-1}$ "), fill = latex2exp::TeX("speed  $m \\cdot sec^{-1}$ ")
     , x = "tree height (m)", y = "detection probability"
     # , title = "detection probability curves"
     # , subtitle = "conditional effect of flight speed"
@@ -2782,6 +2787,11 @@ ggplot2::ggplot(
     )
     , fill = "none"
   )
+
+```
+
+```{r, include=F, eval=T, results=F}
+ggplot2::ggsave("../data/pr_detect_by_speed.jpg", height = 7.2, width = 9)
 ```
 
 The wide confidence bounds with all lines contained within the overlapping bounds indicate that at all flight altitudes, the flight speed does not impact tree detection. There is some evidence that the higher the flight altitude, the less impactful speed is on the resulting tree detection (but not statistically significant).
@@ -2805,10 +2815,10 @@ ggplot2::ggplot(
     )
     , alpha = 0.05, color = NA
   ) +
-  ggplot2::geom_line(lwd = 1.2, alpha = 0.85) +
+  ggplot2::geom_line(lwd = 1.05, alpha = 0.85) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_meters_per_second)
-    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("Speed:", .x, "(m s\u207B\u00B9)") )
+    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("speed:", .x, "(m s\u207B\u00B9)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
   ggplot2::scale_fill_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
@@ -2841,6 +2851,10 @@ ggplot2::ggplot(
     color = ggplot2::guide_legend(override.aes = list(shape = 15, lwd = 8, fill = NA))
     , fill = "none"
   )
+```
+
+```{r, include=F, eval=T, results=F}
+ggplot2::ggsave("../data/pr_detect_by_alt.jpg", height = 7.2, width = 9)
 ```
 
 The wide confidence bounds with all lines contained within the overlapping bounds indicate that at all flight speeds, the flight altitude does not impact tree detection. There is some evidence that the higher the flight speed, the less impactful altitude is on the resulting tree detection (but not statistically significant).
@@ -3008,7 +3022,7 @@ em_temp %>%
   ) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_altitude_m)
-    , labeller = ggplot2::labeller( flight_altitude_m = ~paste("Altitude:", .x, " (m)") )
+    , labeller = ggplot2::labeller( flight_altitude_m = ~paste("altitude:", .x, " (m)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "rocket", begin = 0.9, end = 0.5) +
   ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
@@ -3058,7 +3072,7 @@ em_temp %>%
   ) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_meters_per_second)
-    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("Speed:", .x, "(m s\u207B\u00B9)") )
+    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("speed:", .x, "(m s\u207B\u00B9)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
   ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +

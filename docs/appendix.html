@@ -452,7 +452,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb179-43"><a href="appendix.html#cb179-43" tabindex="-1"></a>    , <span class="at">plot.subtitle =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>)</span>
 <span id="cb179-44"><a href="appendix.html#cb179-44" tabindex="-1"></a>    , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>)</span>
 <span id="cb179-45"><a href="appendix.html#cb179-45" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-169-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-172-1.png" alt="" width="1008" /></p>
 <p>sure? we’ll use a linear model to fill in volume where we don’t have a DBH, height, species observation in the FIA data</p>
 <div class="sourceCode" id="cb180"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb180-1"><a href="appendix.html#cb180-1" tabindex="-1"></a>net_vol_mod <span class="ot">&lt;-</span> <span class="fu">lm</span>(</span>
 <span id="cb180-2"><a href="appendix.html#cb180-2" tabindex="-1"></a>  net_volume_ft3 <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> species_symbol<span class="sc">*</span>dia<span class="sc">*</span>ht</span>
@@ -565,7 +565,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb181-44"><a href="appendix.html#cb181-44" tabindex="-1"></a>    , <span class="at">plot.subtitle =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>)</span>
 <span id="cb181-45"><a href="appendix.html#cb181-45" tabindex="-1"></a>    , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>)</span>
 <span id="cb181-46"><a href="appendix.html#cb181-46" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-171-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-174-1.png" alt="" width="1008" /></p>
 <div id="field-data" class="section level3 hasAnchor" number="6.1.1">
 <h3><span class="header-section-number">6.1.1</span> Field Data<a href="appendix.html#field-data" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>get the volume for the field data (remembering we’re working in imperial units)</p>
@@ -670,7 +670,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb183-43"><a href="appendix.html#cb183-43" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>( <span class="fu">seq</span>(<span class="dv">2</span>,<span class="dv">6</span>,<span class="at">by=</span><span class="dv">2</span>), <span class="at">border_right =</span> <span class="cn">TRUE</span>, <span class="at">include_thead =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-174">Table 6.1: </span>Field Data: Volume-Focused Stand Summary
+<span id="tab:unnamed-chunk-177">Table 6.1: </span>Field Data: Volume-Focused Stand Summary
 </caption>
 <thead>
 <tr>
@@ -877,7 +877,7 @@ gross
 <span id="cb187-15"><a href="appendix.html#cb187-15" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>()</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-177">Table 6.2: </span>predicted species distribution based on proportional allocation
+<span id="tab:unnamed-chunk-180">Table 6.2: </span>predicted species distribution based on proportional allocation
 </caption>
 <thead>
 <tr>
@@ -1099,7 +1099,7 @@ QUGA
 <span id="cb189-78"><a href="appendix.html#cb189-78" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
 <table class="table" style="font-size: 11.5px; margin-left: auto; margin-right: auto;">
 <caption style="font-size: initial !important;">
-<span id="tab:unnamed-chunk-179">Table 6.3: </span>Volume: Stand-Level Accuracy
+<span id="tab:unnamed-chunk-182">Table 6.3: </span>Volume: Stand-Level Accuracy
 </caption>
 <thead>
 <tr>
@@ -1429,7 +1429,7 @@ difference
 <span id="cb190-86"><a href="appendix.html#cb190-86" tabindex="-1"></a>    , <span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()</span>
 <span id="cb190-87"><a href="appendix.html#cb190-87" tabindex="-1"></a>    , <span class="at">panel.grid.minor.x =</span> <span class="fu">element_blank</span>()</span>
 <span id="cb190-88"><a href="appendix.html#cb190-88" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-180-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-183-1.png" alt="" width="1008" /></p>
 <p>another plot</p>
 <div class="sourceCode" id="cb191"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb191-1"><a href="appendix.html#cb191-1" tabindex="-1"></a>agg_ground_truth_match_ans <span class="sc">%&gt;%</span> </span>
 <span id="cb191-2"><a href="appendix.html#cb191-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(</span>
@@ -1506,7 +1506,7 @@ difference
 <span id="cb191-73"><a href="appendix.html#cb191-73" tabindex="-1"></a>      <span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">linetype =</span> <span class="dv">0</span>)</span>
 <span id="cb191-74"><a href="appendix.html#cb191-74" tabindex="-1"></a>    )</span>
 <span id="cb191-75"><a href="appendix.html#cb191-75" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-181-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-184-1.png" alt="" width="1008" /></p>
 <p>ok</p>
 </div>
 </div>
@@ -1700,7 +1700,7 @@ difference
 <span id="cb194-21"><a href="appendix.html#cb194-21" tabindex="-1"></a>    )</span>
 <span id="cb194-22"><a href="appendix.html#cb194-22" tabindex="-1"></a> }</span>
 <span id="cb194-23"><a href="appendix.html#cb194-23" tabindex="-1"></a>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-184-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-187-1.png" alt="" width="1008" /></p>
 <p>create the tree list with trees assigned the X and Y of the raster cell and for imputed plot id’s the specific tree will appear multiple times based on the number of times the plot is replicated within the area of interest but each tree will have a different X,Y and stability weight based on the surrounding imputed plots</p>
 <div class="sourceCode" id="cb195"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb195-1"><a href="appendix.html#cb195-1" tabindex="-1"></a><span class="co"># add to tree list</span></span>
 <span id="cb195-2"><a href="appendix.html#cb195-2" tabindex="-1"></a>treemap_tree_list_df <span class="ot">&lt;-</span></span>
@@ -1978,7 +1978,7 @@ difference
 <span id="cb199-100"><a href="appendix.html#cb199-100" tabindex="-1"></a>  )</span>
 <span id="cb199-101"><a href="appendix.html#cb199-101" tabindex="-1"></a><span class="co"># plt3_temp</span></span>
 <span id="cb199-102"><a href="appendix.html#cb199-102" tabindex="-1"></a>patchwork<span class="sc">::</span><span class="fu">wrap_plots</span>(<span class="fu">list</span>(plt2_temp,plt3_temp,plt1_temp), <span class="at">ncol =</span> <span class="dv">2</span>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-188-1.png" alt="" width="835.2" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-191-1.png" alt="" width="835.2" /></p>
 <div class="sourceCode" id="cb200"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb200-1"><a href="appendix.html#cb200-1" tabindex="-1"></a><span class="co"># ggplot2::ggsave(filename = &quot;../data/spec_predictors_ex.jpg&quot;, height = 10.5, width = 9, dpi = &quot;print&quot;)</span></span></code></pre></div>
 </div>
 <div id="predictions" class="section level3 hasAnchor" number="6.2.2">
@@ -2170,7 +2170,7 @@ difference
 <span id="cb204-100"><a href="appendix.html#cb204-100" tabindex="-1"></a>  )</span>
 <span id="cb204-101"><a href="appendix.html#cb204-101" tabindex="-1"></a><span class="co"># plt3_temp</span></span>
 <span id="cb204-102"><a href="appendix.html#cb204-102" tabindex="-1"></a>patchwork<span class="sc">::</span><span class="fu">wrap_plots</span>(<span class="fu">list</span>(plt2_temp,plt3_temp,plt1_temp), <span class="at">ncol =</span> <span class="dv">2</span>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-193-1.png" alt="" width="835.2" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-196-1.png" alt="" width="835.2" /></p>
 <div class="sourceCode" id="cb205"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb205-1"><a href="appendix.html#cb205-1" tabindex="-1"></a><span class="co"># ggplot2::ggsave(filename = &quot;../data/spec_predictors_pred_ex.jpg&quot;, height = 10.5, width = 9, dpi = &quot;print&quot;)</span></span></code></pre></div>
 <p>yep, that resembles the training data. let’s map predicted species in space for each flight</p>
 <div class="sourceCode" id="cb206"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb206-1"><a href="appendix.html#cb206-1" tabindex="-1"></a>predicted_trees <span class="sc">%&gt;%</span></span>
@@ -2220,7 +2220,7 @@ difference
 <span id="cb206-45"><a href="appendix.html#cb206-45" tabindex="-1"></a>      <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb206-46"><a href="appendix.html#cb206-46" tabindex="-1"></a>      , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb206-47"><a href="appendix.html#cb206-47" tabindex="-1"></a>    )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-195-1.png" alt="" width="624" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-198-1.png" alt="" width="624" /></p>
 <div class="sourceCode" id="cb207"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb207-1"><a href="appendix.html#cb207-1" tabindex="-1"></a><span class="co"># ggplot2::ggsave(filename = &quot;../data/spec_predicted.jpg&quot;, height = 9.8, width = 6.5, dpi = &quot;print&quot;)</span></span></code></pre></div>
 <p>and table that</p>
 <div class="sourceCode" id="cb208"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb208-1"><a href="appendix.html#cb208-1" tabindex="-1"></a>dta_temp <span class="ot">&lt;-</span> predicted_trees <span class="sc">%&gt;%</span></span>
@@ -2266,7 +2266,7 @@ difference
 <span id="cb208-41"><a href="appendix.html#cb208-41" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-196">Table 6.4: </span>Predicted Species
+<span id="tab:unnamed-chunk-199">Table 6.4: </span>Predicted Species
 </caption>
 <thead>
 <tr>
@@ -2308,25 +2308,25 @@ QUGA
 4.5
 </td>
 <td style="text-align:left;">
-24<br>(0.4%)
+23<br>(0.4%)
 </td>
 <td style="text-align:left;">
 11<br>(0.2%)
 </td>
 <td style="text-align:left;">
-18<br>(0.3%)
+13<br>(0.2%)
 </td>
 <td style="text-align:left;">
-4,187<br>(78.2%)
+4,168<br>(77.9%)
 </td>
 <td style="text-align:left;">
-420<br>(7.8%)
+416<br>(7.8%)
 </td>
 <td style="text-align:left;">
-688<br>(12.9%)
+716<br>(13.4%)
 </td>
 <td style="text-align:left;">
-4<br>(0.1%)
+5<br>(0.1%)
 </td>
 </tr>
 <tr>
@@ -2334,25 +2334,25 @@ QUGA
 8.9
 </td>
 <td style="text-align:left;">
-7<br>(0.1%)
+9<br>(0.2%)
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-19<br>(0.3%)
+26<br>(0.5%)
 </td>
 <td style="text-align:left;">
-4,402<br>(79.0%)
+4,355<br>(78.2%)
 </td>
 <td style="text-align:left;">
-472<br>(8.5%)
+467<br>(8.4%)
 </td>
 <td style="text-align:left;">
-666<br>(12.0%)
+710<br>(12.7%)
 </td>
 <td style="text-align:left;">
-3<br>(0.1%)
+2<br>(0.0%)
 </td>
 </tr>
 <tr>
@@ -2363,25 +2363,25 @@ NA
 4.5
 </td>
 <td style="text-align:left;">
-9<br>(0.2%)
+7<br>(0.1%)
 </td>
 <td style="text-align:left;">
-9<br>(0.2%)
+10<br>(0.2%)
 </td>
 <td style="text-align:left;">
-16<br>(0.3%)
+14<br>(0.3%)
 </td>
 <td style="text-align:left;">
-3,961<br>(72.2%)
+4,016<br>(73.2%)
 </td>
 <td style="text-align:left;">
-475<br>(8.7%)
+466<br>(8.5%)
 </td>
 <td style="text-align:left;">
-696<br>(12.7%)
+647<br>(11.8%)
 </td>
 <td style="text-align:left;">
-323<br>(5.9%)
+329<br>(6.0%)
 </td>
 </tr>
 <tr>
@@ -2389,25 +2389,25 @@ NA
 8.9
 </td>
 <td style="text-align:left;">
-16<br>(0.3%)
+15<br>(0.3%)
 </td>
 <td style="text-align:left;">
-2<br>(0.0%)
+5<br>(0.1%)
 </td>
 <td style="text-align:left;">
-20<br>(0.4%)
+27<br>(0.5%)
 </td>
 <td style="text-align:left;">
-4,284<br>(76.8%)
+4,328<br>(77.6%)
 </td>
 <td style="text-align:left;">
-491<br>(8.8%)
+482<br>(8.6%)
 </td>
 <td style="text-align:left;">
-741<br>(13.3%)
+699<br>(12.5%)
 </td>
 <td style="text-align:left;">
-23<br>(0.4%)
+21<br>(0.4%)
 </td>
 </tr>
 <tr>
@@ -2418,25 +2418,25 @@ NA
 4.5
 </td>
 <td style="text-align:left;">
-9<br>(0.2%)
+16<br>(0.3%)
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-12<br>(0.2%)
+22<br>(0.4%)
 </td>
 <td style="text-align:left;">
-4,308<br>(78.1%)
+4,265<br>(77.4%)
 </td>
 <td style="text-align:left;">
-422<br>(7.7%)
+431<br>(7.8%)
 </td>
 <td style="text-align:left;">
-723<br>(13.1%)
+743<br>(13.5%)
 </td>
 <td style="text-align:left;">
-39<br>(0.7%)
+36<br>(0.7%)
 </td>
 </tr>
 <tr>
@@ -2444,25 +2444,25 @@ NA
 8.9
 </td>
 <td style="text-align:left;">
-13<br>(0.2%)
+5<br>(0.1%)
 </td>
 <td style="text-align:left;">
 1<br>(0.0%)
 </td>
 <td style="text-align:left;">
-4<br>(0.1%)
+11<br>(0.2%)
 </td>
 <td style="text-align:left;">
-4,113<br>(73.4%)
+4,140<br>(73.9%)
 </td>
 <td style="text-align:left;">
-461<br>(8.2%)
+458<br>(8.2%)
 </td>
 <td style="text-align:left;">
-756<br>(13.5%)
+729<br>(13.0%)
 </td>
 <td style="text-align:left;">
-255<br>(4.6%)
+259<br>(4.6%)
 </td>
 </tr>
 </tbody>
@@ -2524,7 +2524,7 @@ NA
 <span id="cb209-53"><a href="appendix.html#cb209-53" tabindex="-1"></a>    , <span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()</span>
 <span id="cb209-54"><a href="appendix.html#cb209-54" tabindex="-1"></a>    , <span class="at">axis.ticks.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()</span>
 <span id="cb209-55"><a href="appendix.html#cb209-55" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-197-1.png" alt="" width="672" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-200-1.png" alt="" width="672" /></p>
 <p>lastly, let’s look at the height distribution within each species since species was predicted based on height and location</p>
 <div class="sourceCode" id="cb210"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb210-1"><a href="appendix.html#cb210-1" tabindex="-1"></a>predicted_trees <span class="sc">%&gt;%</span></span>
 <span id="cb210-2"><a href="appendix.html#cb210-2" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">&quot;dataset_factor&quot;</span>) <span class="sc">%&gt;%</span></span>
@@ -2577,7 +2577,7 @@ NA
 <span id="cb210-49"><a href="appendix.html#cb210-49" tabindex="-1"></a>    , <span class="at">axis.text.x =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">7</span>, <span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">vjust =</span> <span class="dv">1</span>)</span>
 <span id="cb210-50"><a href="appendix.html#cb210-50" tabindex="-1"></a>    , <span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">8</span>)</span>
 <span id="cb210-51"><a href="appendix.html#cb210-51" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-199-1.png" alt="" width="672" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-202-1.png" alt="" width="672" /></p>
 <p>let’s try another way to visualize the height distribution by species</p>
 <div class="sourceCode" id="cb211"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb211-1"><a href="appendix.html#cb211-1" tabindex="-1"></a>predicted_trees <span class="sc">%&gt;%</span></span>
 <span id="cb211-2"><a href="appendix.html#cb211-2" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">list_rbind</span>(<span class="at">names_to =</span> <span class="st">&quot;dataset_factor&quot;</span>) <span class="sc">%&gt;%</span></span>
@@ -2629,7 +2629,7 @@ NA
 <span id="cb211-48"><a href="appendix.html#cb211-48" tabindex="-1"></a>    , <span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">7</span>)</span>
 <span id="cb211-49"><a href="appendix.html#cb211-49" tabindex="-1"></a>    , <span class="at">axis.text.x =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">8</span>)</span>
 <span id="cb211-50"><a href="appendix.html#cb211-50" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-200-1.png" alt="" width="672" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-203-1.png" alt="" width="672" /></p>
 </div>
 <div id="field-data-1" class="section level3 hasAnchor" number="6.2.3">
 <h3><span class="header-section-number">6.2.3</span> Field Data<a href="appendix.html#field-data-1" class="anchor-section" aria-label="Anchor link to header"></a></h3>
@@ -2674,7 +2674,7 @@ NA
 <span id="cb212-37"><a href="appendix.html#cb212-37" tabindex="-1"></a>      <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb212-38"><a href="appendix.html#cb212-38" tabindex="-1"></a>      , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb212-39"><a href="appendix.html#cb212-39" tabindex="-1"></a>    )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-201-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-204-1.png" alt="" width="1008" /></p>
 <p>and table that</p>
 <div class="sourceCode" id="cb213"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb213-1"><a href="appendix.html#cb213-1" tabindex="-1"></a>dta_temp <span class="ot">&lt;-</span> validation_trees <span class="sc">%&gt;%</span></span>
 <span id="cb213-2"><a href="appendix.html#cb213-2" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_drop_geometry</span>() <span class="sc">%&gt;%</span> </span>
@@ -2704,7 +2704,7 @@ NA
 <span id="cb213-26"><a href="appendix.html#cb213-26" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">kable_styling</span>()</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-202">Table 6.5: </span>Reference Species
+<span id="tab:unnamed-chunk-205">Table 6.5: </span>Reference Species
 </caption>
 <thead>
 <tr>
@@ -2795,7 +2795,7 @@ PIEN
 <span id="cb214-46"><a href="appendix.html#cb214-46" tabindex="-1"></a>    , <span class="at">axis.text.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()</span>
 <span id="cb214-47"><a href="appendix.html#cb214-47" tabindex="-1"></a>    , <span class="at">axis.ticks.y =</span> ggplot2<span class="sc">::</span><span class="fu">element_blank</span>()</span>
 <span id="cb214-48"><a href="appendix.html#cb214-48" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-203-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-206-1.png" alt="" width="1008" /></p>
 </div>
 <div id="predicted-species-composition-accuracy" class="section level3 hasAnchor" number="6.2.4">
 <h3><span class="header-section-number">6.2.4</span> Predicted Species Composition Accuracy<a href="appendix.html#predicted-species-composition-accuracy" class="anchor-section" aria-label="Anchor link to header"></a></h3>
@@ -2886,7 +2886,7 @@ PIEN
 <span id="cb216-36"><a href="appendix.html#cb216-36" tabindex="-1"></a>      <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb216-37"><a href="appendix.html#cb216-37" tabindex="-1"></a>      , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb216-38"><a href="appendix.html#cb216-38" tabindex="-1"></a>    )  </span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-206-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-209-1.png" alt="" width="1008" /></p>
 <p>table it</p>
 <div class="sourceCode" id="cb217"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb217-1"><a href="appendix.html#cb217-1" tabindex="-1"></a>species_comp_temp <span class="sc">%&gt;%</span> </span>
 <span id="cb217-2"><a href="appendix.html#cb217-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
@@ -2924,7 +2924,7 @@ PIEN
 <span id="cb217-34"><a href="appendix.html#cb217-34" tabindex="-1"></a>  )</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-207">Table 6.6: </span>Species Proportional Comparision<br>Total Overlap Index: 77.7%
+<span id="tab:unnamed-chunk-210">Table 6.6: </span>Species Proportional Comparision<br>Total Overlap Index: 78.5%
 </caption>
 <thead>
 <tr>
@@ -2975,25 +2975,25 @@ PIEN
 predicted
 </td>
 <td style="text-align:left;">
-16<br>(0.3%)
+15<br>(0.3%)
 </td>
 <td style="text-align:left;">
-2<br>(0.0%)
+5<br>(0.1%)
 </td>
 <td style="text-align:left;">
-20<br>(0.4%)
+27<br>(0.5%)
 </td>
 <td style="text-align:left;">
-4,284<br>(76.8%)
+4,328<br>(77.6%)
 </td>
 <td style="text-align:left;">
-491<br>(8.8%)
+482<br>(8.6%)
 </td>
 <td style="text-align:left;">
-741<br>(13.3%)
+699<br>(12.5%)
 </td>
 <td style="text-align:left;">
-23<br>(0.4%)
+21<br>(0.4%)
 </td>
 <td style="text-align:left;">
 0<br>(0.0%)
@@ -3036,7 +3036,7 @@ field
 </tr>
 </tbody>
 </table>
-<p>in the table above, we calculated the total overlap index of 77.7% which is sometimes referred to as Schoener’s D index where a value of 1 means complete overlap (identical), while 0 means no overlap. we’ll explore this concept of similarity/dissimilarity between the predicted and reference species compositions in more detail below</p>
+<p>in the table above, we calculated the total overlap index of 78.5% which is sometimes referred to as Schoener’s D index where a value of 1 means complete overlap (identical), while 0 means no overlap. we’ll explore this concept of similarity/dissimilarity between the predicted and reference species compositions in more detail below</p>
 <p>we can plot the predicted vs reference proportional distribution by species</p>
 <div class="sourceCode" id="cb218"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb218-1"><a href="appendix.html#cb218-1" tabindex="-1"></a>species_comp_temp <span class="sc">%&gt;%</span> </span>
 <span id="cb218-2"><a href="appendix.html#cb218-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(species_symbol, pred_pct, ref_pct) <span class="sc">%&gt;%</span> </span>
@@ -3063,7 +3063,7 @@ field
 <span id="cb218-23"><a href="appendix.html#cb218-23" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb218-24"><a href="appendix.html#cb218-24" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
 <span id="cb218-25"><a href="appendix.html#cb218-25" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-208-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-211-1.png" alt="" width="1008" /></p>
 <p>and the proportion of total</p>
 <div class="sourceCode" id="cb219"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb219-1"><a href="appendix.html#cb219-1" tabindex="-1"></a>species_comp_temp <span class="sc">%&gt;%</span> </span>
 <span id="cb219-2"><a href="appendix.html#cb219-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(species_symbol, pred_pct, ref_pct) <span class="sc">%&gt;%</span> </span>
@@ -3106,7 +3106,7 @@ field
 <span id="cb219-39"><a href="appendix.html#cb219-39" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb219-40"><a href="appendix.html#cb219-40" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
 <span id="cb219-41"><a href="appendix.html#cb219-41" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-209-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-212-1.png" alt="" width="1008" /></p>
 <p>While not specifically designed for evaluating the accuracy of a proposed prediction method, the <code>vegan</code> <a href="https://vegandevs.github.io/vegan/reference/vegdist.html">package</a> provides utilities for comparing species assemblages using community ecology methods. Let’s use the <code>vegan::vegdist()</code> function to compute the Bray-Curtis index which can be used to quantify the compositional dissimilarity between two different samples. This index is bounded between 0 and 1, where 0 = same composition and 1 = maximally dissimilar (see <a href="https://peat-clark.github.io/BIO381/veganTutorial.html">here</a>). For our purposes, dissimilarity quantifies the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile.</p>
 <p>Because Bray-Curtis is a <strong>dissimilarity</strong> measure and Schoener’s D (total overlap) index which we looked at above is a <strong>similarity</strong> measure, they can be interpreted as:</p>
 <p><span class="math display">\[\textrm{Bray-Curtis}_{dissimilarity} \approx 1-\textrm{Schoener}_{similarity}\]</span></p>
@@ -3157,7 +3157,7 @@ field
 <span id="cb220-44"><a href="appendix.html#cb220-44" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-210">Table 6.7: </span>Predicted vs Reference Profile Similarity Metrics
+<span id="tab:unnamed-chunk-213">Table 6.7: </span>Predicted vs Reference Profile Similarity Metrics
 </caption>
 <thead>
 <tr>
@@ -3177,7 +3177,7 @@ interpretation
 Bray-Curtis Dissimilarity Index
 </td>
 <td style="text-align:left;font-weight: bold;">
-22.32%
+21.53%
 </td>
 <td style="text-align:left;">
 proportion of relative species profile mis-matched
@@ -3188,7 +3188,7 @@ proportion of relative species profile mis-matched
 Bray-Curtis Similarity
 </td>
 <td style="text-align:left;font-weight: bold;">
-77.68%
+78.47%
 </td>
 <td style="text-align:left;">
 proportion of total distribution matching perfectly
@@ -3199,7 +3199,7 @@ proportion of total distribution matching perfectly
 Schoener’s D (total overlap) Index
 </td>
 <td style="text-align:left;font-weight: bold;">
-77.68%
+78.47%
 </td>
 <td style="text-align:left;">
 equal to Bray-Curtis similarity for proportions
@@ -3341,7 +3341,7 @@ equal to Bray-Curtis similarity for proportions
 <span id="cb222-45"><a href="appendix.html#cb222-45" tabindex="-1"></a>    <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb222-46"><a href="appendix.html#cb222-46" tabindex="-1"></a>    , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb222-47"><a href="appendix.html#cb222-47" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-213-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-216-1.png" alt="" width="1008" /></p>
 <p>table it by height bin</p>
 <div class="sourceCode" id="cb223"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb223-1"><a href="appendix.html#cb223-1" tabindex="-1"></a>species_comp_temp <span class="sc">%&gt;%</span> </span>
 <span id="cb223-2"><a href="appendix.html#cb223-2" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">mutate</span>(</span>
@@ -3378,7 +3378,7 @@ equal to Bray-Curtis similarity for proportions
 <span id="cb223-33"><a href="appendix.html#cb223-33" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="dv">1</span>, <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-214">Table 6.8: </span>Species Proportional Comparision<br>by tree height quartile
+<span id="tab:unnamed-chunk-217">Table 6.8: </span>Species Proportional Comparision<br>by tree height quartile
 </caption>
 <thead>
 <tr>
@@ -3435,31 +3435,31 @@ Q1: 2-3.35 m
 predicted
 </td>
 <td style="text-align:left;">
-3<br>(0.2%)
+4<br>(0.3%)
 </td>
 <td style="text-align:left;">
-1<br>(0.1%)
-</td>
-<td style="text-align:left;">
-0<br>(0.0%)
-</td>
-<td style="text-align:left;">
-10<br>(0.7%)
-</td>
-<td style="text-align:left;">
-1,037<br>(69.9%)
+5<br>(0.3%)
 </td>
 <td style="text-align:left;">
 0<br>(0.0%)
 </td>
 <td style="text-align:left;">
-264<br>(17.8%)
+15<br>(1.0%)
 </td>
 <td style="text-align:left;">
-149<br>(10.0%)
+1,056<br>(71.2%)
 </td>
 <td style="text-align:left;">
-20<br>(1.3%)
+0<br>(0.0%)
+</td>
+<td style="text-align:left;">
+246<br>(16.6%)
+</td>
+<td style="text-align:left;">
+140<br>(9.4%)
+</td>
+<td style="text-align:left;">
+18<br>(1.2%)
 </td>
 </tr>
 <tr>
@@ -3502,28 +3502,28 @@ Q2: 3.35-6.49 m
 predicted
 </td>
 <td style="text-align:left;">
-6<br>(0.5%)
-</td>
-<td style="text-align:left;">
-1<br>(0.1%)
+3<br>(0.2%)
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-7<br>(0.6%)
+NA
 </td>
 <td style="text-align:left;">
-884<br>(72.1%)
+9<br>(0.7%)
+</td>
+<td style="text-align:left;">
+903<br>(73.7%)
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-187<br>(15.3%)
+195<br>(15.9%)
 </td>
 <td style="text-align:left;">
-138<br>(11.3%)
+113<br>(9.2%)
 </td>
 <td style="text-align:left;">
 3<br>(0.2%)
@@ -3537,7 +3537,7 @@ field
 0<br>(0.0%)
 </td>
 <td style="text-align:left;">
-0<br>(0.0%)
+NA
 </td>
 <td style="text-align:left;">
 NA
@@ -3569,7 +3569,7 @@ Q3: 6.49-17.4 m
 predicted
 </td>
 <td style="text-align:left;">
-7<br>(0.5%)
+8<br>(0.6%)
 </td>
 <td style="text-align:left;">
 NA
@@ -3578,19 +3578,19 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-3<br>(0.2%)
+2<br>(0.1%)
 </td>
 <td style="text-align:left;">
-1,189<br>(82.5%)
+1,197<br>(83.1%)
 </td>
 <td style="text-align:left;">
 0<br>(0.0%)
 </td>
 <td style="text-align:left;">
-40<br>(2.8%)
+41<br>(2.8%)
 </td>
 <td style="text-align:left;">
-202<br>(14.0%)
+193<br>(13.4%)
 </td>
 <td style="text-align:left;">
 NA
@@ -3645,19 +3645,19 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-NA
+1<br>(0.1%)
 </td>
 <td style="text-align:left;">
-1,174<br>(82.3%)
-</td>
-<td style="text-align:left;">
-NA
+1,172<br>(82.2%)
 </td>
 <td style="text-align:left;">
 NA
 </td>
 <td style="text-align:left;">
-252<br>(17.7%)
+NA
+</td>
+<td style="text-align:left;">
+253<br>(17.7%)
 </td>
 <td style="text-align:left;">
 NA
@@ -3677,7 +3677,7 @@ NA
 NA
 </td>
 <td style="text-align:left;">
-NA
+0<br>(0.0%)
 </td>
 <td style="text-align:left;">
 1,269<br>(100.0%)
@@ -3749,7 +3749,7 @@ NA
 <span id="cb224-48"><a href="appendix.html#cb224-48" tabindex="-1"></a>    , <span class="at">axis.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">8</span>)</span>
 <span id="cb224-49"><a href="appendix.html#cb224-49" tabindex="-1"></a>    , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>)</span>
 <span id="cb224-50"><a href="appendix.html#cb224-50" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-215-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-218-1.png" alt="" width="1008" /></p>
 <p>most of the misclassification occurs in the smaller tree classes which have less influence on stand-level metrics like basal area and total volume</p>
 <p>let’s get the similarity/dissimilarity values by height bin to quantify the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile</p>
 <div class="sourceCode" id="cb225"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb225-1"><a href="appendix.html#cb225-1" tabindex="-1"></a>bc_df_temp <span class="ot">&lt;-</span> </span>
@@ -3806,7 +3806,7 @@ NA
 <span id="cb225-52"><a href="appendix.html#cb225-52" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="dv">1</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-216">Table 6.9: </span>Predicted vs Reference Profile Similarity Metrics<br>by tree height quartile
+<span id="tab:unnamed-chunk-219">Table 6.9: </span>Predicted vs Reference Profile Similarity Metrics<br>by tree height quartile
 </caption>
 <thead>
 <tr>
@@ -3827,10 +3827,10 @@ Bray-Curtis Similarity
 Q1: 2-3.35 m
 </td>
 <td style="text-align:left;">
-29.05%
+27.76%
 </td>
 <td style="text-align:left;">
-70.95%
+72.24%
 </td>
 </tr>
 <tr>
@@ -3838,10 +3838,10 @@ Q1: 2-3.35 m
 Q2: 3.35-6.49 m
 </td>
 <td style="text-align:left;">
-26.58%
+25.03%
 </td>
 <td style="text-align:left;">
-73.42%
+74.97%
 </td>
 </tr>
 <tr>
@@ -3849,10 +3849,10 @@ Q2: 3.35-6.49 m
 Q3: 6.49-17.4 m
 </td>
 <td style="text-align:left;">
-16.44%
+15.89%
 </td>
 <td style="text-align:left;">
-83.56%
+84.11%
 </td>
 </tr>
 <tr>
@@ -3860,10 +3860,10 @@ Q3: 6.49-17.4 m
 Q4: 17.4-Inf m
 </td>
 <td style="text-align:left;">
-17.67%
+17.81%
 </td>
 <td style="text-align:left;">
-82.33%
+82.19%
 </td>
 </tr>
 </tbody>
@@ -3905,7 +3905,7 @@ Q4: 17.4-Inf m
 <span id="cb226-34"><a href="appendix.html#cb226-34" tabindex="-1"></a>    <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb226-35"><a href="appendix.html#cb226-35" tabindex="-1"></a>    , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb226-36"><a href="appendix.html#cb226-36" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-217-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-220-1.png" alt="" width="1008" /></p>
 <p>neat</p>
 </div>
 <div id="rf-predict-species" class="section level3 hasAnchor" number="6.2.5">
@@ -3962,7 +3962,7 @@ Q4: 17.4-Inf m
 <span id="cb227-48"><a href="appendix.html#cb227-48" tabindex="-1"></a><span class="co"># timer</span></span>
 <span id="cb227-49"><a href="appendix.html#cb227-49" tabindex="-1"></a>mins_temp <span class="ot">&lt;-</span> <span class="fu">difftime</span>(<span class="fu">Sys.time</span>(),st_temp,<span class="at">units =</span> <span class="st">&quot;mins&quot;</span>) <span class="sc">%&gt;%</span> <span class="fu">as.numeric</span>()</span>
 <span id="cb227-50"><a href="appendix.html#cb227-50" tabindex="-1"></a><span class="co"># mins_temp</span></span></code></pre></div>
-<p>processing time was much better and took only 0.03 minutes (1.81 seconds) to estimate 1 RF models using 6,895 training records (100.00% of the training data) from which will use majority voting to determine the predicted class</p>
+<p>processing time was much better and took only 0.04 minutes (2.31 seconds) to estimate 1 RF models using 6,895 training records (100.00% of the training data) from which will use majority voting to determine the predicted class</p>
 <p>this RF approach has potential for cloud2trees implementation if the species composition accuracy is acceptable. what is acceptable? that’s going to take much more testing than is done here…</p>
 <p>attach RF species predictions back to our tree list for comparison against the reference data</p>
 <div class="sourceCode" id="cb228"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb228-1"><a href="appendix.html#cb228-1" tabindex="-1"></a><span class="co"># function to vote for class based on many models</span></span>
@@ -4084,7 +4084,7 @@ Q4: 17.4-Inf m
 <span id="cb229-45"><a href="appendix.html#cb229-45" tabindex="-1"></a>      <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb229-46"><a href="appendix.html#cb229-46" tabindex="-1"></a>      , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb229-47"><a href="appendix.html#cb229-47" tabindex="-1"></a>    )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-221-1.png" alt="" width="624" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-224-1.png" alt="" width="624" /></p>
 <div id="rf-predicted-species-composition-accuracy" class="section level4 hasAnchor" number="6.2.5.1">
 <h4><span class="header-section-number">6.2.5.1</span> RF Predicted Species Composition Accuracy<a href="appendix.html#rf-predicted-species-composition-accuracy" class="anchor-section" aria-label="Anchor link to header"></a></h4>
 <p>perform same prediction accuracy as above for comparison</p>
@@ -4172,7 +4172,7 @@ Q4: 17.4-Inf m
 <span id="cb231-34"><a href="appendix.html#cb231-34" tabindex="-1"></a>  )</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-223">Table 6.10: </span>Species Proportional Comparision<br>Total Overlap Index: 76.2%
+<span id="tab:unnamed-chunk-226">Table 6.10: </span>Species Proportional Comparision<br>Total Overlap Index: 76.2%
 </caption>
 <thead>
 <tr>
@@ -4327,7 +4327,7 @@ field
 <span id="cb232-39"><a href="appendix.html#cb232-39" tabindex="-1"></a>  ) <span class="sc">+</span></span>
 <span id="cb232-40"><a href="appendix.html#cb232-40" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme_light</span>() <span class="sc">+</span></span>
 <span id="cb232-41"><a href="appendix.html#cb232-41" tabindex="-1"></a>  ggplot2<span class="sc">::</span><span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-224-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-227-1.png" alt="" width="1008" /></p>
 <p>check out the site-wide dissimilarity/similarity between the predicted and reference species compositions</p>
 <div class="sourceCode" id="cb233"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb233-1"><a href="appendix.html#cb233-1" tabindex="-1"></a><span class="fu">library</span>(vegan)</span>
 <span id="cb233-2"><a href="appendix.html#cb233-2" tabindex="-1"></a><span class="co"># vegan needs a matrix :\</span></span>
@@ -4375,7 +4375,7 @@ field
 <span id="cb233-44"><a href="appendix.html#cb233-44" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-225">Table 6.11: </span>Predicted vs Reference Profile Similarity Metrics
+<span id="tab:unnamed-chunk-228">Table 6.11: </span>Predicted vs Reference Profile Similarity Metrics
 </caption>
 <thead>
 <tr>
@@ -4562,7 +4562,7 @@ equal to Bray-Curtis similarity for proportions
 <span id="cb235-48"><a href="appendix.html#cb235-48" tabindex="-1"></a>    , <span class="at">axis.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">8</span>)</span>
 <span id="cb235-49"><a href="appendix.html#cb235-49" tabindex="-1"></a>    , <span class="at">strip.text =</span> ggplot2<span class="sc">::</span><span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">10</span>, <span class="at">color =</span> <span class="st">&quot;black&quot;</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>)</span>
 <span id="cb235-50"><a href="appendix.html#cb235-50" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-228-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-231-1.png" alt="" width="1008" /></p>
 <p>most of the misclassification occurs in the smaller tree classes (i.e. below the median tree height) which have less influence on stand-level metrics like basal area and total volume</p>
 <p>let’s get the similarity/dissimilarity values by height bin to quantify the proportion of the total predicted trees that were assigned the incorrect species relative to the reference (i.e. field-measured) community profile</p>
 <div class="sourceCode" id="cb236"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb236-1"><a href="appendix.html#cb236-1" tabindex="-1"></a>bc_df_temp <span class="ot">&lt;-</span> </span>
@@ -4619,7 +4619,7 @@ equal to Bray-Curtis similarity for proportions
 <span id="cb236-52"><a href="appendix.html#cb236-52" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">column_spec</span>(<span class="dv">1</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
 <caption>
-<span id="tab:unnamed-chunk-229">Table 6.12: </span>Predicted vs Reference Profile Similarity Metrics<br>by tree height quartile
+<span id="tab:unnamed-chunk-232">Table 6.12: </span>Predicted vs Reference Profile Similarity Metrics<br>by tree height quartile
 </caption>
 <thead>
 <tr>
@@ -4718,7 +4718,7 @@ Q4: 17.4-Inf m
 <span id="cb237-34"><a href="appendix.html#cb237-34" tabindex="-1"></a>    <span class="at">color =</span> ggplot2<span class="sc">::</span><span class="fu">guide_legend</span>(<span class="at">override.aes =</span> <span class="fu">list</span>(<span class="at">shape =</span> <span class="dv">15</span>, <span class="at">linetype =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="dv">6</span>, <span class="at">alpha =</span> <span class="dv">1</span>, <span class="at">fill =</span> <span class="cn">NA</span>))</span>
 <span id="cb237-35"><a href="appendix.html#cb237-35" tabindex="-1"></a>    , <span class="at">fill =</span> <span class="st">&quot;none&quot;</span></span>
 <span id="cb237-36"><a href="appendix.html#cb237-36" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-230-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-233-1.png" alt="" width="1008" /></p>
 <p>neat, a different trend than the bayesian estimation approach with the first and second height quartile species similarity scores swapped</p>
 </div>
 <div id="rf-predicted-species-volume-comparison" class="section level4 hasAnchor" number="6.2.5.2">
@@ -4967,7 +4967,7 @@ Q4: 17.4-Inf m
 <span id="cb239-78"><a href="appendix.html#cb239-78" tabindex="-1"></a>  kableExtra<span class="sc">::</span><span class="fu">collapse_rows</span>(<span class="at">columns =</span> <span class="fu">c</span>(<span class="dv">1</span>), <span class="at">valign =</span> <span class="st">&quot;top&quot;</span>)</span></code></pre></div>
 <table class="table" style="font-size: 11.5px; margin-left: auto; margin-right: auto;">
 <caption style="font-size: initial !important;">
-<span id="tab:unnamed-chunk-233">Table 6.13: </span>Volume: Stand-Level Accuracy
+<span id="tab:unnamed-chunk-236">Table 6.13: </span>Volume: Stand-Level Accuracy
 </caption>
 <thead>
 <tr>
@@ -5297,7 +5297,7 @@ difference
 <span id="cb240-86"><a href="appendix.html#cb240-86" tabindex="-1"></a>    , <span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()</span>
 <span id="cb240-87"><a href="appendix.html#cb240-87" tabindex="-1"></a>    , <span class="at">panel.grid.minor.x =</span> <span class="fu">element_blank</span>()</span>
 <span id="cb240-88"><a href="appendix.html#cb240-88" tabindex="-1"></a>  )</span></code></pre></div>
-<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-234-1.png" alt="" width="1008" /></p>
+<p><img src="uas_lidar_n1_files/figure-html/unnamed-chunk-237-1.png" alt="" width="1008" /></p>
 <p>these volume errors are slightly larger than the volume errors based on when species was randomly assigned to trees to <a href="appendix.html#spec_prop_alloc">proportionally match the distribution</a> of tree species. the reason for this increase in error is that when species were proportionally, randomly assigned there were a greater number of non-timber species (i.e. JUSC2, POTR5, and QUGA) which had the effect of removing those trees from the stand-level volume estimates. because our estimated DBH values tended to be larger than the field-measured values (~1.28 cm mean error) and our stand-level TPA were highly accurate (~ 4.2% error), our predicted stand-level basal area was overestimated by 9.8% to 14.3% across the flights. The overestimation of stand-level gross volume by 10.0% to 14.3% mirrors this trend, especially when trees aren’t (improperly) removed from the volume summation due to being classified as a non-timber species as in the random, proportional assignment.</p>
 <p>To potentially improve DBH estimates we could explore linking species and DBH is a sequential model approach. That is, we could run the species model (using RF, probably), then in the DBH model we would allow the coefficients to vary by predicted species</p>
 
