@@ -775,6 +775,7 @@ ground_truth_prediction_match_ans %>%
   ) %>% 
   # sf::st_drop_geometry() %>% dplyr::count(dataset_factor, match_grp) %>%
   dplyr::arrange(dataset_factor, match_grp) %>% 
+  dataset_factor_relabel_fn() %>% 
   # plot it
   # plt
   ggplot2::ggplot() +
@@ -824,7 +825,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands
@@ -890,7 +891,8 @@ ggplot2::ggplot() +
         dplyr::arrange(dataset_factor, match_grp) %>% 
         sf::st_set_geometry("ref_geometry") %>% 
         sf::st_transform(terra::crs(rgb_rast_temp)) %>% 
-        sf::st_intersection(aoi_temp)
+        sf::st_intersection(aoi_temp) %>% 
+        dataset_factor_relabel_fn()
     , mapping = ggplot2::aes(geometry = ref_geometry, color = match_grp)
     , size = 1
   ) +
@@ -905,7 +907,8 @@ ggplot2::ggplot() +
       dplyr::arrange(dataset_factor, match_grp) %>% 
       sf::st_set_geometry("pred_geometry") %>% 
       sf::st_transform(terra::crs(rgb_rast_temp)) %>% 
-      sf::st_intersection(aoi_temp)
+      sf::st_intersection(aoi_temp) %>% 
+      dataset_factor_relabel_fn()
     , mapping = ggplot2::aes(geometry = pred_geometry, color = match_grp)
     , size = 1
   ) +

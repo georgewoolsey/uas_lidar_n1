@@ -757,6 +757,18 @@ predicted_trees %>%
 check the DBH and height distribution for each data set
 
 ```{r}
+# make a function to label the dataset_factor for plotting
+dataset_factor_relabel_fn <- function(df) {
+  df %>% 
+    dplyr::mutate(
+    dataset_factor = dataset_factor %>% 
+      forcats::fct_relabel(
+        # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
+        ~stringr::str_replace(.x,"m/s", "m s\u207B\u00B9")
+      )
+  )
+}
+
 predicted_trees %>% 
   dplyr::bind_rows(.id = "dataset_factor") %>% 
   sf::st_drop_geometry() %>% 
@@ -775,6 +787,7 @@ predicted_trees %>%
     dplyr::across(tidyselect::starts_with("flight_"), as.factor)
     , dataset_factor = forcats::fct_relevel(dataset_factor, levels(tracking_df$dataset_factor))
   ) %>% 
+  dataset_factor_relabel_fn() %>%   
   ggplot2::ggplot(mapping = ggplot2::aes(x=value,y=dataset_factor,fill=flight_altitude_m)) +
   ggplot2::geom_boxplot(width=0.6, outliers = F, color="gray55",lwd=0.7) +
   ggplot2::facet_grid(
@@ -1270,6 +1283,7 @@ timer_df %>%
     # , value_lab = scales::percent(value,accuracy=0.1)
     , dataset_factor = forcats::fct_rev(dataset_factor)
   ) %>%
+  dataset_factor_relabel_fn() %>% 
 ggplot2::ggplot(
   mapping = ggplot2::aes(x = value, y = dataset_factor, fill=name, group=name)
 ) +
@@ -1304,7 +1318,7 @@ ggplot2::ggplot(
   ) +
   ggplot2::guides(
     fill = guide_legend(nrow = 2, byrow = T, reverse = T, override.aes = list(alpha = 0.9))
-  )  
+  )
 ```
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}

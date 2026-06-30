@@ -178,6 +178,7 @@ agg_ground_truth_match_ans %>%
     )
   ) %>% 
   dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   # dplyr::pull(metric) %>% levels()
   ggplot2::ggplot(
@@ -229,9 +230,11 @@ pairwise_diffs_temp <-
   tidyr::crossing(
     agg_ground_truth_match_ans %>% 
       dplyr::select(dataset_factor,f_score) %>% 
+      dataset_factor_relabel_fn() %>% 
       dplyr::rename_with(~paste0(.x,"_1",recycle0 = T))
     , agg_ground_truth_match_ans %>% 
       dplyr::select(dataset_factor,f_score) %>% 
+      dataset_factor_relabel_fn() %>% 
       dplyr::rename_with(~paste0(.x,"_2",recycle0 = T))
   ) %>% 
   # filter to remove self-joins and duplicates
@@ -394,6 +397,7 @@ dta_temp %>%
     )
   ) %>% 
   dplyr::ungroup() %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   ggplot2::ggplot(
     mapping = ggplot2::aes(y = pct, x = tree_height_m_bin)
@@ -485,6 +489,7 @@ dta_temp <-
   dplyr::ungroup()
   
 dta_temp %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   ggplot2::ggplot(
     mapping = ggplot2::aes(y = pct, x = tree_dbh_cm_bin)
@@ -617,6 +622,7 @@ dta_temp %>%
     , match_grp = forcats::fct_rev(match_grp)
   ) %>% 
   dplyr::ungroup() %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   ggplot2::ggplot(
     mapping = ggplot2::aes(y = pct, x = tree_height_m_bin)
@@ -828,6 +834,7 @@ plt_fn_temp <- function(
     
     # plot
     d %>% 
+      dataset_factor_relabel_fn() %>% 
       ggplot2::ggplot(mapping = ggplot2::aes(y = .data[[y_var]], x = .data[[x_var]])) +
       ggplot2::geom_abline(color = "gray33", lwd = 1) +
       ggplot2::geom_point(color = "maroon4", alpha = 0.7, size = 0.9) +
@@ -1003,6 +1010,7 @@ full distribution of predicted and reference values irrespective of correct or i
   dplyr::mutate(
     dataset_factor = dataset_factor %>% forcats::fct_relabel(~ str_replace_all(.x, "\\|", "\n"))
   ) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
 # plot dist
   ggplot2::ggplot(mapping = ggplot2::aes(x = value, color = which_data, fill = which_data)) +
@@ -1140,8 +1148,10 @@ dta_temp %>%
         , scales::percent(mape,accuracy = 0.1)
       )
     ## do something about the different factors to plot over
+    , tree_metric = forcats::fct_relabel(tree_metric, ~ stringr::str_extract(.x, "^\\S+"))
     , xvar = forcats::fct_cross(tree_metric,tree_dbh_cm_bin)
   ) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   # dplyr::filter(dataset_factor=="Altitude (m): 61 | Speed (m/s): 4.5") %>% 
 ggplot2::ggplot(
@@ -1163,7 +1173,7 @@ ggplot2::ggplot(
   ) +
   ggplot2::geom_col(
     ggplot2::aes(fill = tree_dbh_cm_bin)
-    , width = 0.5
+    , width = 0.55
     , color = NA, alpha = 0.95
     # , fill = "maroon4"
     , position = "dodge"
@@ -1223,7 +1233,7 @@ ggplot2::ggplot(
   ggplot2::theme_light()+
   ggplot2::theme(
     legend.position = "none"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
     , axis.text.x = ggplot2::element_text(size = 8.5, angle = 0, face = "bold")
     , axis.text.y = ggplot2::element_text(size = 5, angle = 0) #, hjust = 0.5)
     # , axis.text.y = ggplot2::element_blank()
@@ -1232,7 +1242,7 @@ ggplot2::ggplot(
     , panel.grid.minor.x = ggplot2::element_blank()
     , plot.subtitle = ggplot2::element_blank()
   )
-# ggplot2::ggsave("../data/dbh_acc_by_dbh_bin.jpg", height = 10, width = 8.3)
+ggplot2::ggsave("../data/dbh_acc_by_dbh_bin.jpg", height = 10, width = 8.3)
 ```
 
 ```{r, include=F, eval=F, fig.height=10, fig.width=8}
@@ -1445,6 +1455,7 @@ p_temp <-
   ) %>%
   sf::st_drop_geometry() %>%
   dplyr::filter(match_grp %in% c("true positive")) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   ggplot2::ggplot(
     mapping = ggplot2::aes(y = pct_diff_dbh_cm, x = ref_dbh_cm)
@@ -1500,11 +1511,11 @@ p_temp <-
   ggplot2::theme_light()+
   ggplot2::theme(
     legend.position = "top"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
     , axis.text = ggplot2::element_text(size = 6)
   )
 p_temp
-# ggplot2::ggsave("../data/dbh_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+ggplot2::ggsave("../data/dbh_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
 ```
 
 that's neat
@@ -1528,6 +1539,7 @@ p_temp <-
   ) %>%
   sf::st_drop_geometry() %>%
   dplyr::filter(match_grp %in% c("true positive")) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
   ggplot2::ggplot(
     mapping = ggplot2::aes(y = pct_diff_tree_height_m, x = ref_tree_height_m)
@@ -1583,11 +1595,11 @@ p_temp <-
   ggplot2::theme_light()+
   ggplot2::theme(
     legend.position = "top"
-    , strip.text = ggplot2::element_text(size = 11, color = "black", face = "bold")
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
     , axis.text = ggplot2::element_text(size = 6)
   )
 p_temp
-# ggplot2::ggsave("../data/ht_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
+ggplot2::ggsave("../data/ht_acc_by_size.jpg",p_temp+ggplot2::theme(plot.subtitle = ggplot2::element_blank()), height = 10, width = 8)
 ```
 
 that is also neat
@@ -1694,7 +1706,7 @@ agg_ground_truth_match_ans %>%
     )
     , value_lab = scales::percent(value,accuracy=0.1)
   ) %>% 
-
+  dataset_factor_relabel_fn() %>% 
 ggplot2::ggplot(
   mapping = ggplot2::aes(
     y = reorder(dataset_factor, tot)
@@ -1782,6 +1794,7 @@ agg_ground_truth_match_ans %>%
       , ")"
     )
   ) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::mutate(
   #   name = dplyr::recode_values(
   #     name
@@ -1897,6 +1910,7 @@ agg_ground_truth_match_ans %>%
       , ")"
     )
   ) %>% 
+  dataset_factor_relabel_fn() %>% 
   # dplyr::mutate(
   #   name = dplyr::recode_values(
   #     name
@@ -2024,7 +2038,7 @@ agg_ground_truth_match_ans %>%
     )
     , value_lab = scales::comma(value,accuracy=0.1)
   ) %>% 
-  
+  dataset_factor_relabel_fn() %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(x = name, y = value, group = dataset_factor)
   ) +
@@ -2105,7 +2119,7 @@ agg_ground_truth_match_ans %>%
     )
     , value_lab = scales::comma(value,accuracy=0.1)
   ) %>% 
-  
+  dataset_factor_relabel_fn() %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(x = name, y = value, group = dataset_factor)
   ) +
@@ -2711,7 +2725,7 @@ preds_temp %>%
   kableExtra::scroll_box(height = "7.5in", width = "100%")
 ```
 
-let's check out the conditional influence of flight speed at different altitude levels
+let's check out the conditional influence of flight speed at different altitude levels. in these detection probability curves higher lines mean better detection and steeper lines mean higher sensitivity to tree height
 
 ```{r}
 ggplot2::ggplot(
@@ -2748,11 +2762,11 @@ ggplot2::ggplot(
     , breaks = scales::breaks_extended(n=8)
   ) +
   ggplot2::labs(
-    color = "Speed (m/s)", fill = "Speed (m/s)"
+    color = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ "), fill = latex2exp::TeX("Speed  $m \\cdot sec^{-1}$ ")
     , x = "tree height (m)", y = "detection probability"
-    , title = "detection probability curves"
-    , subtitle = "conditional effect of flight speed"
-    , caption = "higher lines = better detection. steeper lines = higher sensitivity to tree height"
+    # , title = "detection probability curves"
+    # , subtitle = "conditional effect of flight speed"
+    # , caption = "higher lines = better detection. steeper lines = higher sensitivity to tree height"
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
@@ -2772,7 +2786,7 @@ ggplot2::ggplot(
 
 The wide confidence bounds with all lines contained within the overlapping bounds indicate that at all flight altitudes, the flight speed does not impact tree detection. There is some evidence that the higher the flight altitude, the less impactful speed is on the resulting tree detection (but not statistically significant).
 
-now the conditional influence of flight altitude at different speeds
+now the conditional influence of flight altitude at different speeds. in these detection probability curves higher lines mean better detection and steeper lines mean higher sensitivity to tree height
 
 ```{r}
 ggplot2::ggplot(
@@ -2794,7 +2808,7 @@ ggplot2::ggplot(
   ggplot2::geom_line(lwd = 1.2, alpha = 0.85) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_meters_per_second)
-    , labeller = ggplot2::labeller( flight_meters_per_second = ~paste("Speed:", .x, " (m/s)") )
+    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("Speed:", .x, "(m s\u207B\u00B9)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
   ggplot2::scale_fill_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
@@ -2811,9 +2825,9 @@ ggplot2::ggplot(
   ggplot2::labs(
     color = "altitude (m)", fill = "altitude (m)"
     , x = "tree height (m)", y = "detection probability"
-    , title = "detection probability curves"
-    , subtitle = "conditional effect of flight altitude"
-    , caption = "higher lines = better detection. steeper lines = higher sensitivity to tree height"
+    # , title = "detection probability curves"
+    # , subtitle = "conditional effect of flight altitude"
+    # , caption = "higher lines = better detection. steeper lines = higher sensitivity to tree height"
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
@@ -3044,7 +3058,7 @@ em_temp %>%
   ) +
   ggplot2::facet_grid(
     cols = dplyr::vars(flight_meters_per_second)
-    , labeller = ggplot2::labeller( flight_meters_per_second = ~paste("Speed:", .x, " (m/s)") )
+    , labeller = ggplot2::labeller( flight_meters_per_second = ~ paste("Speed:", .x, "(m s\u207B\u00B9)") )
   ) +
   ggplot2::scale_color_viridis_d(option = "mako", begin = 0.5, end = 0.1) +
   ggplot2::scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
