@@ -82,7 +82,7 @@ stand_boundary %>% dplyr::glimpse()
 
 plot CHMs
 
-```{r, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
+```{r,eval=T, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
 graphics::par(mfrow = c(ceiling(length(chm_rast)/3),3)) # mfrow = c(nr, nc)
 # use purrr::walk() because we only want it to draw the plot
 purrr::iwalk(
@@ -125,7 +125,7 @@ dtm_rast[1:min(length(dtm_rast),2)]
 
 plot DTMs
 
-```{r, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
+```{r,eval=T, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
 graphics::par(mfrow = c(ceiling(length(dtm_rast)/3),3)) # mfrow = c(nr, nc)
 # use purrr::walk() because we only want it to draw the plot
 purrr::iwalk(
@@ -640,12 +640,13 @@ mapview::mapview(ctg_temp@data$geometry, layer.name = "ptcld")
 ## UAS Predicted Trees
 
 ```{r, include=FALSE, eval=FALSE, results=F}
+# names(chm_rast)
 # chm_rast %>% 
-tracking_df$folder %>% 
+tracking_df$dataset_factor %>% 
   # .[1] %>% 
   purrr::map(function(nm){
     of_temp <- tracking_df %>% 
-      dplyr::filter(folder==nm) %>% 
+      dplyr::filter(dataset_factor==nm) %>% 
       dplyr::pull(path) %>% 
       file.path("point_cloud_processing_delivery")
     # raster2trees
