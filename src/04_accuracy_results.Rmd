@@ -2205,11 +2205,50 @@ one of the core ideas we are trying to convey with this entire research is: *how
 
 let's try some figures to visualize our results
 
-```{r, fig.height=8}
-# agg_ground_truth_match_ans <- readr::read_csv("c:/users/georg/Downloads/xxx.csv")
-dataset_factor_relabel_fn <- function(df) {
-  df %>% dplyr::mutate(dataset_factor = forcats::fct_inorder(dataset_factor) %>% ordered() %>% forcats::fct_rev()) 
+```{r, fig.height = 6, fig.width = 11}
+# agg_ground_truth_match_ans <- readr::read_csv("c:/users/georg/Downloads/xxx.csv") %>% 
+#   dplyr::mutate(total_mins_per_ha = timer_total_dbhonly_time_mins_per_ha + mission_mins_per_ha)
+# dataset_factor_relabel_fn <- function(df) {
+#   df %>% dplyr::mutate(dataset_factor = forcats::fct_inorder(dataset_factor) %>% ordered() %>% forcats::fct_rev())
+# }
+# function to format values for labels
+
+value_lab_fn_temp <- function(df) {
+  df %>% 
+  dplyr::mutate(
+    value_lab = dplyr::case_when(
+      name=="total_mins_per_ha" ~ scales::comma(value,accuracy=0.01)
+      , name=="f_score" ~ scales::percent(value,accuracy=0.1)
+      , name=="diff_tree_height_m_rmse" ~ scales::comma(value,accuracy=0.01)
+      , name=="diff_dbh_cm_rmse" ~ scales::comma(value,accuracy=0.1)
+      , name=="pct_diff_basal_area_m2_per_ha" ~ scales::percent(value,accuracy=0.1)
+      , name=="pct_diff_trees_per_ha" ~ scales::percent(value,accuracy=0.1)
+    )
+    , name_fact = 
+      factor(
+        name
+        , levels = c(
+          "total_mins_per_ha"
+          , "f_score"
+          , "diff_tree_height_m_rmse"
+          , "diff_dbh_cm_rmse"
+          , "pct_diff_basal_area_m2_per_ha"
+          , "pct_diff_trees_per_ha"
+        )
+        , labels = c(
+          latex2exp::TeX("Flight+Processing ($mins \\cdot ha^{-1}$)", output = "character")
+          , latex2exp::TeX("F-score", output = "character")
+          , latex2exp::TeX("Height RMSE (m)", output = "character")
+          , latex2exp::TeX("DBH RMSE (cm)", output = "character")
+          , latex2exp::TeX("% Diff. Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
+          , latex2exp::TeX("% Diff. Trees $ha^{-1}$", output = "character")
+        )
+        , ordered = T
+      )
+  )
 }
+
+# plt that
 agg_ground_truth_match_ans %>% 
   dplyr::select(
     dataset_factor
@@ -2224,35 +2263,7 @@ agg_ground_truth_match_ans %>%
   tidyr::pivot_longer(cols = -c(dataset_factor)) %>% 
   # dplyr::count(name)
   dplyr::mutate(
-    value_lab = dplyr::case_when(
-      name=="total_mins_per_ha" ~ scales::comma(value,accuracy=0.01)
-      , name=="f_score" ~ scales::percent(value,accuracy=0.1)
-      , name=="diff_tree_height_m_rmse" ~ scales::comma(value,accuracy=0.01)
-      , name=="diff_dbh_cm_rmse" ~ scales::comma(value,accuracy=0.1)
-      , name=="pct_diff_basal_area_m2_per_ha" ~ scales::percent(value,accuracy=0.1)
-      , name=="pct_diff_trees_per_ha" ~ scales::percent(value,accuracy=0.1)
-    )
-    , name = 
-      factor(
-        name
-        , levels = c(
-          "total_mins_per_ha"
-          , "f_score"
-          , "diff_tree_height_m_rmse"
-          , "diff_dbh_cm_rmse"
-          , "pct_diff_basal_area_m2_per_ha"
-          , "pct_diff_trees_per_ha"
-        )
-        , labels = c(
-          latex2exp::TeX("Flight & Processing ($mins \\cdot ha^{-1}$)", output = "character")
-          , latex2exp::TeX("F-score", output = "character")
-          , latex2exp::TeX("Height RMSE (m)", output = "character")
-          , latex2exp::TeX("DBH RMSE (cm)", output = "character")
-          , latex2exp::TeX("% Diff. Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
-          , latex2exp::TeX("% Diff. Trees $ha^{-1}$", output = "character")
-        )
-        , ordered = T
-      )
+      dummy=1
       # dplyr::recode_values(
       #   name
       #   , "total_mins_per_ha" ~ latex2exp::TeX("Flight & Processing $mins \\cdot ha^{-1}$", output = "character")
@@ -2263,16 +2274,37 @@ agg_ground_truth_match_ans %>%
       #   , "pct_diff_trees_per_ha" ~ latex2exp::TeX("Trees $ha^{-1}$", output = "character")
       # )
   ) %>% 
+  value_lab_fn_temp() %>% 
   dataset_factor_relabel_fn() %>% 
   # dplyr::glimpse()
 ggplot2::ggplot(
   mapping = ggplot2::aes(
     y = dataset_factor
     , x = value
-    , group = name
-    , color = name
+    , group = name_fact
+    , color = name_fact
   )
 ) +
+  ggplot2::geom_vline(
+    data = ~
+      .x %>% 
+      dplyr::group_by(name,name_fact,.groups = "drop_last") %>%
+      dplyr::summarise(medx = median(value,na.rm=T))
+    , ggplot2::aes(xintercept = medx)
+    , color = "gray77", lwd = 0.5, linetype = "dashed"
+  ) +
+  ggplot2::geom_text(
+    data = ~
+      .x %>% 
+      dplyr::group_by(name,name_fact,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>% 
+      dplyr::rename(medx_lab=value_lab)
+    , ggplot2::aes(label = medx_lab, x = value, y = -Inf, fontface = "bold")
+    , color = "gray55"
+    , size = 2.2
+    , hjust = -0.3, vjust = -1
+  ) +
   ggplot2::geom_segment(
     mapping = ggplot2::aes(yend = dataset_factor, xend = 0)
     , color = "gray33"
@@ -2282,13 +2314,13 @@ ggplot2::ggplot(
   ggplot2::geom_text(
     mapping = ggplot2::aes(label = value_lab, fontface = "bold")
     , color = "black"
-    , size = 4
+    , size = 2.8
     # , nudge_x = 0.006
     , hjust = 0, vjust = -1
     # , hjust = -0.4
   ) +
   ggplot2::facet_grid(
-    cols = dplyr::vars(name)
+    cols = dplyr::vars(name_fact)
     , labeller = ggplot2::label_parsed
     , scales = "free_x"
     # , labeller = ggplot2::as_labeller(
@@ -2309,13 +2341,215 @@ ggplot2::ggplot(
     legend.position = "none"
     , axis.text.x = element_blank()
     , axis.title.x = element_blank()
-    , axis.text.y = ggplot2::element_text(size = 9, face = "bold")
-    , strip.text = ggplot2::element_text(size = 10, color = "black")
+    , axis.ticks.x = element_blank()
+    , axis.text.y = ggplot2::element_text(size = 8, face = "bold")
+    , strip.text = ggplot2::element_text(size = 8, color = "black")
     , panel.grid.major.x = element_blank()
     , panel.grid.minor.x = element_blank()
   )
+```
 
+```{r, include=F, eval=T, results=F}
+ggplot2::ggsave("../data/flights_comp_efficiency_accuracy1.jpg", height = 6, width = 11)
+```
 
+that's pretty good but might be difficult to display in a small horizontal margin document
+
+let's try a vertical version figure with the same information
+
+```{r}
+# operational time
+plt_a_temp <-
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(value = total_mins_per_ha, name = "total_mins_per_ha") %>% 
+  value_lab_fn_temp() %>% 
+  dataset_factor_relabel_fn() %>% 
+  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = dataset_factor, y = value, group = 1)
+  ) +
+  ggplot2::geom_line(lwd = 2, color = "maroon4") +
+  ggplot2::geom_point(size = 4, color = "maroon4") +
+  ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), seed = 222, size = 2.5) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(name_fact)
+    , labeller = ggplot2::label_parsed()
+  ) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    # , breaks = scales::breaks_extended(n=7)
+    , labels = scales::comma
+    , expand = ggplot2::expansion(mult = c(0,0.4))
+  ) +
+  ggplot2::labs(
+    x = ""
+    , y = "" #latex2exp::TeX("Flight+Processing ($mins \\cdot ha^{-1}$)")
+    , tag = "A"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , axis.title.x = ggplot2::element_blank()
+    , axis.text.x = ggplot2::element_blank()
+    , strip.text = ggplot2::element_text(size = 8, color = "black")
+  ) 
+  # ggplot2::guides(
+  #   color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+  #   , fill = "none"
+  # )
+  
+# detection performance
+plt_b_temp <-
+agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    xxx = runif(n=dplyr::n(),max = 0.11)
+    , precision = f_score*(1-xxx)
+    , recall = f_score*(1+xxx)
+  ) %>% 
+  dplyr::select(
+    dataset_factor
+    , precision, recall, f_score
+  ) %>% 
+  tidyr::pivot_longer(
+    cols = c(precision,recall,f_score)
+    , names_to = "metric"
+    , values_to = "value"
+  ) %>% 
+  dplyr::mutate(
+    metric = metric %>%
+      forcats::fct_relevel("f_score", "recall", "precision") %>%
+      forcats::fct_recode("F-score" = "f_score", "Recall" = "recall", "Precision" = "precision")
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      dplyr::where(is.numeric)
+      , list(lab = ~scales::percent(.x,accuracy=0.1))
+    )
+  ) %>% 
+  dataset_factor_relabel_fn() %>% 
+  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
+  dplyr::mutate(name_fact = "Individual Tree Detection") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = dataset_factor, y = value, group = metric, color = metric)
+  ) +
+  ggplot2::geom_line(lwd = 2) +
+  ggplot2::geom_point(size = 4) +
+  # ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), color = "gray33", seed = 222, size = 2.5) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(name_fact)
+  ) +
+  ggplot2::scale_color_manual(values=pal_eval_metric) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    # , breaks = scales::breaks_extended(n=7)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.4))
+  ) +
+  ggplot2::labs(
+    x = ""
+    , y = ""
+    , color = ""
+    , tag = "B"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "top"
+    , axis.title.x = ggplot2::element_blank()
+    , axis.text.x = ggplot2::element_blank()
+    , strip.text = ggplot2::element_text(size = 8, color = "black")
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
+
+# tree-level metric rmse
+plt_c_temp <-
+agg_ground_truth_match_ans %>% 
+  dplyr::select(
+    dataset_factor
+    , diff_tree_height_m_rmse, diff_dbh_cm_rmse
+  ) %>% 
+  tidyr::pivot_longer(cols = -dataset_factor) %>% 
+  value_lab_fn_temp() %>% 
+  dataset_factor_relabel_fn() %>% 
+  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
+  dplyr::mutate(x_fact = latex2exp::TeX("Tree-Level Physical Measurement", output = "character")) %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = dataset_factor, y = value, color = name_fact, group = 1)
+  ) +
+  ggplot2::geom_line(lwd = 2) +
+  ggplot2::geom_point(size = 4) +
+  ggplot2::geom_text(
+    mapping = ggplot2::aes(label = value_lab)
+    , color = "gray33"
+    , size = 2.5
+    , vjust = -1
+  ) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(x_fact)
+    , rows = dplyr::vars(name_fact)
+    , labeller = ggplot2::label_parsed
+    , scales = "free_y"
+    # , switch = "y" # moves y facet label to left
+  ) +
+  ggplot2::scale_color_manual(values=c("maroon3","maroon4")) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    # , breaks = scales::breaks_extended(n=7)
+    , labels = scales::comma
+    , expand = ggplot2::expansion(mult = c(0,0.4))
+  ) +
+  ggplot2::labs(
+    x = ""
+    , y = ""
+    , color = ""
+    , tag = "C"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , axis.title.x = ggplot2::element_blank()
+    , axis.text.x = ggplot2::element_blank()
+    , strip.text = ggplot2::element_text(size = 8, color = "black")
+    # , strip.placement = "outside"
+    # , strip.text.y.left = ggplot2::element_text(angle = 90)
+    # , strip.background.y = ggplot2::element_rect(color = NA, fill = NA)
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
+
+# Panel D: Stand-Level Bias
+plt_d_temp <-
+ggplot2::ggplot(
+  data = flight_data,
+  mapping = ggplot2::aes(x = dataset_factor)
+) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(y = pct_diff_trees_per_ha, fill = "TPH Difference (%)"),
+    width = 0.35,
+    position = ggplot2::position_nudge(x = -0.2)
+  ) +
+  ggplot2::geom_col(
+    mapping = ggplot2::aes(y = pct_diff_basal_area_m2_per_ha, fill = "BA Difference (%)"),
+    width = 0.35,
+    position = ggplot2::position_nudge(x = 0.2)
+  ) +
+  ggplot2::geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
+  ggplot2::scale_y_continuous(name = "Difference vs Field (%)") +
+  ggplot2::scale_fill_manual(
+    values = c("TPH Difference (%)" = "#e6ab02", "BA Difference (%)" = "#a6761d"),
+    name = NULL
+  ) +
+  ggplot2::labs(x = "Flight Configuration", tag = "D") +
+  ggplot2::theme_bw() +
+  ggplot2::theme(legend.position = "top")
+
+# Combine panels vertically using patchwork
+# fig_option_1 <- 
+patchwork::wrap_plots(plt_a_temp, plt_b_temp, plt_c_temp, ncol = 1)
 ```
 
 
@@ -2324,19 +2558,37 @@ ggplot2::ggplot(
 # Option 1: Multi-Panel Shared X-Axis Grid
 # This configuration stacks metrics into vertically aligned panels sharing the exact same X-axis layout across configurations.
 ##########################################################################################################################################################
+flight_data <- 
+  agg_ground_truth_match_ans %>% 
+  dplyr::mutate(
+    timer_total_dbhonly_time_mins_per_ha = runif(n=dplyr::n())
+    , mission_mins_per_ha = runif(n=dplyr::n())
+  ) %>% 
+  # dplyr::select(
+  #   dataset_factor
+  #   , total_mins_per_ha
+  #   , f_score
+  #   , diff_tree_height_m_rmse
+  #   , diff_dbh_cm_rmse
+  #   , pct_diff_basal_area_m2_per_ha
+  #   , pct_diff_trees_per_ha
+  # ) %>% 
+  dataset_factor_relabel_fn()
 
+  
 # Panel A: Operational Times (Dual Y-axis via transformed processing time)
-p1_a <- ggplot2::ggplot(
+p1_a <-
+ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = config)
+  mapping = ggplot2::aes(x = dataset_factor)
 ) +
   ggplot2::geom_col(
-    mapping = ggplot2::aes(y = flight_time_min_ha, fill = "Flight Time"),
+    mapping = ggplot2::aes(y = mission_mins_per_ha, fill = "Flight Time"),
     width = 0.4,
     position = ggplot2::position_nudge(x = -0.2)
   ) +
   ggplot2::geom_col(
-    mapping = ggplot2::aes(y = proc_time_min_ha / 2, fill = "Processing Time"),
+    mapping = ggplot2::aes(y = timer_total_dbhonly_time_mins_per_ha / 2, fill = "Processing Time"),
     width = 0.4,
     position = ggplot2::position_nudge(x = 0.2)
   ) +
@@ -2357,13 +2609,14 @@ p1_a <- ggplot2::ggplot(
   ggplot2::labs(tag = "A")
 
 # Panel B: Detection Performance
-p1_b <- ggplot2::ggplot(
+p1_b <-
+ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = config, y = f_score, group = 1)
+  mapping = ggplot2::aes(x = dataset_factor, y = f_score, group = 1)
 ) +
   ggplot2::geom_line(color = "#1b9e77", linewidth = 1) +
   ggplot2::geom_point(color = "#1b9e77", size = 3) +
-  ggplot2::scale_y_continuous(name = "F-score", limits = c(0.7, 1.0)) +
+  ggplot2::scale_y_continuous(name = "F-score", limits = c(0, 1.0), labels = scales::percent) +
   ggplot2::theme_bw() +
   ggplot2::theme(
     axis.title.x = ggplot2::element_blank(),
@@ -2372,25 +2625,26 @@ p1_b <- ggplot2::ggplot(
   ggplot2::labs(tag = "B")
 
 # Panel C: Tree-Level Metric RMSE
-p1_c <- ggplot2::ggplot(
+p1_c <-
+ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = config, group = 1)
+  mapping = ggplot2::aes(x = dataset_factor, group = 1)
 ) +
   ggplot2::geom_line(
-    mapping = ggplot2::aes(y = dbh_rmse_cm, color = "DBH RMSE (cm)"),
+    mapping = ggplot2::aes(y = diff_dbh_cm_rmse, color = "DBH RMSE (cm)"),
     linewidth = 1
   ) +
   ggplot2::geom_point(
-    mapping = ggplot2::aes(y = dbh_rmse_cm, color = "DBH RMSE (cm)"),
+    mapping = ggplot2::aes(y = diff_dbh_cm_rmse, color = "DBH RMSE (cm)"),
     size = 3
   ) +
   ggplot2::geom_line(
-    mapping = ggplot2::aes(y = height_rmse_m * 5, color = "Height RMSE (m)"),
+    mapping = ggplot2::aes(y = diff_tree_height_m_rmse * 5, color = "Height RMSE (m)"),
     linewidth = 1,
     linetype = "dashed"
   ) +
   ggplot2::geom_point(
-    mapping = ggplot2::aes(y = height_rmse_m * 5, color = "Height RMSE (m)"),
+    mapping = ggplot2::aes(y = diff_tree_height_m_rmse * 5, color = "Height RMSE (m)"),
     size = 3
   ) +
   ggplot2::scale_y_continuous(
@@ -2410,17 +2664,18 @@ p1_c <- ggplot2::ggplot(
   ggplot2::labs(tag = "C")
 
 # Panel D: Stand-Level Bias
-p1_d <- ggplot2::ggplot(
+p1_d <-
+ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = config)
+  mapping = ggplot2::aes(x = dataset_factor)
 ) +
   ggplot2::geom_col(
-    mapping = ggplot2::aes(y = tph_diff_pct, fill = "TPH Difference (%)"),
+    mapping = ggplot2::aes(y = pct_diff_trees_per_ha, fill = "TPH Difference (%)"),
     width = 0.35,
     position = ggplot2::position_nudge(x = -0.2)
   ) +
   ggplot2::geom_col(
-    mapping = ggplot2::aes(y = ba_diff_pct, fill = "BA Difference (%)"),
+    mapping = ggplot2::aes(y = pct_diff_basal_area_m2_per_ha, fill = "BA Difference (%)"),
     width = 0.35,
     position = ggplot2::position_nudge(x = 0.2)
   ) +
@@ -2435,8 +2690,8 @@ p1_d <- ggplot2::ggplot(
   ggplot2::theme(legend.position = "top")
 
 # Combine panels vertically using patchwork
-fig_option_1 <- patchwork::wrap_plots(p1_a, p1_b, p1_c, p1_d, ncol = 1)
-print(fig_option_1)
+# fig_option_1 <- 
+patchwork::wrap_plots(p1_a, p1_b, p1_c, p1_d, ncol = 1)
 
 
 ##########################################################################################################################################################
@@ -2444,10 +2699,11 @@ print(fig_option_1)
 # This configuration directly contrasts flight time efficiency against tree detection and measurement errors in a two-panel trade-off layout.
 ##########################################################################################################################################################
 # Panel A: Flight Time vs. F-score
-p2_a <- ggplot2::ggplot(
+p2_a <- 
+ggplot2::ggplot(
   data = flight_data,
   mapping = ggplot2::aes(
-    x = flight_time_min_ha,
+    x = mission_mins_per_ha,
     y = f_score,
     color = as.factor(altitude_m),
     shape = as.factor(speed_ms)
@@ -2460,7 +2716,7 @@ p2_a <- ggplot2::ggplot(
   ) +
   ggplot2::geom_point(size = 4) +
   ggplot2::geom_text(
-    mapping = ggplot2::aes(label = config),
+    mapping = ggplot2::aes(label = dataset_factor),
     vjust = -1,
     size = 3,
     show.legend = FALSE
@@ -2478,11 +2734,11 @@ p2_a <- ggplot2::ggplot(
 p2_b <- ggplot2::ggplot(
   data = dplyr::mutate(
     flight_data,
-    total_time_min_ha = flight_time_min_ha + proc_time_min_ha
+    total_time_min_ha = mission_mins_per_ha + timer_total_dbhonly_time_mins_per_ha
   ),
   mapping = ggplot2::aes(
     x = total_time_min_ha,
-    y = height_rmse_m,
+    y = diff_tree_height_m_rmse,
     color = as.factor(altitude_m),
     shape = as.factor(speed_ms)
   )
@@ -2494,7 +2750,7 @@ p2_b <- ggplot2::ggplot(
   ) +
   ggplot2::geom_point(size = 4) +
   ggplot2::geom_text(
-    mapping = ggplot2::aes(label = config),
+    mapping = ggplot2::aes(label = dataset_factor),
     vjust = -1,
     size = 3,
     show.legend = FALSE
@@ -2520,38 +2776,39 @@ print(fig_option_2)
 # This configuration rescales all metrics onto a standardized 0 to 1 scale so you can track how each configuration performs across every operational and inventory variable.
 ##########################################################################################################################################################
 # Step 1: Rescale variables to 0-1 for parallel display
-p3_data <- flight_data |>
+p3_data <-
+  flight_data %>%  
   dplyr::mutate(
     dplyr::across(
       .cols = c(
-        flight_time_min_ha,
-        proc_time_min_ha,
+        mission_mins_per_ha,
+        timer_total_dbhonly_time_mins_per_ha,
         f_score,
-        dbh_rmse_cm,
-        height_rmse_m,
-        tph_diff_pct,
-        ba_diff_pct
+        diff_dbh_cm_rmse,
+        diff_tree_height_m_rmse,
+        pct_diff_trees_per_ha,
+        pct_diff_basal_area_m2_per_ha
       ),
       .fns = ~ (. - min(.)) / (max(.) - min(.)),
       .names = "{.col}_scaled"
     )
-  ) |>
+  ) %>%
   tidyr::pivot_longer(
     cols = dplyr::ends_with("_scaled"),
     names_to = "metric",
     values_to = "scaled_value"
-  ) |>
+  ) %>%
   dplyr::mutate(
     metric = factor(
       metric,
       levels = c(
-        "flight_time_min_ha_scaled",
-        "proc_time_min_ha_scaled",
+        "mission_mins_per_ha_scaled",
+        "timer_total_dbhonly_time_mins_per_ha_scaled",
         "f_score_scaled",
-        "dbh_rmse_cm_scaled",
-        "height_rmse_m_scaled",
-        "tph_diff_pct_scaled",
-        "ba_diff_pct_scaled"
+        "diff_dbh_cm_rmse_scaled",
+        "diff_tree_height_m_rmse_scaled",
+        "pct_diff_trees_per_ha_scaled",
+        "pct_diff_basal_area_m2_per_ha_scaled"
       ),
       labels = c(
         "Flight Time",
@@ -2566,13 +2823,14 @@ p3_data <- flight_data |>
   )
 
 # Step 2: Plot continuous coordinate lines
-fig_option_3 <- ggplot2::ggplot(
+# fig_option_3 <- 
+ggplot2::ggplot(
   data = p3_data,
   mapping = ggplot2::aes(
     x = metric,
     y = scaled_value,
-    group = config,
-    color = config
+    group = dataset_factor,
+    color = dataset_factor
   )
 ) +
   ggplot2::geom_line(linewidth = 1.2) +
@@ -2588,8 +2846,6 @@ fig_option_3 <- ggplot2::ggplot(
     panel.grid.major.x = ggplot2::element_line(color = "grey85")
   )
 
-print(fig_option_3)
-
 
 
 ##########################################################################################################################################################
@@ -2597,9 +2853,10 @@ print(fig_option_3)
 # This layout combines a top panel displaying operational duration with a bottom heatmap matrix showing normalized inventory accuracy scores.
 ##########################################################################################################################################################
 # Panel A: Operational Duration Bar Chart
-p4_a <- ggplot2::ggplot(
+p4_a <-
+ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = config, y = flight_time_min_ha + proc_time_min_ha)
+  mapping = ggplot2::aes(x = dataset_factor, y = mission_mins_per_ha + timer_total_dbhonly_time_mins_per_ha)
 ) +
   ggplot2::geom_col(fill = "#3182bd", width = 0.5) +
   ggplot2::labs(
@@ -2611,27 +2868,28 @@ p4_a <- ggplot2::ggplot(
   ggplot2::theme(axis.text.x = ggplot2::element_blank())
 
 # Panel B: Heatmap Matrix of Inventory Metrics
-p4_matrix_data <- flight_data |>
+p4_matrix_data <- 
+  flight_data %>%
   tidyr::pivot_longer(
     cols = c(
       f_score,
-      dbh_rmse_cm,
-      height_rmse_m,
-      tph_diff_pct,
-      ba_diff_pct
+      diff_dbh_cm_rmse,
+      diff_tree_height_m_rmse,
+      pct_diff_trees_per_ha,
+      pct_diff_basal_area_m2_per_ha
     ),
     names_to = "metric",
     values_to = "raw_value"
-  ) |>
+  ) %>%
   dplyr::mutate(
     metric_label = factor(
       metric,
       levels = c(
         "f_score",
-        "dbh_rmse_cm",
-        "height_rmse_m",
-        "tph_diff_pct",
-        "ba_diff_pct"
+        "diff_dbh_cm_rmse",
+        "diff_tree_height_m_rmse",
+        "pct_diff_trees_per_ha",
+        "pct_diff_basal_area_m2_per_ha"
       ),
       labels = c(
         "F-score",
@@ -2643,9 +2901,10 @@ p4_matrix_data <- flight_data |>
     )
   )
 
-p4_b <- ggplot2::ggplot(
+p4_b <-
+ggplot2::ggplot(
   data = p4_matrix_data,
-  mapping = ggplot2::aes(x = config, y = metric_label)
+  mapping = ggplot2::aes(x = dataset_factor, y = metric_label)
 ) +
   ggplot2::geom_tile(
     mapping = ggplot2::aes(fill = raw_value),
@@ -2667,8 +2926,7 @@ p4_b <- ggplot2::ggplot(
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
 
 # Combine vertically with custom panel heights
-fig_option_4 <- patchwork::wrap_plots(p4_a, p4_b, ncol = 1, heights = c(1, 2))
-print(fig_option_4)
+patchwork::wrap_plots(p4_a, p4_b, ncol = 1, heights = c(1, 2))
 
 
 
