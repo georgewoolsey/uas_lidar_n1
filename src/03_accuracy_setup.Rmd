@@ -137,12 +137,49 @@ reference_prediction_match <- function(
   #######################################################################
   # data checks
   #######################################################################
-  validate_df_fn(data = pred_data, required_cols = c("tree_height_m"), check_numeric = T)
-  validate_df_fn(data = ref_data, required_cols = c("tree_height_m"), check_numeric = T)
   if(nrow(pred_data)==0 | nrow(ref_data)==0){
     warning("no data so...?????")
-    return(NULL)
+    # return(NULL)
+    
+    if(nrow(pred_data)!=0){
+      validate_df_fn(data = pred_data, required_cols = c("tree_height_m"), check_numeric = T)
+      # sort to start with largest
+      pred_data <- pred_data %>% 
+        dplyr::arrange(desc(tree_height_m)) %>% 
+        dplyr::mutate(pred_match_idx = dplyr::row_number()) %>% 
+        # add columns
+        dplyr::mutate(
+          ref_match_idx = as.numeric(NA)
+          , pred_match_height_diff_m= as.numeric(NA)
+          , pred_match_dist_m = as.numeric(NA)
+          , ref_tree_height_m = as.numeric(NA)
+        )
+    }else{pred_data <- NULL}
+    
+    if(nrow(ref_data)!=0){
+      validate_df_fn(data = ref_data, required_cols = c("tree_height_m"), check_numeric = T)
+      # sort to start with largest
+      ref_data <- ref_data %>% 
+        dplyr::arrange(desc(tree_height_m)) %>% 
+        dplyr::mutate(ref_match_idx = dplyr::row_number()) %>% 
+        # add columns
+        dplyr::mutate(
+          pred_match_idx = 0
+          , pred_match_height_diff_m = as.numeric(NA)
+          , pred_tree_height_m = as.numeric(NA)
+          , pred_match_dist_m = as.numeric(NA)
+        )
+    }else{ref_data <- NULL}
+    # return
+    return(list(
+      ref_data = ref_data
+      , pred_data = pred_data
+    ))
   }
+  
+  validate_df_fn(data = pred_data, required_cols = c("tree_height_m"), check_numeric = T)
+  validate_df_fn(data = ref_data, required_cols = c("tree_height_m"), check_numeric = T)
+  
   # proj
   if(!identical(
     sf::st_crs(pred_data, parameters = T)[["epsg"]]
@@ -281,6 +318,91 @@ ground_truth_prediction_match <- function(
   reference_prediction_match_ans
   , comp_cols = c("tree_height_m")
 ) {
+  # check for missing both missing
+  if(
+    is.null(reference_prediction_match_ans$ref_data)
+    && is.null(reference_prediction_match_ans$pred_data)
+  ){
+    warning("no data so...?????")
+    return(NULL)
+  }
+  
+  # if reference but no predictions...they are all omissions (FN)
+  if(is.null(reference_prediction_match_ans$pred_data)){
+    return_df <-
+      reference_prediction_match_ans$ref_data %>%
+      dplyr::filter(pred_match_idx==0 | is.na(pred_match_idx)) %>% 
+      dplyr::select(dplyr::all_of(c(
+        "ref_match_idx"
+        , "pred_match_idx"
+        , "pred_match_dist_m"
+        # , "pred_tree_height_m"
+        # , "tree_height_m"
+        , comp_cols
+      ))) %>% 
+      dplyr::rename_with(
+        .cols = dplyr::all_of(comp_cols)
+        , .fn = ~paste0("ref_", .x, recycle0 = T)
+      ) %>% 
+      sf::st_set_geometry("ref_geometry") %>% 
+      dplyr::mutate(match_grp = "omission")
+    # make match_grp factor
+    return_df <- return_df %>% 
+      dplyr::mutate(
+        match_grp = factor(
+          match_grp
+          , ordered = T
+          , levels = c(
+            "true positive"
+            , "commission"
+            , "omission"
+          )
+        ) %>% forcats::fct_rev()
+      )
+    return(return_df)
+  }
+  
+  # if predictions but no reference...they are all commissions (FP)
+  if(is.null(reference_prediction_match_ans$ref_data)){
+    return_df <-
+      reference_prediction_match_ans$pred_data %>%
+      dplyr::filter(ref_match_idx==0 | is.na(ref_match_idx)) %>% 
+      dplyr::select(dplyr::all_of(c(
+        "ref_match_idx"
+        , "pred_match_idx"
+        , "pred_match_dist_m"
+        # , "pred_tree_height_m"
+        # , "tree_height_m"
+        , comp_cols
+      ))) %>% 
+      dplyr::rename_with(
+        .cols = dplyr::all_of(comp_cols)
+        , .fn = ~paste0("pred_", .x, recycle0 = T)
+      ) %>% 
+      dplyr::mutate(pred_geometry = sf::st_geometry(.)) %>%
+      sf::st_drop_geometry() %>% 
+      dplyr::mutate(match_grp = "commission")
+    # make match_grp factor
+    return_df <- return_df %>% 
+      dplyr::mutate(
+        match_grp = factor(
+          match_grp
+          , ordered = T
+          , levels = c(
+            "true positive"
+            , "commission"
+            , "omission"
+          )
+        ) %>% forcats::fct_rev()
+      )
+    return(return_df)
+  }
+  
+  ############# otherwise: nrow(ref_data)>0 & nrow(pred_data)>0
+  ############# otherwise: nrow(ref_data)>0 & nrow(pred_data)>0
+  ############# otherwise: nrow(ref_data)>0 & nrow(pred_data)>0
+  ############# otherwise: nrow(ref_data)>0 & nrow(pred_data)>0
+  ############# otherwise: nrow(ref_data)>0 & nrow(pred_data)>0
   # check for comparison cols
   comp_cols <- 
     comp_cols %>% 
@@ -387,6 +509,9 @@ ground_truth_prediction_match <- function(
   
   
   if(inherits(comp_cols, "character") && length(comp_cols) > 0){
+    # add a tiny value (eps) to the denominator for pct_diff_ 
+    # calcs to prevent division by zero...where pct_diff_ is used for MAPE summary
+    eps <- 1e-5
     return_df <- 
       return_df %>% 
       dplyr::mutate(
@@ -407,7 +532,8 @@ ground_truth_prediction_match <- function(
             , comp_cols # c("tree_height_m", "dbh_cm")
             , recycle0 = T
           )
-          , .fns = ~ (.x-base::get(stringr::str_replace(dplyr::cur_column(), "^ref_", "pred_")))/.x
+          # 
+          , .fns = ~ (.x-base::get(stringr::str_replace(dplyr::cur_column(), "^ref_", "pred_")))/(.x + eps)
           , .names = "pct_diff_{stringr::str_remove(.col, '^ref_')}"
         )
       ) 
@@ -670,11 +796,9 @@ gt_temp %>%
 
 ## Quantification Accuracy Metrics{#quant_metrics_form}
 
-Quantification accuracy metrics such as RMSE, MAPE, and Mean Error of tree form measurements (e.g. height, diameter) are calculated by aggregating the differences between the estimated tree attributes and the ground truth values for instances classified as True Positives. These metrics tell us about the method's ability to accurately quantify the form of the trees it successfully identified.
+Quantification accuracy metrics such as RMSE, MAPE, and Mean Error of tree form measurements (e.g. height, diameter) are calculated by aggregating the differences between the estimated tree attributes and the field reference values for instances classified as True Positives. These metrics tell us about the method's ability to accurately quantify the form of the trees it successfully identified.
 
-We only have field-collected slash tree height and diameter measurements from a single study site, the PSINF Mixed Conifer Site. Data from this one study site will be used to test the slash tree quantification accuracies acheived by the proposed methodology, while data from all study sites will be used to validate the slash tree detection methodology.  
-
-to prepare our results for analysis, we will develop a function that aggregates the tree-level data into a single record for each metric-error measurement combination. this function will calculate detection performance metrics such as F-score, precision, and recall (using the `confusion_matrix_scores_fn()` we defined above), as well as quantification accuracy metrics including Root Mean Squared Error (RMSE), Mean Error (ME), and Mean Absolute Percentage Error (MAPE) to assess the accuracy of our tree form measurements. this could be a valuable function for any future analysis comparing predictions to ground truth data.
+to prepare our results for analysis, we will develop a function that aggregates the tree-level data into a single record for each metric-error measurement combination. this function will calculate detection performance metrics such as F-score, precision, and recall (using the `confusion_matrix_scores_fn()` we defined above), as well as quantification accuracy metrics including Root Mean Squared Error (RMSE), Mean Error (ME), and Mean Absolute Percentage Error (MAPE) to assess the accuracy of our tree form measurements. this could be a valuable function for any future analysis comparing predictions to reference data.
 
 here are the quantification accuracy metric formulas:
 
@@ -825,7 +949,7 @@ interesting
 
 let's zoom in on an smaller area (0.20 ha) to better visualize the instance matching results
 
-```{r,eval=T, fig.height = 10.2, fig.width = 9.5}
+```{r,eval=F, fig.height = 10.2, fig.width = 9.5}
 # re-read rgb
 rgb_rast_temp <- terra::rast(rgb_rast_fnm) %>% 
   # keep only rgb bands

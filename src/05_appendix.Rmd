@@ -1419,7 +1419,7 @@ pal_species <-
 
 let's quickly look at the training data species over the independent variables of height and x, y
 
-```{r,eval=T, fig.height = 10.5, fig.width = 8.7}
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   treemap_tree_list_df %>% 
@@ -1633,7 +1633,7 @@ predicted_trees <-
 
 let's look at the predicted species by height and location for a single flight predicted trees
 
-```{r,eval=T, fig.height = 10.5, fig.width = 8.7}
+```{r,eval=F, fig.height = 10.5, fig.width = 8.7}
 # x,y
 plt1_temp <-
   predicted_trees[[1]] %>% 
