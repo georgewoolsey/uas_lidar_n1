@@ -781,15 +781,26 @@ check the DBH and height distribution for each data set
 
 ```{r}
 # make a function to label the dataset_factor for plotting
-dataset_factor_relabel_fn <- function(df) {
-  df %>% 
-    dplyr::mutate(
-    dataset_factor = dataset_factor %>% 
-      forcats::fct_relabel(
-        # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
-        ~stringr::str_replace(.x,"m/s", "m s\u207B\u00B9")
-      )
-  )
+dataset_factor_relabel_fn <- function(df,chr_ret=F) {
+  if(chr_ret){
+    df %>% 
+      dplyr::mutate(
+      dataset_factor = dataset_factor %>% 
+        forcats::fct_relabel(
+          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
+          ~ stringr::str_replace(.x,"m/s", "m s\u207B\u00B9") %>% stringr::str_replace(" \\| ","\u000A")
+        )
+    )
+  }else{
+    df %>% 
+      dplyr::mutate(
+      dataset_factor = dataset_factor %>% 
+        forcats::fct_relabel(
+          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
+          ~stringr::str_replace(.x,"m/s", "m s\u207B\u00B9")
+        )
+    )
+  }
 }
 
 predicted_trees %>% 

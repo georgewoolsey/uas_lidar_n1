@@ -2236,12 +2236,12 @@ value_lab_fn_temp <- function(df) {
           , "pct_diff_trees_per_ha"
         )
         , labels = c(
-          latex2exp::TeX("Flight+Processing ($mins \\cdot ha^{-1}$)", output = "character")
-          , latex2exp::TeX("F-score", output = "character")
-          , latex2exp::TeX("Height RMSE (m)", output = "character")
-          , latex2exp::TeX("DBH RMSE (cm)", output = "character")
-          , latex2exp::TeX("% Diff. Basal Area $m^{2} \\cdot ha^{-1}$", output = "character")
-          , latex2exp::TeX("% Diff. Trees $ha^{-1}$", output = "character")
+          "Flight + Processing\n(mins ha⁻¹)"
+          , "F-score"
+          , "Height\nRMSE (m)"
+          , "DBH\nRMSE (cm)"
+          , "Basal Area (m² ha⁻¹)\nRelative Bias (%)"
+          , "Trees ha⁻¹\nRelative Bias (%)"
         )
         , ordered = T
       )
@@ -2275,7 +2275,8 @@ agg_ground_truth_match_ans %>%
       # )
   ) %>% 
   value_lab_fn_temp() %>% 
-  dataset_factor_relabel_fn() %>% 
+  dataset_factor_relabel_fn(chr_ret = T) %>% 
+  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
   # dplyr::glimpse()
 ggplot2::ggplot(
   mapping = ggplot2::aes(
@@ -2301,34 +2302,27 @@ ggplot2::ggplot(
       value_lab_fn_temp() %>% 
       dplyr::rename(medx_lab=value_lab)
     , ggplot2::aes(label = medx_lab, x = value, y = -Inf, fontface = "bold")
-    , color = "gray55"
-    , size = 2.2
+    , color = "gray33"
+    , size = 2.3
     , hjust = -0.3, vjust = -1
   ) +
   ggplot2::geom_segment(
     mapping = ggplot2::aes(yend = dataset_factor, xend = 0)
-    , color = "gray33"
+    , color = "maroon4"
   ) +
-  ggplot2::geom_point(size = 3, color = "gray33") +
+  ggplot2::geom_point(size = 3, color = "maroon4") +
   # rhs labs
   ggplot2::geom_text(
     mapping = ggplot2::aes(label = value_lab, fontface = "bold")
     , color = "black"
-    , size = 2.8
+    , size = 2.4
     # , nudge_x = 0.006
     , hjust = 0, vjust = -1
     # , hjust = -0.4
   ) +
   ggplot2::facet_grid(
     cols = dplyr::vars(name_fact)
-    , labeller = ggplot2::label_parsed
     , scales = "free_x"
-    # , labeller = ggplot2::as_labeller(
-    #   function(x) {
-    #     paste0("atop(", x, ", 'percent error')")
-    #   }
-    #   , default = ggplot2::label_parsed
-    # )
   ) +
   ggplot2::scale_x_continuous(
     expand = ggplot2::expansion(mult = c(0,0.55))
@@ -2343,7 +2337,7 @@ ggplot2::ggplot(
     , axis.title.x = element_blank()
     , axis.ticks.x = element_blank()
     , axis.text.y = ggplot2::element_text(size = 8, face = "bold")
-    , strip.text = ggplot2::element_text(size = 8, color = "black")
+    , strip.text = ggplot2::element_text(size = 9, color = "black", face = "bold")
     , panel.grid.major.x = element_blank()
     , panel.grid.minor.x = element_blank()
   )
@@ -2353,37 +2347,59 @@ ggplot2::ggplot(
 ggplot2::ggsave("../data/flights_comp_efficiency_accuracy1.jpg", height = 6, width = 11)
 ```
 
-that's pretty good but might be difficult to display in a small horizontal margin document
+that's pretty good but might be difficult to display in a small horizontal margin document. a potential figure description is: 
+>Operational efficiency and inventory performance across six tested UAS-lidar flight configurations in the 9.3 ha study area. Rows represent unique flight parameter combinations, and side-by-side vertical panels report analysis metrics with units specified in panel headers. Metrics evaluate operational time efficiency measured as combined flight and processing duration (mins ha^-1), individual tree detection F-score (%), tree form measurement error reported as height RMSE (m) and DBH RMSE (cm), and stand-level bias measured as relative percent difference from stem-mapped reference totals for basal area (m^2 ha^-1) and tree density (trees ha^-1). Vertical dashed lines indicate metric medians across all flights, and point labels report exact values.
 
 let's try a vertical version figure with the same information
 
-```{r}
+```{r, fig.height = 11, fig.width = 8}
 # operational time
 plt_a_temp <-
 agg_ground_truth_match_ans %>% 
   dplyr::mutate(value = total_mins_per_ha, name = "total_mins_per_ha") %>% 
   value_lab_fn_temp() %>% 
   dataset_factor_relabel_fn() %>% 
-  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(x = dataset_factor, y = value, group = 1)
   ) +
-  ggplot2::geom_line(lwd = 2, color = "maroon4") +
-  ggplot2::geom_point(size = 4, color = "maroon4") +
-  ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), seed = 222, size = 2.5) +
+  ggplot2::geom_hline(
+    data = ~
+      .x %>% 
+      dplyr::group_by(name,.groups = "drop_last") %>%
+      dplyr::summarise(medx = median(value,na.rm=T))
+    , ggplot2::aes(yintercept = medx)
+    , color = "gray77", lwd = 0.5, linetype = "dashed"
+  ) +
+  ggplot2::geom_text(
+    data = ~
+      .x %>% 
+      dplyr::group_by(name,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>%
+      dplyr::rename(medx_lab=value_lab)
+    , ggplot2::aes(label = medx_lab, y = value, x = -Inf, fontface = "bold")
+    , color = "gray55"
+    , size = 2.2
+    , hjust = -0.3, vjust = 2
+  ) +
+  
+  
+  ggplot2::geom_line(lwd = 1.2, color = "maroon4") +
+  ggplot2::geom_point(size = 2.8, color = "maroon4") +
+  # ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), seed = 222, size = 2.5) +
+  ggplot2::geom_text(mapping = ggplot2::aes(label = value_lab), color="black", size = 2.5, vjust = 2.1) +
   ggplot2::facet_grid(
     cols = dplyr::vars(name_fact)
-    , labeller = ggplot2::label_parsed()
   ) +
   ggplot2::scale_y_continuous(
     limits = c(0,NA)
     # , breaks = scales::breaks_extended(n=7)
     , labels = scales::comma
-    , expand = ggplot2::expansion(mult = c(0,0.4))
+    , expand = ggplot2::expansion(mult = c(0,0.43))
   ) +
   ggplot2::labs(
     x = ""
-    , y = "" #latex2exp::TeX("Flight+Processing ($mins \\cdot ha^{-1}$)")
+    , y = "" #"Flight+Processing\n(mins ha⁻¹)"
     , tag = "A"
   ) +
   ggplot2::theme_light()+
@@ -2391,7 +2407,10 @@ agg_ground_truth_match_ans %>%
     legend.position = "none"
     , axis.title.x = ggplot2::element_blank()
     , axis.text.x = ggplot2::element_blank()
-    , strip.text = ggplot2::element_text(size = 8, color = "black")
+    , axis.text.y = ggplot2::element_text(size = 6)
+    , axis.title.y = ggplot2::element_text(size = 6)
+    , strip.text.x = ggplot2::element_text(size = 9.8, color = "black", face = "bold")
+    , strip.text.y = ggplot2::element_text(size = 8, color = "black", face = "bold")
   ) 
   # ggplot2::guides(
   #   color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
@@ -2401,22 +2420,15 @@ agg_ground_truth_match_ans %>%
 # detection performance
 plt_b_temp <-
 agg_ground_truth_match_ans %>% 
-  dplyr::mutate(
-    xxx = runif(n=dplyr::n(),max = 0.11)
-    , precision = f_score*(1-xxx)
-    , recall = f_score*(1+xxx)
-  ) %>% 
   dplyr::select(
     dataset_factor
     , precision, recall, f_score
   ) %>% 
   tidyr::pivot_longer(
     cols = c(precision,recall,f_score)
-    , names_to = "metric"
-    , values_to = "value"
   ) %>% 
   dplyr::mutate(
-    metric = metric %>%
+    metric = name %>%
       forcats::fct_relevel("f_score", "recall", "precision") %>%
       forcats::fct_recode("F-score" = "f_score", "Recall" = "recall", "Precision" = "precision")
   ) %>% 
@@ -2427,23 +2439,50 @@ agg_ground_truth_match_ans %>%
     )
   ) %>% 
   dataset_factor_relabel_fn() %>% 
-  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
-  dplyr::mutate(name_fact = "Individual Tree Detection") %>% 
+  dplyr::mutate(
+    x_fact = "Tree Detection Performance"
+    , value_lab = ifelse(name=="f_score",value_lab,"")
+  ) %>% 
+  dplyr::arrange(dataset_factor, desc(metric)) %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(x = dataset_factor, y = value, group = metric, color = metric)
   ) +
-  ggplot2::geom_line(lwd = 2) +
-  ggplot2::geom_point(size = 4) +
-  # ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), color = "gray33", seed = 222, size = 2.5) +
+  ggplot2::geom_hline(
+    data = ~
+      .x %>% 
+      dplyr::group_by(x_fact,name,metric,.groups = "drop_last") %>%
+      dplyr::summarise(medx = median(value,na.rm=T))
+    , ggplot2::aes(yintercept = medx, color = metric)
+    # , color = "gray77"
+    , lwd = 0.3
+    , linetype = "dashed"
+  ) +
+  # ggplot2::geom_text(
+  #   data = ~
+  #     .x %>% 
+  #     dplyr::group_by(x_fact,name,metric,.groups = "drop_last") %>%
+  #     dplyr::summarise(value = median(value,na.rm=T)) %>% 
+  #     value_lab_fn_temp() %>%
+  #     dplyr::rename(medx_lab=value_lab)
+  #   , ggplot2::aes(label = medx_lab, y = value, x = -Inf, fontface = "bold")
+  #   , color = "gray55"
+  #   , size = 2.2
+  #   , hjust = -0.3, vjust = 2
+  # ) +
+  
+  ggplot2::geom_line(lwd = 0.8) +
+  ggplot2::geom_point(size = 2.0) +
+  # # ggrepel::geom_text_repel(mapping = ggplot2::aes(label = value_lab), color = "gray33", seed = 222, size = 2.5) +
+  # ggplot2::geom_text(mapping = ggplot2::aes(label = value_lab), color="black", size = 2.5, vjust = 2.1) +
   ggplot2::facet_grid(
-    cols = dplyr::vars(name_fact)
+    cols = dplyr::vars(x_fact)
   ) +
   ggplot2::scale_color_manual(values=pal_eval_metric) +
   ggplot2::scale_y_continuous(
     limits = c(0,NA)
     # , breaks = scales::breaks_extended(n=7)
     , labels = scales::percent
-    , expand = ggplot2::expansion(mult = c(0,0.4))
+    , expand = ggplot2::expansion(mult = c(0,0.43))
   ) +
   ggplot2::labs(
     x = ""
@@ -2453,13 +2492,24 @@ agg_ground_truth_match_ans %>%
   ) +
   ggplot2::theme_light()+
   ggplot2::theme(
-    legend.position = "top"
-    , axis.title.x = ggplot2::element_blank()
+    # legend.position = "top"
+    axis.title.x = ggplot2::element_blank()
     , axis.text.x = ggplot2::element_blank()
-    , strip.text = ggplot2::element_text(size = 8, color = "black")
+    , axis.text.y = ggplot2::element_text(size = 6)
+    , axis.title.y = ggplot2::element_text(size = 6)
+    , strip.text.x = ggplot2::element_text(size = 9.8, color = "black", face = "bold")
+    , strip.text.y = ggplot2::element_text(size = 8, color = "black", face = "bold")
+    # legend :/
+    , legend.position = "inside"
+    , legend.direction = "horizontal"
+    , legend.position.inside = c(0.5, 0.02)
+    , legend.justification = c(0.5, 0)
+    , legend.background = ggplot2::element_rect(fill = "white", color = "grey88", linewidth = 0.5)
+    , legend.text = ggplot2::element_text(size = 6)
+    
   ) +
   ggplot2::guides(
-    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 4, alpha = 1, fill = NA))
     , fill = "none"
   )
 
@@ -2473,32 +2523,48 @@ agg_ground_truth_match_ans %>%
   tidyr::pivot_longer(cols = -dataset_factor) %>% 
   value_lab_fn_temp() %>% 
   dataset_factor_relabel_fn() %>% 
-  dplyr::mutate(dataset_factor = forcats::fct_rev(dataset_factor)) %>% 
-  dplyr::mutate(x_fact = latex2exp::TeX("Tree-Level Physical Measurement", output = "character")) %>% 
+  dplyr::mutate(x_fact = "Tree-Level Attribute Accuracy") %>% 
   ggplot2::ggplot(
     mapping = ggplot2::aes(x = dataset_factor, y = value, color = name_fact, group = 1)
   ) +
-  ggplot2::geom_line(lwd = 2) +
-  ggplot2::geom_point(size = 4) +
-  ggplot2::geom_text(
-    mapping = ggplot2::aes(label = value_lab)
-    , color = "gray33"
-    , size = 2.5
-    , vjust = -1
+  ggplot2::geom_hline(
+    data = ~
+      .x %>% 
+      dplyr::group_by(x_fact,name,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>%
+      dplyr::rename(medx=value)
+    , ggplot2::aes(yintercept = medx)
+    , color = "gray77", lwd = 0.5, linetype = "dashed"
   ) +
+  ggplot2::geom_text(
+    data = ~
+      .x %>% 
+      dplyr::group_by(x_fact,name,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>%
+      dplyr::rename(medx_lab=value_lab)
+    , ggplot2::aes(label = medx_lab, y = value, x = -Inf, fontface = "bold")
+    , color = "gray55"
+    , size = 2.2
+    , hjust = -0.3, vjust = 2
+  ) +
+  
+  ggplot2::geom_line(lwd = 1.2) +
+  ggplot2::geom_point(size = 2.8) +
+  ggplot2::geom_text(mapping = ggplot2::aes(label = value_lab), color="black", size = 2.5, vjust = 2.1) +
   ggplot2::facet_grid(
     cols = dplyr::vars(x_fact)
     , rows = dplyr::vars(name_fact)
-    , labeller = ggplot2::label_parsed
     , scales = "free_y"
     # , switch = "y" # moves y facet label to left
   ) +
-  ggplot2::scale_color_manual(values=c("maroon3","maroon4")) +
+  ggplot2::scale_color_manual(values=c("maroon4","maroon4")) +
   ggplot2::scale_y_continuous(
     limits = c(0,NA)
     # , breaks = scales::breaks_extended(n=7)
-    , labels = scales::comma
-    , expand = ggplot2::expansion(mult = c(0,0.4))
+    , labels = scales::comma_format(accuracy = 0.1)
+    , expand = ggplot2::expansion(mult = c(0,0.43))
   ) +
   ggplot2::labs(
     x = ""
@@ -2511,7 +2577,10 @@ agg_ground_truth_match_ans %>%
     legend.position = "none"
     , axis.title.x = ggplot2::element_blank()
     , axis.text.x = ggplot2::element_blank()
-    , strip.text = ggplot2::element_text(size = 8, color = "black")
+    , axis.text.y = ggplot2::element_text(size = 6)
+    , axis.title.y = ggplot2::element_text(size = 6)
+    , strip.text.x = ggplot2::element_text(size = 9.8, color = "black", face = "bold")
+    , strip.text.y = ggplot2::element_text(size = 8, color = "black", face = "bold")
     # , strip.placement = "outside"
     # , strip.text.y.left = ggplot2::element_text(angle = 90)
     # , strip.background.y = ggplot2::element_rect(color = NA, fill = NA)
@@ -2521,35 +2590,90 @@ agg_ground_truth_match_ans %>%
     , fill = "none"
   )
 
-# Panel D: Stand-Level Bias
+# stand-level
 plt_d_temp <-
-ggplot2::ggplot(
-  data = flight_data,
-  mapping = ggplot2::aes(x = dataset_factor)
-) +
-  ggplot2::geom_col(
-    mapping = ggplot2::aes(y = pct_diff_trees_per_ha, fill = "TPH Difference (%)"),
-    width = 0.35,
-    position = ggplot2::position_nudge(x = -0.2)
+agg_ground_truth_match_ans %>% 
+  dplyr::select(
+    dataset_factor
+    , pct_diff_basal_area_m2_per_ha
+    , pct_diff_trees_per_ha
+  ) %>% 
+  tidyr::pivot_longer(cols = -dataset_factor) %>% 
+  value_lab_fn_temp() %>% 
+  dataset_factor_relabel_fn(chr_ret = T) %>% 
+  dplyr::mutate(x_fact = "Stand-Level Measurement Bias") %>% 
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = dataset_factor, y = value, color = name_fact, group = 1)
   ) +
-  ggplot2::geom_col(
-    mapping = ggplot2::aes(y = pct_diff_basal_area_m2_per_ha, fill = "BA Difference (%)"),
-    width = 0.35,
-    position = ggplot2::position_nudge(x = 0.2)
+  ggplot2::geom_hline(
+    data = ~
+      .x %>% 
+      dplyr::group_by(x_fact,name,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>%
+      dplyr::rename(medx=value)
+    , ggplot2::aes(yintercept = medx)
+    , color = "gray77", lwd = 0.5, linetype = "dashed"
   ) +
-  ggplot2::geom_hline(yintercept = 0, linetype = "dotted", color = "black") +
-  ggplot2::scale_y_continuous(name = "Difference vs Field (%)") +
-  ggplot2::scale_fill_manual(
-    values = c("TPH Difference (%)" = "#e6ab02", "BA Difference (%)" = "#a6761d"),
-    name = NULL
+  ggplot2::geom_text(
+    data = ~
+      .x %>% 
+      dplyr::group_by(x_fact,name,.groups = "drop_last") %>%
+      dplyr::summarise(value = median(value,na.rm=T)) %>% 
+      value_lab_fn_temp() %>%
+      dplyr::rename(medx_lab=value_lab)
+    , ggplot2::aes(label = medx_lab, y = value, x = -Inf, fontface = "bold")
+    , color = "gray55"
+    , size = 2.2
+    , hjust = -0.3, vjust = 2
   ) +
-  ggplot2::labs(x = "Flight Configuration", tag = "D") +
-  ggplot2::theme_bw() +
-  ggplot2::theme(legend.position = "top")
-
+  
+  ggplot2::geom_line(lwd = 1.2) +
+  ggplot2::geom_point(size = 2.8) +
+  ggplot2::geom_text(mapping = ggplot2::aes(label = value_lab), color="black", size = 2.5, vjust = 2.1) +
+  ggplot2::facet_grid(
+    cols = dplyr::vars(x_fact)
+    , rows = dplyr::vars(name_fact)
+    , scales = "free_y"
+    # , switch = "y" # moves y facet label to left
+  ) +
+  ggplot2::scale_color_manual(values=c("maroon4","maroon4")) +
+  ggplot2::scale_y_continuous(
+    limits = c(0,NA)
+    # , breaks = scales::breaks_extended(n=7)
+    , labels = scales::percent
+    , expand = ggplot2::expansion(mult = c(0,0.43))
+  ) +
+  ggplot2::labs(
+    x = ""
+    , y = ""
+    , color = ""
+    , tag = "D"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , axis.title.x = ggplot2::element_blank()
+    , axis.text.x = ggplot2::element_text(size = 7.2, face = "bold")
+    , axis.text.y = ggplot2::element_text(size = 6)
+    , axis.title.y = ggplot2::element_text(size = 6)
+    , strip.text.x = ggplot2::element_text(size = 9.8, color = "black", face = "bold")
+    , strip.text.y = ggplot2::element_text(size = 8, color = "black", face = "bold")
+    # , strip.placement = "outside"
+    # , strip.text.y.left = ggplot2::element_text(angle = 90)
+    # , strip.background.y = ggplot2::element_rect(color = NA, fill = NA)
+  ) +
+  ggplot2::guides(
+    color = ggplot2::guide_legend(override.aes = list(shape = 15, linetype = 0, size = 6, alpha = 1, fill = NA))
+    , fill = "none"
+  )
 # Combine panels vertically using patchwork
 # fig_option_1 <- 
-patchwork::wrap_plots(plt_a_temp, plt_b_temp, plt_c_temp, ncol = 1)
+patchwork::wrap_plots(plt_a_temp, plt_b_temp, plt_c_temp, plt_d_temp, ncol = 1, heights = c(1,1,1.5,1.5))
+```
+
+```{r, include=F, eval=T, results=F}
+ggplot2::ggsave("../data/flights_comp_efficiency_accuracy7.jpg", height = 11, width = 8)
 ```
 
 
