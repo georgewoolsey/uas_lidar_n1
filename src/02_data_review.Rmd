@@ -63,293 +63,6 @@ dplyr::glimpse(tracking_df)
 # names(tracking_df)
 ```
 
-```{r, include = F, eval = F}
-ctg_temp <- lidR::readLAScatalog(
-    file.path(tracking_df$path[1], "point_cloud_processing_delivery", "norm_las")
-  )
-# aoi
-aoi_temp <- 
-  sf::st_read(
-    file.path(c2t_process_dir, "final_detected_crowns.gpkg")
-    , quiet = T
-    , query = 
-      sprintf(
-        "SELECT * FROM %s WHERE treeID IN (%s)"
-        , "final_detected_crowns" %>% stringr::str_remove("^.*/") %>% stringr::str_remove("\\.[^.]+$")
-        , stringr::str_c(
-          "'"
-          # , unique(pred_trees_temp$treeID)
-          , c(
-            # "11760_490146.1_4330568.6", "11772_490141.4_4330568.1"
-              "11883_490141.6_4330561.6" , "11924_490135.1_4330559.6"
-          )
-          , "'"
-          , collapse = ", "
-        )
-      )
-  ) %>% 
-  cloud2trees::simplify_multipolygon_crowns() %>% 
-  # sf::st_buffer(5) %>% 
-  sf::st_union() %>% 
-  sf::st_transform(lidR::st_crs(ctg_temp))
-# ctg_temp
-  las_temp <- lidR::clip_roi(ctg_temp, aoi_temp)
-  # las_temp@data %>% dplyr::glimpse()
-  lidR::plot(
-    las_temp, color = "RGB", bg = "white", legend = F
-  )
-  # lidR::plot(
-  #   las_temp, color = "Z", bg = "white", legend = T
-  # )
-  
-# can we ggplot this?
-las_temp@data %>% 
-  # convert raw rgb integers into proper hexadecimal color strings
-  # summary()
-  dplyr::mutate(
-    # dynamically find the absolute maximum value present in the color channels.
-    max_observed = max(base::c(R, G, B), na.rm = TRUE)
-    , denom = ifelse(max_observed > 255, 65535, 255)
-    , hex_color = grDevices::rgb(
-      as.numeric(R) / denom
-      , as.numeric(G) / denom 
-      , as.numeric(B) / denom 
-      , maxColorValue = 1
-    )
-    # hex_color = grDevices::rgb(R, G, B, maxColorValue = 255) # Change to 65535 if using 16-bit LAS data
-  ) %>% 
-  dplyr::slice_sample(prop = 0.7) %>% 
-  ggplot2::ggplot(ggplot2::aes(x = X, y = Z)) +
-  ggplot2::geom_point(ggplot2::aes(color = hex_color), size = 0.3, alpha = 0.8) +
-  ggplot2::coord_equal() +
-  ggplot2::scale_color_identity() +
-  # ggplot2::labs(
-  #   title = "True-Color Spatial Distribution Across Point Cloud Datasets",
-  #   subtitle = "Synced Nadir (Top-Down) Perspective Layout",
-  #   x = "Easting (X Metric Coordinate)",
-  #   y = "Northing (Y Metric Coordinate)"
-  # ) +
-  ggplot2::theme_void()
-  # ggplot2::theme(
-  #   panel.background = ggplot2::element_rect(fill = "#fcfcfc", color = NA),
-  #   strip.text = ggplot2::element_text(face = "bold", size = 12), # Style for panel titles
-  #   panel.grid = ggplot2::element_blank() # Remove background gridlines for crisp point clarity
-  # ) +
-  
-  
-  
-# point_cloud_plot <- 
-#   ggplot2::ggplot(data = combined_df, ggplot2::aes(x = X, y = Y)) +
-#   # Use small points (size) to handle massive LiDAR point counts efficiently without overlapping blobs
-#   ggplot2::geom_point(ggplot2::aes(color = hex_color), size = 0.4, alpha = 0.8) +
-#   # Force standard x and y axis scaling so spatial geometry isn't skewed or stretched
-#   ggplot2::coord_equal() +
-#   # Pull colors directly from the data mapping
-#   ggplot2::scale_color_identity() +
-#   # Seamless multi-panel grouping with a 2-row, 3-column wrap
-#   ggplot2::facet_wrap(facets = ggplot2::vars(dataset_name), nrow = 2, ncol = 3) +
-#   # Apply clean canvas styling
-#   ggplot2::theme_minimal(base_size = 14) +
-#   ggplot2::theme(
-#     panel.background = ggplot2::element_rect(fill = "#fcfcfc", color = NA),
-#     strip.text = ggplot2::element_text(face = "bold", size = 12), # Style for panel titles
-#     panel.grid = ggplot2::element_blank() # Remove background gridlines for crisp point clarity
-#   ) +
-#   ggplot2::labs(
-#     title = "True-Color Spatial Distribution Across Point Cloud Datasets",
-#     subtitle = "Synced Nadir (Top-Down) Perspective Layout",
-#     x = "Easting (X Metric Coordinate)",
-#     y = "Northing (Y Metric Coordinate)"
-#   )
-
-
-
-# A functional projection pipeline using base matrix multiplication
-project_3d_to_2d_temp <- function(data, azimuth_deg = 45, elevation_deg = 30) {
-  # Convert degrees to radians
-  theta <- (azimuth_deg * base::pi) / 180
-  phi   <- (elevation_deg * base::pi) / 180
-  
-  # Calculate transformation weights for the new 2D coordinate space
-  # x_proj simulates the horizontal layout, y_proj simulates the vertical layout
-  data %>% 
-    dplyr::mutate(
-      X_proj = X * base::cos(theta) - Y * base::sin(theta),
-      Y_proj = X * base::sin(theta) * base::sin(phi) + 
-               Y * base::cos(theta) * base::sin(phi) + 
-               Z * base::cos(phi)
-    )
-}
-
-
-# 1. Tidy, center, and color-code the entire stacked group
-combined_projected_temp <- 
-  # my_las_list %>% 
-  list(las_temp) %>% 
-  purrr::map_dfr(function(las) {
-    return(las@data)
-  }, .id = "dataset_name") %>% 
-  dplyr::select(dataset_name, X, Y, Z, R, G, B) %>% 
-  dplyr::mutate(
-    # Center the spatial coordinates around zero so they rotate neatly on their own axes
-    X = X - base::mean(X, na.rm = TRUE),
-    Y = Y - base::mean(Y, na.rm = TRUE),
-    Z = Z - base::mean(Z, na.rm = TRUE),
-    # Map 16-bit colors to safe hex codes
-    hex_color = grDevices::rgb(
-      base::as.numeric(R), 
-      base::as.numeric(G), 
-      base::as.numeric(B), 
-      maxColorValue = 65535
-    )
-  ) %>% 
-  # 2. Apply your custom 3D trackball viewpoint transformation matrix
-  # Play with these two arguments to adjust your vantage point:
-  project_3d_to_2d_temp(azimuth_deg = -35, elevation_deg = 25) 
-# combined_projected_temp %>% dplyr::glimpse()
-
-# pseudo_3d_plot <- 
-combined_projected_temp %>% 
-  dplyr::slice_sample(prop = 0.6) %>% 
-  ggplot2::ggplot(ggplot2::aes(x = X_proj, y = Y_proj)) +
-    # Render small, translucent dots to show depth and density layers clearly
-    ggplot2::geom_point(ggplot2::aes(color = hex_color), size = 0.5, alpha = 0.7) +
-    # Force equal scaling so the perspective doesn't warp or stretch
-    ggplot2::coord_equal() +
-    # Apply literal hex colors from your data
-    ggplot2::scale_color_identity() +
-    # Wrap into a 6-panel grid layout
-    # ggplot2::facet_wrap(facets = ggplot2::vars(dataset_name), nrow = 2, ncol = 3) +
-    # ggplot2::labs(
-    #   title = "Faceted 3D Isometric View of RGB Point Clouds",
-    #   subtitle = "Rotated view generated directly in ggplot2 via spatial projection mapping",
-    #   x = NULL, 
-    #   y = NULL
-    # )
-    # Clean canvas formatting
-    ggplot2::theme_void()
-    # ggplot2::theme(
-    #   panel.background = ggplot2::element_rect(fill = "#111111", color = NA), # Dark backgrounds make RGB pop
-    #   strip.text = ggplot2::element_text(face = "bold", color = "white", size = 12),
-    #   panel.grid = ggplot2::element_blank(),
-    #   axis.text = ggplot2::element_blank(), # Hide raw pixel/unit axes for a cleaner render
-    #   axis.ticks = ggplot2::element_blank()
-    # )
-  
-# pseudo_3d_plot <- ggplot2::ggplot(data = combined_projected, ggplot2::aes(x = X_proj, y = Y_proj)) +
-#   # Render small, translucent dots to show depth and density layers clearly
-#   ggplot2::geom_point(ggplot2::aes(color = hex_color), size = 0.05, alpha = 0.6) +
-#   # Force equal scaling so the perspective doesn't warp or stretch
-#   ggplot2::coord_equal() +
-#   # Apply literal hex colors from your data
-#   ggplot2::scale_color_identity() +
-#   # Wrap into a 6-panel grid layout
-#   ggplot2::facet_wrap(facets = ggplot2::vars(dataset_name), nrow = 2, ncol = 3) +
-#   # Clean canvas formatting
-#   ggplot2::theme_minimal(base_size = 14) +
-#   ggplot2::theme(
-#     panel.background = ggplot2::element_rect(fill = "#111111", color = NA), # Dark backgrounds make RGB pop
-#     strip.text = ggplot2::element_text(face = "bold", color = "white", size = 12),
-#     panel.grid = ggplot2::element_blank(),
-#     axis.text = ggplot2::element_blank(), # Hide raw pixel/unit axes for a cleaner render
-#     axis.ticks = ggplot2::element_blank()
-#   ) +
-#   ggplot2::labs(
-#     title = "Faceted 3D Isometric View of RGB Point Clouds",
-#     subtitle = "Rotated view generated directly in ggplot2 via spatial projection mapping",
-#     x = NULL, 
-#     y = NULL
-#   )
-
-
-```
-
-
-```{r, include = F, eval = F}
-# 1. Load libraries safely (best practice for scripts)
-library(lidR)
-library(tidyverse)
-library(rgl)
-
-# 2. Generate a list of 6 mock LAS objects for demonstration purposes
-# In your actual workflow, replace this list generation with your real data loading step:
-# my_las_list <- list(
-#   "Site A: Baseline"    = lidR::readLAS("path/to/las1.las"),
-#   "Site B: Treatment 1" = lidR::readLAS("path/to/las2.las"), ...
-# )
-set.seed(42)
-my_las_list <- base::vector("list", 6) %>% 
-  purrr::set_names(base::paste("Dataset Panel", 1:6)) %>% 
-  purrr::map(function(x) {
-    # Create random spatial points with RGB attributes
-    n <- 5000
-    df <- tibble::tibble(
-      X = stats::runif(n, 0, 100),
-      Y = stats::runif(n, 0, 100),
-      Z = stats::runif(n, 0, 30) + (50 * stats::dnorm(sqrt((X-50)^2 + (Y-50)^2), mean = 0, sd = 20)),
-      R = base::as.integer(stats::runif(n, 0, 255)),
-      G = base::as.integer(stats::runif(n, 100, 255)), # heavy green for trees
-      B = base::as.integer(stats::runif(n, 0, 255))
-    )
-    header <- lidR::LASheader()
-    return(lidR::LAS(df, header))
-  })
-
-# 3. Configure the rgl window layout
-# Close any active 3D windows first to start fresh
-rgl::close3d()
-
-# Open a new 3D device window scaled to a high-resolution grid aspect ratio (e.g., 3:2 width-to-height)
-rgl::open3d(windowRect = base::c(100, 100, 1900, 1300)) 
-
-# Create a 2-row by 3-column layout grid matrix
-layout_matrix <- base::matrix(1:6, nrow = 2, ncol = 3, byrow = TRUE)
-rgl::layout3d(layout_matrix, widths = base::c(1, 1, 1), heights = base::c(1, 1))
-
-
-# Define programmatic view settings (or adjust panel 1 manually before running the rest)
-# userMatrix controls the rotation matrix of the 3D trackball scene
-default_view_matrix <- rgl::rotationMatrix(-base::pi/4, 1, 0, 0) %*% rgl::rotationMatrix(base::pi/6, 0, 0, 1)
-
-# Loop through each dataset to render its dedicated panel
-for (i in 1:6) {
-  
-  # Extract the name and the LAS data object
-  panel_title <- base::names(my_las_list)[i]
-  las_object  <- my_las_list[[i]]
-  
-  # Move focus to the specific grid subplot panel
-  rgl::next3d()
-  
-  # Render the point cloud using its built-in RGB attributes
-  # clear = FALSE preserves the structural subscene layout configuration
-  lidR::plot(las_object, color = "RGB", clear = FALSE)
-  
-  # Apply the unified viewpoint transformation matrix
-  rgl::par3d(userMatrix = default_view_matrix, zoom = 0.75)
-  
-  # Add the panel descriptive title
-  # 'gtext3d' places a 2D text overlay safely within the 3D subscene coordinate projection
-  rgl::gtext3d(
-    x = 0.5, y = 0.92, text = panel_title, 
-    cex = 1.8, font = 2, color = "black"
-  )
-}
-
-
-
-# Define output destination file paths
-output_file <- "combined_point_cloud_grid.png"
-
-# Save the exact contents of the active multi-panel 3D window
-# The resolution corresponds directly to the dimensions specified in windowRect (Step 1)
-rgl::snapshot3d(filename = output_file, fmt = "png")
-
-# Optional: Clean up and close the open graphics viewport window
-rgl::close3d()
-
-```
-
 ## Raster Data and Study Boundary
 
 now, we're going to load in the CHM data for each flight
@@ -1809,3 +1522,166 @@ ggplot2::ggplot(
 remove(list = ls()[grep("_temp",ls())])
 gc()
 ```
+
+## Point Cloud Visual Example
+
+let's compare the resulting point clouds from the different flights looking at the same 1-2 trees for each flight.
+
+we're going to try to use `ggplot2` instead of using `lidR::plot(..., color = "RGB")` in hopes that we have more control over the plot layout and such
+
+```{r, results=F, message=F, warning=F}
+# since we're using ggplot, we need a projection to get that 3D view so that we're not just looking straight across the horizon
+project_3d_to_2d_temp <- function(las_data, azimuth_deg = 45, elevation_deg = 30) {
+  # convert degrees to radians
+  theta <- (azimuth_deg * pi) / 180
+  phi   <- (elevation_deg * pi) / 180
+  
+  # calculate transformation weights for the new 2d coordinate space
+  # x_proj simulates the horizontal layout, y_proj simulates the vertical layout
+  las_data %>% 
+    dplyr::mutate(
+      # center the spatial coordinates around zero so they rotate neatly on their own axes
+      x_center = X - mean(X, na.rm = T)
+      , y_center = Y - mean(Y, na.rm = T)
+      , z_center = Z - mean(Z, na.rm = T)
+      # apply transform projection
+      , x_proj = X * cos(theta) - y_center * sin(theta)
+      , y_proj = 
+        x_center * sin(theta) * sin(phi) + 
+        y_center * cos(theta) * sin(phi) + 
+        z_center * cos(phi)
+    )
+}
+# aoi: use same for each
+aoi_temp <- 
+  sf::st_read(
+    file.path(c2t_process_dir, "final_detected_crowns.gpkg")
+    , quiet = T
+    , query = 
+      sprintf(
+        "SELECT * FROM %s WHERE treeID IN (%s)"
+        , "final_detected_crowns" %>% stringr::str_remove("^.*/") %>% stringr::str_remove("\\.[^.]+$")
+        , stringr::str_c(
+          "'"
+          # , unique(pred_trees_temp$treeID)
+          , c(
+            # "11760_490146.1_4330568.6", "11772_490141.4_4330568.1"
+              "11883_490141.6_4330561.6" , "11924_490135.1_4330559.6"
+          )
+          , "'"
+          , collapse = ", "
+        )
+      )
+  ) %>% 
+  cloud2trees::simplify_multipolygon_crowns() %>% 
+  # sf::st_buffer(5) %>% 
+  sf::st_union()
+
+# map over each flight to get the point cloud data. then, plot
+las_df_temp <- 
+  timer_df %>%
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::pull(path) %>% 
+  purrr::map(function(p){
+    # ctg
+    ctg_temp <- lidR::readLAScatalog(
+        file.path(p, "point_cloud_processing_delivery", "norm_las")
+      )
+    # clip ctg
+    las_temp <- lidR::clip_roi(ctg_temp, sf::st_transform(aoi_temp,lidR::st_crs(ctg_temp)) )
+    # # las_temp@data %>% dplyr::glimpse()
+    # lidR::plot(
+    #   las_temp, color = "RGB", bg = "white", legend = F
+    # )
+    
+    
+    
+    # df
+    las_df <- 
+      las_temp@data %>% 
+      dplyr::mutate(
+      # dynamically find the absolute maximum value present in the color channels.
+      max_observed = max(c(R, G, B), na.rm = TRUE)
+      , denom = ifelse(max_observed > 255, max(65535,max_observed), 255)
+      , hex_color = grDevices::rgb(
+        as.numeric(R) / denom
+        , as.numeric(G) / denom 
+        , as.numeric(B) / denom 
+        , maxColorValue = 1
+      )
+      # hex_color = grDevices::rgb(R, G, B, maxColorValue = 255) # Change to 65535 if using 16-bit LAS data
+    ) %>% 
+    # apply your custom 3d trackball viewpoint transformation matrix
+    project_3d_to_2d_temp(azimuth_deg = -35, elevation_deg = 25) %>% 
+    dplyr::select(x_proj, y_proj, Z, hex_color)
+    
+    timer_df %>% 
+      dplyr::filter(path==p) %>% 
+      dplyr::bind_cols(las_df)
+  }) %>% 
+  purrr::list_rbind()
+# huh?
+las_df_temp %>% dplyr::glimpse()
+# las_df_temp %>% 
+#   dplyr::distinct(dataset_factor, points_per_m2) %>% 
+#   dplyr::mutate(
+#     dataset_factor_new = 
+#       as.character(dataset_factor) %>% 
+#       stringr::str_c(
+#         "\u000a"
+#         , scales::comma(points_per_m2,accuracy=1)
+#         , "points m\u00b2"
+#       ) %>% 
+#       forcats::fct_inorder(ordered = T)
+#   ) %>% 
+#   dplyr::pull(dataset_factor_new)
+  
+
+# can we ggplot this?
+plt_temp <- 
+  las_df_temp %>% 
+  # dplyr::slice_sample(prop = 0.22) %>% 
+  dplyr::arrange(flight_meters_per_second,flight_altitude_m) %>%
+  dataset_factor_relabel_fn() %>%
+  dplyr::mutate(
+    dataset_factor_new = 
+      dataset_factor %>% 
+      as.character() %>% 
+      stringr::str_c(
+        "\u000a"
+        , scales::comma(points_per_m2,accuracy=1)
+        , " points m\u00b2"
+      ) %>% 
+      forcats::fct_inorder(ordered = T)
+  ) %>% 
+  # dplyr::distinct(dataset_factor_new) %>% dplyr::pull(dataset_factor_new)
+# plot
+  ggplot2::ggplot(ggplot2::aes(x = x_proj, y = y_proj)) +
+  ggplot2::geom_point(ggplot2::aes(color = hex_color), size = 0.23, alpha = 0.6) +
+  ggplot2::coord_equal() +
+  ggplot2::scale_color_identity() +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(dataset_factor_new)
+    , ncol = 3
+    # , scales = "free"
+  ) +
+  ggplot2::theme_light()+
+  ggplot2::theme(
+    legend.position = "none"
+    , strip.text = ggplot2::element_text(size = 10, color = "black", face = "bold")
+    
+    , axis.text = ggplot2::element_blank()
+    , axis.title = ggplot2::element_blank()
+    , axis.ticks = ggplot2::element_blank()
+    , panel.grid.major = ggplot2::element_blank()
+    , panel.grid.minor = ggplot2::element_blank()
+  )
+```
+
+we did a lot of data reading, munging, and plotting. let's see the payoff
+
+```{r, fig.height=10.5, fig.width=9.9}
+plt_temp
+ggplot2::ggsave("../data/point_cloud_comp.jpg", plot = plt_temp, height = 10.5, width = 9.9)
+```
+
