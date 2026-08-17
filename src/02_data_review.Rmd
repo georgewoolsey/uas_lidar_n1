@@ -1553,7 +1553,7 @@ project_3d_to_2d_temp <- function(las_data, azimuth_deg = 45, elevation_deg = 30
     )
 }
 # aoi: use same for each
-aoi_temp <- 
+extrees_temp <- 
   sf::st_read(
     file.path(c2t_process_dir, "final_detected_crowns.gpkg")
     , quiet = T
@@ -1573,7 +1573,9 @@ aoi_temp <-
         )
       )
   ) %>% 
-  cloud2trees::simplify_multipolygon_crowns() %>% 
+  cloud2trees::simplify_multipolygon_crowns()
+# extrees_temp %>% dplyr::glimpse()
+aoi_temp <- extrees_temp %>% 
   # sf::st_buffer(5) %>% 
   sf::st_union()
 
@@ -1621,7 +1623,8 @@ las_df_temp <-
   }) %>% 
   purrr::list_rbind()
 # huh?
-las_df_temp %>% dplyr::glimpse()
+# las_df_temp %>% dplyr::glimpse()
+
 # las_df_temp %>% 
 #   dplyr::distinct(dataset_factor, points_per_m2) %>% 
 #   dplyr::mutate(
@@ -1678,7 +1681,7 @@ plt_temp <-
   )
 ```
 
-we did a lot of data reading, munging, and plotting. let's see the payoff
+we did a lot of data reading, munging, and plotting. let's check out those point clouds for the `r scales::comma(nrow(extrees_temp),accuracy=1)` trees in the example. The heights of those example trees are: `scales::comma(sort(extrees_temp$tree_height_m),accuracy=0.1,suffix=" m") %>% paste0(collapse = ", ") %>% stringr::str_replace(", (?!.*, )", " and ")`
 
 ```{r, fig.height=10.5, fig.width=9.9}
 plt_temp
