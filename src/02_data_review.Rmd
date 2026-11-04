@@ -81,27 +81,6 @@ names(chm_rast) <- tracking_df$dataset_factor
 chm_rast[1:min(length(chm_rast),2)]
 ```
 
-and we'll load in the stand boundary to get an idea of how our UAS data relates
-
-```{r}
-stand_boundary <-
-  sf::st_read(
-    "../data/N1_Boundary/N1_Boundary.shp"
-    # "c:/data/usfs/uas_sfm_tree_detection/data/field_validation/field_data_Boundary.shp"
-    , quiet = T
-  ) %>% 
-  dplyr::rename_with(tolower) %>% 
-  dplyr::filter(
-    name=="N1"
-    # site=="N1"
-  ) %>% 
-  sf::st_transform(terra::crs(chm_rast[[1]])) %>% 
-  dplyr::mutate(stand_area_m2 = sf::st_area(.) %>% as.numeric())
-# what
-stand_boundary %>% dplyr::glimpse()
-# stand_boundary$stand_area_m2/10000
-```
-
 plot CHMs
 
 ```{r,eval=F, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
@@ -780,29 +759,6 @@ predicted_trees %>%
 check the DBH and height distribution for each data set
 
 ```{r}
-# make a function to label the dataset_factor for plotting
-dataset_factor_relabel_fn <- function(df,chr_ret=F) {
-  if(chr_ret){
-    df %>% 
-      dplyr::mutate(
-      dataset_factor = dataset_factor %>% 
-        forcats::fct_relabel(
-          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
-          ~ stringr::str_replace(.x,"m/s", "m s\u207B\u00B9") %>% stringr::str_replace(" \\| ","\u000A")
-        )
-    )
-  }else{
-    df %>% 
-      dplyr::mutate(
-      dataset_factor = dataset_factor %>% 
-        forcats::fct_relabel(
-          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
-          ~stringr::str_replace(.x,"m/s", "m s\u207B\u00B9")
-        )
-    )
-  }
-}
-
 predicted_trees %>% 
   dplyr::bind_rows(.id = "dataset_factor") %>% 
   sf::st_drop_geometry() %>% 
@@ -1298,7 +1254,7 @@ timer_df %>%
     , x = latex2exp::TeX("points  $m^{-2}$ ")
     , color = "Altitude (m)"
     , y = latex2exp::TeX("processing minutes  $ha^{-1}$")
-    , subtitle = "point cloud point processing time"
+    , subtitle = "point cloud processing time"
   ) +
   ggplot2::theme_light() +
   ggplot2::theme(
@@ -1529,7 +1485,7 @@ let's compare the resulting point clouds from the different flights looking at t
 
 we're going to try to use `ggplot2` instead of using `lidR::plot(..., color = "RGB")` in hopes that we have more control over the plot layout and such
 
-```{r, results=F, message=F, warning=F}
+```{r,eval=F,purl=FALSE, results=F, message=F, warning=F}
 # since we're using ggplot, we need a projection to get that 3D view so that we're not just looking straight across the horizon
 project_3d_to_2d_temp <- function(las_data, azimuth_deg = 45, elevation_deg = 30) {
   # convert degrees to radians
@@ -1653,7 +1609,7 @@ plt_temp <-
       stringr::str_c(
         "\u000a"
         , scales::comma(points_per_m2,accuracy=1)
-        , " points m\u00b2"
+        , " points m⁻²"
       ) %>% 
       forcats::fct_inorder(ordered = T)
   ) %>% 
@@ -1683,8 +1639,88 @@ plt_temp <-
 
 we did a lot of data reading, munging, and plotting. let's check out those point clouds for the `r scales::comma(nrow(extrees_temp),accuracy=1)` trees in the example. The heights of those example trees are: `scales::comma(sort(extrees_temp$tree_height_m),accuracy=0.1,suffix=" m") %>% paste0(collapse = ", ") %>% stringr::str_replace(", (?!.*, )", " and ")`
 
-```{r, fig.height=10.5, fig.width=9.9}
+```{r,eval=F,purl=FALSE, fig.height=10.5, fig.width=9.9}
 plt_temp
 ggplot2::ggsave("../data/point_cloud_comp.jpg", plot = plt_temp, height = 10.5, width = 9.9)
 ```
 
+```{r, include = F, eval = F}
+# https://gdam-api-v2-782971006568.us-west1.run.app/docs#/Index/index
+# fastfuels api to get species?
+
+import pandas as pd
+import requests
+
+# 1. Prepare your input data
+input_df = pd.DataFrame({
+    "Lat": [48.1234, 48.1240],
+    "Lon": [-114.5678, -114.5680],
+    "HT": [25.5, 18.2],
+    "DIA": [None, 8.5]  # Missing fields will be imputed
+})
+
+# 2. Format the payload using orient="split"
+payload = {
+    "trees": input_df.to_dict(orient="split")
+}
+
+# 3. Send the request
+response = requests.post("https://<API_URL>/v1/predict/batch", json=payload)
+
+# 4. Reconstruct the output directly back into a Pandas DataFrame
+response_data = response.json()
+predictions_df = pd.DataFrame(**response_data["predictions"])
+
+print(predictions_df.head())
+```
+
+
+```{r, include = F, eval = F}
+validation_trees %>% 
+  sf::st_transform(crs = sf::st_crs(4326)) %>% 
+  dplyr::mutate(
+    tree_lon = sf::st_coordinates(.)[,1]
+    , tree_lat = sf::st_coordinates(.)[,2]
+    , fastfuels_api = paste0(
+      # https://gdam-api-v2-782971006568.us-west1.run.app/docs#/Index/index
+      # fastfuels api to get species?
+      # {
+      #   "Lat": 48.1234,
+      #   "Lon": -114.5678,
+      #   "HT": 25.5
+      # }
+      "{"
+        , "\"Lat\":" , scales::number(tree_lat, accuracy = 0.000001)
+        , ",\"Lon\":" , scales::number(tree_lon, accuracy = 0.000001)
+        , ",\"HT\":" , scales::number(field_tree_height_m, accuracy = 0.01)
+      , "}"
+      
+    )
+  ) %>% 
+  dplyr::slice_sample(n=44) %>% 
+  dplyr::slice_head(n=7) %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(fastfuels_api)
+
+# {"Lat":39.125813,"Lon":-105.115625,"HT":19.05}    # 39.125813,-105.115625
+# {"Lat":39.125659,"Lon":-105.113507,"HT":18.90}    # 39.125659,-105.113507
+# {"Lat":39.125840,"Lon":-105.112728,"HT":20.73}    # 39.125840,-105.112728
+# {"Lat":39.126451,"Lon":-105.115426,"HT":2.44}   # 39.126451,-105.115426
+# {"Lat":39.126394,"Lon":-105.115221,"HT":2.13}   # 39.126394,-105.115221
+# {"Lat":39.124983,"Lon":-105.115187,"HT":15.54}    # 39.124983,-105.115187
+# {"Lat":39.125319,"Lon":-105.115390,"HT":3.35}   # 39.125319,-105.115390
+
+
+# {"Lat":39.127170,"Lon":-105.115781,"HT":20.12}
+# {"Lat":39.127175,"Lon":-105.115772,"HT":10.06}
+# {"Lat":39.127174,"Lon":-105.115760,"HT":7.01}"
+# {"Lat":39.127124,"Lon":-105.115732,"HT":11.28}
+# {"Lat":39.127110,"Lon":-105.115742,"HT":23.47}
+# {"Lat":39.127099,"Lon":-105.115714,"HT":11.89}
+# {"Lat":39.127073,"Lon":-105.115716,"HT":20.12}
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```

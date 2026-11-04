@@ -1242,6 +1242,131 @@ terra::plot(
 )
 ```
 
+```{r, include = F, eval = F}
+aoi_temp <-
+  stand_boundary %>% 
+  sf::st_centroid() %>% 
+  sf::st_buffer(sqrt(10000)/2) %>% 
+  sf::st_bbox() %>% 
+  sf::st_as_sfc() %>% 
+  sf::st_as_sf()
+  # sf::st_area()
+trees_temp <- 
+  predicted_trees[[1]] %>% 
+  sf::st_intersection(aoi_temp)
+
+rgb_rast <- terra::rast(rgb_rast_fnm)
+rgb_rast <- 
+  rgb_rast %>% 
+  terra::subset(c(1,2,3)) %>% 
+  terra::crop(
+    aoi_temp %>% sf::st_buffer(2) %>% sf::st_transform(terra::crs(rgb_rast)) %>% terra::vect()
+    , mask = T
+  )
+
+##########################################################
+##########################################################
+##########################################################
+grDevices::png(filename = "../data/ex_tree_height_map.png", 
+               width = 2400, 
+               height = 2200, 
+               res = 300) # 300 DPI ensures crisp text and clear points
+terra::plotRGB(rgb_rast, mar = c(1, 1, 1, 4))
+terra::plot(terra::vect(aoi_temp), col = NA, border = "red", add = T)
+terra::plot(
+  terra::vect(trees_temp)
+  , y = "tree_height_m"
+  , type = "continuous"
+  , cex = 0.8
+  , col= grDevices::colorRampPalette(RColorBrewer::brewer.pal(n = 9, name = "Oranges")[2:9])(100)
+  , add = T
+  , legend = T
+  , plg = list(
+    title = "tree ht. (m)"
+    , cex = 0.8, title.cex = 0.5
+    , x = "right", shrink = 0.6
+  )
+)
+grDevices::dev.off()
+##########################################################
+##########################################################
+##########################################################
+# load in the forest type data
+ext_data_temp <- cloud2trees::find_ext_data()
+foresttype_lookup <- file.path(ext_data_temp$foresttype_dir, "foresttype_lookup.csv") %>% 
+  readr::read_csv(progress = F, show_col_types = F) %>% 
+  dplyr::distinct(forest_type_group_code, forest_type_group, hardwood_softwood)
+dplyr::glimpse(foresttype_lookup)
+ftype_rast <- terra::rast(file.path(ext_data_temp$foresttype_dir, "foresttype.tif"))
+ftype_rast <- 
+  ftype_rast %>% 
+  terra::crop(
+    aoi_temp %>% sf::st_buffer(2) %>% sf::st_transform(terra::crs(ftype_rast)) %>% terra::vect()
+    , mask = T
+  )
+foresttype_lookup %>% 
+  dplyr::select(forest_type_group_code, forest_type_group)
+
+levels(ftype_rast) <- foresttype_lookup %>% dplyr::select(forest_type_group_code, forest_type_group)
+# terra::plot(ftype_rast)
+
+# what?
+grDevices::png(filename = "../data/ex_tree_type_map.png",
+               width = 2400,
+               height = 2200,
+               res = 300) # 300 DPI ensures crisp text and clear points
+terra::plotRGB(rgb_rast, mar = c(1, 1, 1, 4.5))
+terra::plot(terra::vect(aoi_temp), col = NA, border = "red", add = T)
+
+trees_temp %>% cloud2trees::trees_type() %>% purrr::pluck("tree_list") %>%
+  terra::vect() %>% 
+terra::plot(
+  y = "forest_type_group"
+  , cex = 0.8
+  # , col= grDevices::colorRampPalette(RColorBrewer::brewer.pal(n = 9, name = "Oranges")[2:9])(100)
+  , add = T
+  , legend = T
+  # , plg = list(
+  #   title = "type"
+  #   , cex = 0.8, title.cex = 0.5
+  #   , x = "right"
+  #   # , shrink = 0.6
+  # )
+)
+grDevices::dev.off()
+
+
+
+
+treemap_rast %>%
+  terra::crop(
+    aoi_temp %>% sf::st_buffer(5) %>% sf::st_transform(terra::crs(treemap_rast)) %>% terra::vect()
+    , mask = T
+  ) %>% 
+  terra::catalyze() %>%
+  terra::subset(1) %>%
+  terra::as.factor() %>% 
+  terra::plot(axes = F)
+terra::plot(aoi_temp %>% sf::st_transform(terra::crs(treemap_rast)) %>% terra::vect(), col = NA, border = "red", add = T)
+
+trees_temp %>% cloud2trees::trees_type() %>% purrr::pluck("tree_list") %>%
+  terra::vect() %>% 
+terra::plot(
+  y = "forest_type_group"
+  , cex = 0.8
+  # , col= grDevices::colorRampPalette(RColorBrewer::brewer.pal(n = 9, name = "Oranges")[2:9])(100)
+  , add = T
+  , legend = T
+  # , plg = list(
+  #   title = "type"
+  #   , cex = 0.8, title.cex = 0.5
+  #   , x = "right"
+  #   # , shrink = 0.6
+  # )
+)
+```
+
+
 create the tree list with trees assigned the X and Y of the raster cell and for imputed plot id's the specific tree will appear multiple times based on the number of times the plot is replicated within the area of interest but each tree will have a different X,Y and stability weight based on the surrounding imputed plots 
 
 ```{r}

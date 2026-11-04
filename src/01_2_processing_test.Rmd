@@ -1,0 +1,414 @@
+# Testing and Processing All Data Sets
+
+We'll now process all of the data sets for this study following the methods outlined in the [previous section](#primer). Here, we'll generate the `cloud2trees` output data for each data set where each data set represents a unique UAS flight plan. Remember, the objective of the study is to compare the tree detection and forest structure outcomes across different UAS-lidar flight plan settings.
+
+## Tracking and Raw Data
+
+get a list of the raw point cloud data available and parse the folder names to create a data set with all relevant variables for tracking the different flight setting parameters
+
+```{r}
+tracking_df <-
+  list.dirs("../data/raw_las/", recursive = F) %>% 
+  dplyr::tibble() %>%
+  dplyr::rename(path = 1) %>% 
+  dplyr::mutate(
+    folder = basename(path) %>% tolower()
+    # , path = normalizePath(path)
+  ) %>%
+  tidyr::extract(
+    col = folder
+    , into = c("agl_ft", "mph")
+    , regex = "([0-9]+)agl_([0-9]+)mph"
+    , remove = F
+    , convert = T
+  ) %>% 
+  dplyr::arrange(agl_ft, mph) %>% 
+  dplyr::mutate(
+    # convert to metric
+    altitude_m = round(agl_ft/3.281)
+    , meters_per_second = round(mph/2.237,1)
+    # factor
+    , dataset_factor = 
+      stringr::str_glue("Altitude (m): {altitude_m} | Speed (m/s): {meters_per_second}") %>%
+      forcats::as_factor() %>%
+      forcats::fct_inorder(ordered = T)
+    # , tf = tf=="on"
+  ) %>% 
+  dplyr::select(-c(agl_ft,mph)) %>% 
+  dplyr::rename_with(.cols = -c(path,folder,dataset_factor), .fn = ~paste0("flight_",.x,recycle0 = T) ) %>% 
+  # add in flight time from DJI mission flight plan on controller
+  dplyr::left_join(
+    dplyr::tribble(
+      ~flight_altitude_m, ~flight_meters_per_second, ~timer_flight_mission_mins
+      , 61, 4.5, 17.5
+      , 61, 8.9, 12.5
+      , 91, 4.5, 11.5
+      , 91, 8.9, 8.0
+      , 122, 4.5, 9.5
+      , 122, 8.9, 6.5
+    ) %>% 
+    dplyr::mutate(
+      mission_area_ha = 13
+      , mission_mins_per_ha = timer_flight_mission_mins/mission_area_ha
+    )
+    , by = dplyr::join_by(flight_altitude_m,flight_meters_per_second)
+  )
+# huh?
+dplyr::glimpse(tracking_df)
+# View(tracking_df)
+# names(tracking_df)
+# make a function to label the dataset_factor for plotting
+dataset_factor_relabel_fn <- function(df,chr_ret=F) {
+  if(chr_ret){
+    df %>% 
+      dplyr::mutate(
+      dataset_factor = dataset_factor %>% 
+        forcats::fct_relabel(
+          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
+          ~ stringr::str_replace(.x,"m/s", "m s\u207B\u00B9") %>% stringr::str_replace(" \\| ","\u000A")
+        )
+    )
+  }else{
+    df %>% 
+      dplyr::mutate(
+      dataset_factor = dataset_factor %>% 
+        forcats::fct_relabel(
+          # ~stringr::str_replace(.x,"m/s", "m s⁻¹")
+          ~stringr::str_replace(.x,"m/s", "m s\u207B\u00B9")
+        )
+    )
+  }
+}
+
+```
+
+let's check out the basic point cloud information from `lidR`
+
+```{r}
+tracking_df$path %>% 
+  purrr::set_names() %>% 
+  # purrr::map(lidR::readLAScatalog)
+  purrr::map(function(ff){
+    ctg <- lidR::readLAScatalog(ff)
+    p <- ctg %>% purrr::pluck("data") %>% dplyr::ungroup() %>% dplyr::summarise(points = sum(Number.of.point.records))
+    a <- ctg %>% purrr::pluck("data") %>% sf::st_union() %>% sf::st_area() %>% as.numeric()
+    p %>% dplyr::mutate(area_m2 = a, points_per_m2 = points/area_m2)
+  }) %>% 
+  list_rbind(names_to = "path") %>% 
+  dplyr::left_join(tracking_df) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    tidyselect::starts_with("flight_")
+    , points, area_m2, points_per_m2
+  ) %>% 
+  dplyr::mutate(
+    area_ha = area_m2/10000
+    , dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
+    )
+    , points = scales::comma(points,accuracy=1)
+    , dplyr::across(
+      dplyr::where(is.numeric)
+      , ~scales::comma(.x,accuracy=0.1)
+    )
+  ) %>% 
+  dplyr::select(-area_m2) %>% 
+  dplyr::relocate(area_ha, .before = "points") %>% 
+  kableExtra::kbl(
+    caption = "raw point cloud data description"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      # data desc
+      , "area (ha)"
+      , "# points", "points m<sup>-2</sup>"
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
+```
+
+let's get the shared overlap between the point cloud data so that we can standardize the area processed across data sets. this will ensure that the denominator when calculating per area metrics such as point density (points m^-2^) will remain consistent for our reported results
+
+```{r}
+crs_temp <-
+  tracking_df$path[1] %>% 
+  list.files(pattern = "*.(las|laz)$", full.names = T) %>% 
+  .[1] %>% 
+  lidR::readLASheader() %>%
+  lidR::st_crs()
+las_ctg_list_temp <- 
+  tracking_df$path %>% 
+  purrr::set_names() %>% 
+  purrr::map(
+    \(las_f)
+    las_f %>% 
+    lidR::readLAScatalog() %>% 
+    cloud2trees:::check_las_ctg_empty() %>% 
+    purrr::pluck("data") %>% 
+    # dplyr::select(
+    #   Number.of.point.records
+    #   , CRS
+    # ) %>% 
+    # dplyr::mutate(CRS=as.numeric(CRS)) %>% 
+    sf::st_transform(crs_temp) %>% 
+    sf::st_union()
+  )
+names(las_ctg_list_temp) <- names(las_ctg_list_temp) %>% basename() %>% tolower()
+
+# las_ctg_list_temp
+
+las_ctg_overlap_sf <- las_ctg_list_temp %>% purrr::reduce(sf::st_intersection)
+# las_ctg_overlap_sf
+
+```
+
+and we'll load in the stand boundary to get an idea of how our UAS data relates
+
+```{r}
+stand_boundary <-
+  sf::st_read(
+    "../data/N1_Boundary/N1_Boundary.shp"
+    # "c:/data/usfs/uas_sfm_tree_detection/data/field_validation/field_data_Boundary.shp"
+    , quiet = T
+  ) %>% 
+  dplyr::rename_with(tolower) %>% 
+  dplyr::filter(
+    name=="N1"
+    # site=="N1"
+  ) %>% 
+  sf::st_transform(crs_temp) %>% 
+  dplyr::mutate(stand_area_m2 = sf::st_area(.) %>% as.numeric())
+# what
+# stand_boundary %>% dplyr::glimpse()
+# stand_boundary$stand_area_m2/10000
+```
+
+let's plot all of that
+
+```{r}
+# let's plot all of that
+ggplot2::ggplot() + 
+  ggplot2::geom_sf(
+    data = las_ctg_overlap_sf
+    , mapping = ggplot2::aes(color = "point cloud\nshared overlap", fill = "point cloud\nshared overlap")
+    , lwd = 3
+    , alpha = 0.5
+    # , show.legend = c(fill = F, color = T)
+  ) + 
+  ggplot2::geom_sf(
+    data = stand_boundary
+    , mapping = ggplot2::aes(color = "stand boundary",fill = "stand boundary")
+    , lwd = 2
+    , alpha = 0
+  ) + 
+  ggplot2::geom_sf(
+    data = 
+      las_ctg_list_temp %>% 
+        purrr::map(sf::st_as_sf) %>% 
+        purrr::list_rbind(names_to = "folder") %>% 
+        dplyr::left_join(tracking_df) %>% 
+        sf::st_set_geometry("x")
+    , mapping = ggplot2::aes(color = dataset_factor,fill = dataset_factor)
+    , lwd = 1.1
+    , alpha = 0
+  ) + 
+  ggplot2::scale_color_manual(values = c(viridis::turbo(n=length(las_ctg_list_temp),end=0.7),"brown","black")) + 
+  ggplot2::scale_fill_manual(values = c(viridis::turbo(n=length(las_ctg_list_temp),end=0.7),"brown","black")) + 
+  ggplot2::labs(fill="",color="", subtitle = "raw point cloud data extent and shared overlap") + 
+  ggplot2::theme_void() + 
+  ggplot2::guides(
+    fill = ggplot2::guide_legend(
+      override.aes = list(
+        shape = 15
+        , size = 5
+        , alpha = 1
+        , linetype = 0
+        , linewidth = 0.5
+      )
+    )
+    , color = "none"
+  )
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+## Process Raw Data
+
+first, we'll crop the raw data to the shared overlap to ensure that the denominator when calculating per area metrics such as point density (points m^-2^) will remain consistent for our reported results
+
+```{r, results=F}
+# set up dir for clipped
+dir_temp <- "../data/raw_las_clipped"
+if(!dir.exists(dir_temp)) dir.create(dir_temp, showWarnings = F)
+
+# ?lidR::clip_roi
+las_clip_temp <- 
+  tracking_df$path %>% 
+  purrr::map(function(ff){
+    ctg_temp <- readLAScatalog(ff)
+    # clipper
+    clipper_temp <- las_ctg_overlap_sf %>% sf::st_transform(lidR::st_crs(ctg_temp)) %>% sf::st_union() %>% sf::st_as_sf()
+    # clipped dir, fnm
+    lidR::opt_progress(ctg_temp) <- F
+    cdir_temp <- file.path(dir_temp, basename(ff))
+    if(!dir.exists(cdir_temp)) dir.create(cdir_temp, showWarnings = F)
+    fn_temp <- file.path(cdir_temp, paste0(basename(ff),"_cropped.las") )
+    # clipped do it
+    if(!file.exists(fn_temp)){
+      cropped_ctg_temp <- lidR::clip_roi(ctg_temp, clipper_temp)
+      lidR::writeLAS(cropped_ctg_temp, file = fn_temp)  
+    }
+  })
+
+# update our tracking data
+tracking_df <- 
+  tracking_df %>% 
+  dplyr::mutate(
+    raw_path = path
+    , path = stringr::str_replace_all(raw_path, dirname(raw_path), dir_temp)
+  )
+```
+
+let's check out the basic point cloud information from `lidR` now that all point clouds cover the exact same area
+
+```{r}
+tracking_df$path %>% 
+  purrr::set_names() %>% 
+  purrr::map(function(ff){
+    ctg <- lidR::readLAScatalog(ff)
+    p <- ctg %>% purrr::pluck("data") %>% dplyr::ungroup() %>% dplyr::summarise(points = sum(Number.of.point.records))
+    a <- ctg %>% purrr::pluck("data") %>% sf::st_union() %>% sf::st_area() %>% as.numeric()
+    p %>% dplyr::mutate(area_m2 = a, points_per_m2 = points/area_m2)
+  }) %>% 
+  list_rbind(names_to = "path") %>% 
+  dplyr::left_join(tracking_df) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    tidyselect::starts_with("flight_")
+    , points, area_m2, points_per_m2
+  ) %>% 
+  dplyr::mutate(
+    area_ha = area_m2/10000
+    , dplyr::across(
+      tidyselect::starts_with("flight_")
+      , as.factor
+    )
+    , points = scales::comma(points,accuracy=1)
+    , dplyr::across(
+      dplyr::where(is.numeric)
+      , ~scales::comma(.x,accuracy=0.1)
+    )
+  ) %>% 
+  dplyr::select(-area_m2) %>% 
+  dplyr::relocate(area_ha, .before = "points") %>% 
+  kableExtra::kbl(
+    caption = "cropped raw point cloud data description"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      # data desc
+      , "area (ha)"
+      , "# points", "points m<sup>-2</sup>"
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
+```
+
+interesting.
+
+let's now process the un-cropped raw point cloud data since that will most accurately reflect operational usage of the UAS-lidar collection and data processing workflow. That is, it is unlikely that users will crop their point cloud to a specific area prior to processing with `cloud2trees`; rather, they will just process the raw data exactly as it came from the lidar sensor (and processing software like DJI Terra) without cropping first since that is a step that is: 1) generally unnecessary if the flight was planned to cover the specific area; 2) requires additional coding and processing time that is more complex than just cropping the output raster or spatial tree list data to the area of interest in post-processing
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+### Processing Time Testing
+
+To account for operating system background processes and minor CPU variations during `cloud2trees` pipeline execution, let's process each raw point cloud using 5-10 repetitions. Running multiple executions per dataset allows us to establish a reliable baseline distribution of computational runtimes rather than relying on a single, potentially skewed observation. While flight parameters and point cloud density directly drive overall processing load, individual runtimes can be influenced by transient background CPU tasks. Aggregating runtimes across multiple repetitions enables us to evaluate metrics using central tendencies such as medians or trimmed means (discard fastest and slowest prior to calculating mean) to yield a more reliable computational pipeline performance measure
+
+```{r, results=F}
+ptcld_time_test_fnm <- "../data/ptcld_time_test.csv"
+n_temp <- 6
+c2t_output_dir <- "../data/processed"
+if(!dir.exists(c2t_output_dir)) dir.create(c2t_output_dir, showWarnings = F)
+# create a data set to track
+ptcld_time_test <- 
+  tracking_df %>% 
+  dplyr::select(
+    folder, flight_altitude_m, flight_meters_per_second
+    , raw_path
+  ) %>% 
+  tidyr::crossing(dplyr::tibble(rep_number = c(1:n_temp))) %>% 
+  # sort this randomly
+  dplyr::mutate(sorter = runif(n = dplyr::n())) %>% 
+  dplyr::arrange(sorter) %>% 
+  dplyr::select(-sorter)
+# ptcld_time_test
+# ptcld_time_test %>% dplyr::glimpse()
+# process all of the flights n times in a random order and update the tracker
+if(!file.exists(ptcld_time_test_fnm)){
+  time_test_temp <- 
+    for (rn in 1:nrow(ptcld_time_test)) {
+    # outdir
+    c2t_process_dir <- file.path(c2t_output_dir, ptcld_time_test$folder[rn])
+    if(!dir.exists(c2t_process_dir)) dir.create(c2t_process_dir, showWarnings = F)
+    ##############################################################
+    # cloud2trees::cloud2trees
+    ##############################################################
+      # run it
+      # cloud2trees
+      cloud2trees_ans <- cloud2trees::cloud2trees(
+        output_dir = c2t_process_dir
+        , input_las_dir = ptcld_time_test$raw_path[rn] # system.file("extdata", "MixedConifer.laz", package="lidR") # ptcld_time_test$raw_path[rn]
+        , accuracy_level = 2
+        , keep_intrmdt = F
+        , dtm_res_m = 0.5
+        , chm_res_m = 0.25
+        , min_height = 1.37 # 1.37 = DBH
+        , ws = my_linear # a custom function
+        ###################################
+        # optional parameters to get more tree attributes
+        ###################################
+        , estimate_tree_dbh = F # TRUE # DBH
+        , estimate_tree_type = F # TRUE # FIA type
+      )
+    
+    # tracking
+    t_df <- 
+      file.path(c2t_process_dir, "point_cloud_processing_delivery", "processed_tracking_data.csv") %>% 
+      readr::read_csv(show_col_types = F, progress = F) %>% 
+      dplyr::mutate(
+        folder = ptcld_time_test$folder[rn]
+        , rep_number = ptcld_time_test$rep_number[rn]
+      )
+    
+    if(rn == 1){
+      ptcld_time_test <- 
+        ptcld_time_test %>% 
+        dplyr::left_join(t_df, by = c("folder", "rep_number"))
+    }else{
+      ptcld_time_test <- 
+        ptcld_time_test %>% 
+        dplyr::rows_patch(t_df, by = c("folder", "rep_number"), unmatched = "ignore")  
+    }
+  }
+  
+  # ptcld_time_test %>% dplyr::glimpse()
+  ptcld_time_test %>% 
+    readr::write_csv(file = ptcld_time_test_fnm, progress = F, append = F)
+}else{
+  ptcld_time_test <- ptcld_time_test_fnm %>% readr::read_csv(show_col_types = F, progress = F)
+}
+```
+
