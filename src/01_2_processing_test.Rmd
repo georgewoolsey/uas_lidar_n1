@@ -1,4 +1,4 @@
-# Testing and Processing All Data Sets
+# Testing and Processing All Data Sets{#ptcld_time}
 
 We'll now process all of the data sets for this study following the methods outlined in the [previous section](#primer). Here, we'll generate the `cloud2trees` output data for each data set where each data set represents a unique UAS flight plan. Remember, the objective of the study is to compare the tree detection and forest structure outcomes across different UAS-lidar flight plan settings.
 
@@ -337,13 +337,15 @@ gc()
 
 To account for operating system background processes and minor CPU variations during `cloud2trees` pipeline execution, let's process each raw point cloud using 5-10 repetitions. Running multiple executions per dataset allows us to establish a reliable baseline distribution of computational runtimes rather than relying on a single, potentially skewed observation. While flight parameters and point cloud density directly drive overall processing load, individual runtimes can be influenced by transient background CPU tasks. Aggregating runtimes across multiple repetitions enables us to evaluate metrics using central tendencies such as medians or trimmed means (discard fastest and slowest prior to calculating mean) to yield a more reliable computational pipeline performance measure
 
-```{r, results=F}
-ptcld_time_test_fnm <- "../data/ptcld_time_test.csv"
-n_temp <- 6
+all processing was performed on a standard laptop typical of a geospatial analyst running Windows operating system with an Intel i7-10750H CPU with 6-cores and 32 GB RAM
+
+```{r, include = F, eval = F}
+#### get the infernal "norm_las" folder to plot RGB points
+n_temp <- 1
 c2t_output_dir <- "../data/processed"
-if(!dir.exists(c2t_output_dir)) dir.create(c2t_output_dir, showWarnings = F)
+
 # create a data set to track
-ptcld_time_test <- 
+ptcld_time_test <-
   tracking_df %>% 
   dplyr::select(
     folder, flight_altitude_m, flight_meters_per_second
@@ -353,7 +355,71 @@ ptcld_time_test <-
   # sort this randomly
   dplyr::mutate(sorter = runif(n = dplyr::n())) %>% 
   dplyr::arrange(sorter) %>% 
-  dplyr::select(-sorter)
+  dplyr::select(-sorter) %>% 
+  # mark last record per set
+  dplyr::group_by(folder) %>% 
+  dplyr::mutate(is_last = dplyr::row_number()==dplyr::n()) %>% 
+  dplyr::ungroup()
+ptcld_time_test
+
+time_test_temp <- 
+  for (rn in 1:nrow(ptcld_time_test)) {
+    # outdir
+    c2t_process_dir <- file.path(c2t_output_dir, ptcld_time_test$folder[rn])
+    if(!dir.exists(c2t_process_dir)) dir.create(c2t_process_dir, showWarnings = F)
+    ##############################################################
+    # cloud2trees::cloud2trees
+    ##############################################################
+      # run it
+      # cloud2trees
+      cloud2trees_ans <- cloud2trees::cloud2trees(
+        output_dir = c2t_process_dir
+        , input_las_dir = ptcld_time_test$raw_path[rn] # system.file("extdata", "MixedConifer.laz", package="lidR") # ptcld_time_test$raw_path[rn]
+        , accuracy_level = 2
+        , keep_intrmdt = F
+        , dtm_res_m = 0.5
+        , chm_res_m = 0.25
+        , min_height = 1.37 # 1.37 = DBH
+        , ws = my_linear # a custom function
+        ###################################
+        # optional parameters to get more tree attributes
+        ###################################
+        , estimate_tree_dbh = T # TRUE # DBH
+        , estimate_tree_type = T # TRUE # FIA type
+        # only for the last run we'll get HMD so that the "norm_las" folder is created in the point_cloud_processing_delivery
+        , estimate_tree_hmd = ptcld_time_test$is_last[rn] 
+        , hmd_tree_sample_n = 111 # doesn't matter unless estimate_tree_hmd = T
+        , hmd_estimate_missing_hmd = T # doesn't matter unless estimate_tree_hmd = T
+      )
+    
+  }
+
+```
+
+
+```{r, results=F}
+ptcld_time_test_fnm <- "../data/ptcld_time_test.csv"
+n_temp <- 6
+c2t_output_dir <- "../data/processed"
+ptcld_time_test_track_dir <- file.path(c2t_output_dir, "tracking")
+if(!dir.exists(c2t_output_dir)) dir.create(c2t_output_dir, showWarnings = F)
+if(!dir.exists(ptcld_time_test_track_dir)) dir.create(ptcld_time_test_track_dir, showWarnings = F)
+# create a data set to track
+ptcld_time_test <-
+  tracking_df %>% 
+  dplyr::select(
+    folder, flight_altitude_m, flight_meters_per_second
+    , raw_path
+  ) %>% 
+  tidyr::crossing(dplyr::tibble(rep_number = c(1:n_temp))) %>% 
+  # sort this randomly
+  dplyr::mutate(sorter = runif(n = dplyr::n())) %>% 
+  dplyr::arrange(sorter) %>% 
+  dplyr::select(-sorter) %>% 
+  # mark last record per set
+  dplyr::group_by(folder) %>% 
+  dplyr::mutate(is_last = dplyr::row_number()==dplyr::n()) %>% 
+  dplyr::ungroup()
 # ptcld_time_test
 # ptcld_time_test %>% dplyr::glimpse()
 # process all of the flights n times in a random order and update the tracker
@@ -380,18 +446,39 @@ if(!file.exists(ptcld_time_test_fnm)){
         ###################################
         # optional parameters to get more tree attributes
         ###################################
-        , estimate_tree_dbh = F # TRUE # DBH
-        , estimate_tree_type = F # TRUE # FIA type
+        , estimate_tree_dbh = T # TRUE # DBH
+        , estimate_tree_type = T # TRUE # FIA type
+        # only for the last run we'll get HMD so that the "norm_las" folder is created in the point_cloud_processing_delivery
+        , estimate_tree_hmd = ptcld_time_test$is_last[rn] 
+        , hmd_tree_sample_n = 111 # doesn't matter unless estimate_tree_hmd = T
+        , hmd_estimate_missing_hmd = T # doesn't matter unless estimate_tree_hmd = T
       )
     
     # tracking
+    fpp <- file.path(c2t_process_dir, "point_cloud_processing_delivery", "processed_tracking_data.csv")
     t_df <- 
-      file.path(c2t_process_dir, "point_cloud_processing_delivery", "processed_tracking_data.csv") %>% 
+      fpp %>% 
       readr::read_csv(show_col_types = F, progress = F) %>% 
       dplyr::mutate(
         folder = ptcld_time_test$folder[rn]
         , rep_number = ptcld_time_test$rep_number[rn]
       )
+    # backup
+    huh <- 
+      file.copy(
+        from = fpp # file.path(c2t_process_dir, "point_cloud_processing_delivery", "processed_tracking_data.csv")
+        , to = file.path(
+          ptcld_time_test_track_dir
+          , paste0(
+            ptcld_time_test$folder[rn]
+            ,"_rep"
+            ,ptcld_time_test$rep_number[rn]
+            , ".csv"
+          )
+        )
+        , overwrite = T
+      )
+    
     
     if(rn == 1){
       ptcld_time_test <- 
@@ -410,5 +497,85 @@ if(!file.exists(ptcld_time_test_fnm)){
 }else{
   ptcld_time_test <- ptcld_time_test_fnm %>% readr::read_csv(show_col_types = F, progress = F)
 }
+# set processed dir in tracking df
+tracking_df <- 
+  tracking_df %>% 
+  dplyr::mutate(
+    clipped_path = path
+    , path = file.path(c2t_output_dir, folder)
+  )
 ```
 
+let's quickly look at the trimmed mean of the total processing time, discarding the fastest and slowest runtimes prior to calculating mean. The total processing time includes the time to process the raw point cloud to generate the CHM, perform ITD on the CHM, and estimate DBH based on the FIA regional height-DBH relationship.
+
+```{r, results=F}
+ptcld_time_test %>% 
+  dplyr::mutate(
+    timer_total_dbhonly_time_mins = timer_cloud2raster_mins + timer_raster2trees_mins +
+          timer_trees_dbh_mins
+  ) %>% 
+  # remove slowest and fastest
+  dplyr::arrange(folder, desc(timer_total_dbhonly_time_mins), desc(timer_cloud2raster_mins)) %>% 
+  dplyr::group_by(folder) %>% 
+  dplyr::filter(
+    dplyr::row_number() != 1
+    & dplyr::row_number() != dplyr::n()
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::left_join(
+    tracking_df %>% dplyr::select(folder,dataset_factor)
+  ) %>% 
+  dplyr::group_by(dataset_factor, flight_altitude_m, flight_meters_per_second, las_area_m2) %>% 
+  dplyr::summarise(
+    dplyr::across(
+      .cols = timer_total_dbhonly_time_mins
+      , .fns = list(mean=mean,median=median)
+    )
+    , reps = dplyr::n()
+  ) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(
+    # per ha measures
+    dplyr::across(
+      .cols = tidyselect::starts_with("timer_")
+      , .fns = ~.x/(las_area_m2/10000)
+    )
+    # format
+    , dplyr::across(
+      .cols = tidyselect::starts_with("timer_")
+      , ~scales::comma(.x,accuracy=0.01)
+    )
+    , dplyr::across(
+      .cols = c(tidyselect::starts_with("flight_"),reps)
+      , as.factor
+    )
+  ) %>% 
+  dplyr::arrange(dataset_factor) %>% 
+  dplyr::select(
+    tidyselect::starts_with("flight_")
+    , reps
+    , tidyselect::starts_with("timer_")
+  ) %>% 
+  
+  kableExtra::kbl(
+    caption = "Data Processing Time Summary"
+    , col.names = c(
+      "altitude (m)", "speed (m sec<sup>-1</sup>)"
+      # data desc
+      , "processing repititions<br />after removing<br />slowest & fastest"
+      , "Mean<br />processing time<br/>minutes ha<sup>-1</sup>"
+      , "Median<br />processing time<br/>minutes ha<sup>-1</sup>"
+    )
+    , escape = F
+    # , digits = 2
+  ) %>% 
+  kableExtra::kable_styling() %>% 
+  kableExtra::column_spec(c(2), border_right = TRUE, include_thead = TRUE) %>% 
+  kableExtra::collapse_rows(columns = c(1), valign = "top")
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+remove(ptcld_time_test_track_dir, las_ctg_overlap_sf)
+gc()
+```
