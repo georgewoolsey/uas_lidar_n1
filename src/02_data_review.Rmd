@@ -24,16 +24,18 @@ chm_rast[1:min(length(chm_rast),2)]
 
 plot CHMs
 
-```{r,eval=T, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
-graphics::par(mfrow = c(ceiling(length(chm_rast)/3),3)) # mfrow = c(nr, nc)
+```{r,eval=F, fig.height=10, fig.width=12, results=F, fig.show='asis'}
 # use purrr::walk() because we only want it to draw the plot
+# grDevices::jpeg("../data/plt_chm_ex.jpeg", width = 12, height = 10, units = "in", res = 300)
+graphics::par(mfrow = c(ceiling(length(chm_rast)/3),3)) # mfrow = c(nr, nc)
 purrr::iwalk(
   chm_rast
   , function(x,nm){
+  # \(x,nm)
     terra::plot(
       x
       # , mar = c(b,l,t,r)
-      , mar = c(0.5,0.5,2,1.3)
+      , mar = c(0.5,0.5,2,2)
       , col = viridis::plasma(n=100)
       , axes = F
       , main = nm
@@ -41,13 +43,79 @@ purrr::iwalk(
         # title = "CHM (m)"
         cex = 0.8, title.cex = 0.9, shrink = 0.6
       )
+      , reset = F
     )
     # add stand
     terra::plot(terra::vect(stand_boundary), lwd = 3, col = NA, border = "blue", axes = F, add = T)
 })
+# grDevices::dev.off()
+
 # reset graphics::par
 graphics::par(mfrow = c(1, 1))
 ```
+
+let's check out the summary statistics of the CHM cell/pixel heights for each data set
+
+```{r}
+# ?tibble::as_tibble
+chm_rast %>%
+  purrr::imap(
+    \(chm, nm)
+    terra::summary(chm) %>% 
+      tibble::as_tibble(.name_repair = base::make.names) %>% 
+      dplyr::select(n) %>% 
+      tidyr::separate_wider_delim(
+        cols = n
+        , delim = ":"
+        , names = c("metric", "value")
+      ) %>% 
+      dplyr::mutate(
+        dplyr::across(
+          dplyr::everything()
+          , ~stringr::str_squish(.x)
+        )
+        , value = as.numeric(value)
+        , dataset_factor = nm
+      )
+  ) %>% 
+  purrr::list_rbind() %>% 
+  dplyr::inner_join(tracking_df, by="dataset_factor") %>% 
+  dplyr::mutate(
+    dataset_factor = forcats::fct_relevel(dataset_factor, levels(tracking_df$dataset_factor))
+  ) %>% 
+  dataset_factor_relabel_fn() %>% 
+  dplyr::mutate(
+    metric = forcats::fct_inorder(metric) %>% forcats::fct_rev()
+  ) %>% 
+  
+  dplyr::filter(metric!="NAs") %>% 
+  # dplyr::glimpse()
+  ggplot2::ggplot(
+    mapping = ggplot2::aes(x = value, y = metric, color = dataset_factor)
+  ) + 
+  ggplot2::geom_point(shape = "|", size = 18, alpha = 0.77) +
+  ggplot2::scale_x_continuous(breaks = scales::breaks_extended(n=7)) + 
+  ggplot2::scale_color_manual(values = viridis::turbo(n=length(chm_rast),end=0.7)) + 
+  ggplot2::labs(color="",x="CHM height (m)", y = "") + 
+  ggplot2::theme_light() + 
+  ggplot2::theme(
+    axis.text.y = ggplot2::element_text(face = "bold", size = 10, color = "black")
+  ) + 
+  ggplot2::guides(
+    color = ggplot2::guide_legend(
+      override.aes = list(
+        shape = 15
+        , size = 5
+        , alpha = 1
+        , linetype = 0
+        , linewidth = 0.5
+      )
+    )
+    , color = "none"
+  )
+```
+
+mostly similar
 
 what about the DTMs?
 
@@ -67,7 +135,7 @@ dtm_rast[1:min(length(dtm_rast),2)]
 
 plot DTMs
 
-```{r,eval=T, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
+```{r,eval=F, fig.height=10.5, fig.width=10, results=F, fig.show='asis'}
 graphics::par(mfrow = c(ceiling(length(dtm_rast)/3),3)) # mfrow = c(nr, nc)
 # use purrr::walk() because we only want it to draw the plot
 purrr::iwalk(
@@ -1359,7 +1427,7 @@ let's compare the resulting point clouds from the different flights looking at t
 
 we're going to try to use `ggplot2` instead of using `lidR::plot(..., color = "RGB")` in hopes that we have more control over the plot layout and such
 
-```{r,eval=T,purl=FALSE, results=F, message=F, warning=F}
+```{r,eval=F,purl=FALSE, results=F, message=F, warning=F}
 # since we're using ggplot, we need a projection to get that 3D view so that we're not just looking straight across the horizon
 project_3d_to_2d_temp <- function(las_data, azimuth_deg = 45, elevation_deg = 30) {
   # convert degrees to radians
@@ -1387,7 +1455,7 @@ extrees_temp <-
   sf::st_read(
     file.path(c2t_process_dir, "final_detected_crowns.gpkg")
     , quiet = T
-    , query = 
+    , query =
       sprintf(
         "SELECT * FROM %s WHERE treeID IN (%s)"
         , "final_detected_crowns" %>% stringr::str_remove("^.*/") %>% stringr::str_remove("\\.[^.]+$")
@@ -1397,6 +1465,7 @@ extrees_temp <-
           , c(
             # "11760_490146.1_4330568.6", "11772_490141.4_4330568.1"
               "11883_490141.6_4330561.6" , "11924_490135.1_4330559.6"
+              # "3934_490043.4_4330869.1", "3979_490046.6_4330868.1", "4004_490047.1_4330867.1", "3852_490042.4_4330871.9"
           )
           , "'"
           , collapse = ", "
@@ -1405,6 +1474,8 @@ extrees_temp <-
   ) %>% 
   cloud2trees::simplify_multipolygon_crowns()
 # extrees_temp %>% dplyr::glimpse()
+# extrees_temp %>% dplyr::select(treeID,tree_height_m) %>% mapview::mapview(zcol = "tree_height_m",layer.name = "h")
+
 aoi_temp <- extrees_temp %>% 
   # sf::st_buffer(5) %>% 
   sf::st_union()
@@ -1516,9 +1587,12 @@ plt_temp <-
 
 we did a lot of data reading, munging, and plotting. let's check out those point clouds for the `r scales::comma(nrow(extrees_temp),accuracy=1)` trees in the example. The heights of those example trees are: `scales::comma(sort(extrees_temp$tree_height_m),accuracy=0.1,suffix=" m") %>% paste0(collapse = ", ") %>% stringr::str_replace(", (?!.*, )", " and ")`
 
-```{r,eval=T,purl=FALSE, fig.height=10.5, fig.width=9.9}
+```{r,eval=F,purl=FALSE, fig.height=10.5, fig.width=9.9}
 plt_temp
 ggplot2::ggsave("../data/point_cloud_comp.jpg", plot = plt_temp, height = 10.5, width = 9.9)
+# ggplot2::ggsave("../data/point_cloud_comp.jpg", plot = plt_temp, height = 11, width = 6.5)
+
+# tracking_df %>% dplyr::select(folder,dataset_factor)
 ```
 
 ```{r, include = F, eval = F}

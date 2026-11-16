@@ -96,7 +96,7 @@ agg_ground_truth_match_ans <-
   tracking_df %>% 
   dplyr::left_join(
     timer_df %>% 
-      dplyr::select(flight_altitude_m, flight_meters_per_second, timer_total_dbhonly_time_mins_per_ha)
+      dplyr::select(flight_altitude_m, flight_meters_per_second, timer_total_time_mins_per_ha)
     , by = dplyr::join_by(flight_altitude_m, flight_meters_per_second)
   ) %>% 
   dplyr::left_join(
@@ -105,7 +105,7 @@ agg_ground_truth_match_ans <-
   ) %>% 
   dplyr::mutate(
     dataset_factor = ordered(dataset_factor, levels(tracking_df$dataset_factor))
-    , total_mins_per_ha = timer_total_dbhonly_time_mins_per_ha + mission_mins_per_ha
+    , total_mins_per_ha = timer_total_time_mins_per_ha + mission_mins_per_ha
   )
 # # huh?
 # agg_ground_truth_match_ans %>% dplyr::glimpse()
@@ -2207,7 +2207,7 @@ let's try some figures to visualize our results
 
 ```{r, fig.height = 6, fig.width = 11}
 # agg_ground_truth_match_ans <- readr::read_csv("c:/users/georg/Downloads/xxx.csv") %>% 
-#   dplyr::mutate(total_mins_per_ha = timer_total_dbhonly_time_mins_per_ha + mission_mins_per_ha)
+#   dplyr::mutate(total_mins_per_ha = timer_total_time_mins_per_ha + mission_mins_per_ha)
 # dataset_factor_relabel_fn <- function(df) {
 #   df %>% dplyr::mutate(dataset_factor = forcats::fct_inorder(dataset_factor) %>% ordered() %>% forcats::fct_rev())
 # }
@@ -2685,7 +2685,7 @@ ggplot2::ggsave("../data/flights_comp_efficiency_accuracy7.jpg", height = 11, wi
 flight_data <- 
   agg_ground_truth_match_ans %>% 
   dplyr::mutate(
-    timer_total_dbhonly_time_mins_per_ha = runif(n=dplyr::n())
+    timer_total_time_mins_per_ha = runif(n=dplyr::n())
     , mission_mins_per_ha = runif(n=dplyr::n())
   ) %>% 
   # dplyr::select(
@@ -2712,7 +2712,7 @@ ggplot2::ggplot(
     position = ggplot2::position_nudge(x = -0.2)
   ) +
   ggplot2::geom_col(
-    mapping = ggplot2::aes(y = timer_total_dbhonly_time_mins_per_ha / 2, fill = "Processing Time"),
+    mapping = ggplot2::aes(y = timer_total_time_mins_per_ha / 2, fill = "Processing Time"),
     width = 0.4,
     position = ggplot2::position_nudge(x = 0.2)
   ) +
@@ -2858,7 +2858,7 @@ ggplot2::ggplot(
 p2_b <- ggplot2::ggplot(
   data = dplyr::mutate(
     flight_data,
-    total_time_min_ha = mission_mins_per_ha + timer_total_dbhonly_time_mins_per_ha
+    total_time_min_ha = mission_mins_per_ha + timer_total_time_mins_per_ha
   ),
   mapping = ggplot2::aes(
     x = total_time_min_ha,
@@ -2906,7 +2906,7 @@ p3_data <-
     dplyr::across(
       .cols = c(
         mission_mins_per_ha,
-        timer_total_dbhonly_time_mins_per_ha,
+        timer_total_time_mins_per_ha,
         f_score,
         diff_dbh_cm_rmse,
         diff_tree_height_m_rmse,
@@ -2927,7 +2927,7 @@ p3_data <-
       metric,
       levels = c(
         "mission_mins_per_ha_scaled",
-        "timer_total_dbhonly_time_mins_per_ha_scaled",
+        "timer_total_time_mins_per_ha_scaled",
         "f_score_scaled",
         "diff_dbh_cm_rmse_scaled",
         "diff_tree_height_m_rmse_scaled",
@@ -2980,7 +2980,7 @@ ggplot2::ggplot(
 p4_a <-
 ggplot2::ggplot(
   data = flight_data,
-  mapping = ggplot2::aes(x = dataset_factor, y = mission_mins_per_ha + timer_total_dbhonly_time_mins_per_ha)
+  mapping = ggplot2::aes(x = dataset_factor, y = mission_mins_per_ha + timer_total_time_mins_per_ha)
 ) +
   ggplot2::geom_col(fill = "#3182bd", width = 0.5) +
   ggplot2::labs(

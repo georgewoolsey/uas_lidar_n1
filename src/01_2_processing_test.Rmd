@@ -508,14 +508,14 @@ tracking_df <-
 
 let's quickly look at the trimmed mean of the total processing time, discarding the fastest and slowest runtimes prior to calculating mean. The total processing time includes the time to process the raw point cloud to generate the CHM, perform ITD on the CHM, and estimate DBH based on the FIA regional height-DBH relationship.
 
-```{r, results=F}
+```{r}
 ptcld_time_test %>% 
   dplyr::mutate(
-    timer_total_dbhonly_time_mins = timer_cloud2raster_mins + timer_raster2trees_mins +
+    timer_total_time_mins = timer_cloud2raster_mins + timer_raster2trees_mins +
           timer_trees_dbh_mins
   ) %>% 
   # remove slowest and fastest
-  dplyr::arrange(folder, desc(timer_total_dbhonly_time_mins), desc(timer_cloud2raster_mins)) %>% 
+  dplyr::arrange(folder, desc(timer_total_time_mins), desc(timer_cloud2raster_mins)) %>% 
   dplyr::group_by(folder) %>% 
   dplyr::filter(
     dplyr::row_number() != 1
@@ -528,7 +528,7 @@ ptcld_time_test %>%
   dplyr::group_by(dataset_factor, flight_altitude_m, flight_meters_per_second, las_area_m2) %>% 
   dplyr::summarise(
     dplyr::across(
-      .cols = timer_total_dbhonly_time_mins
+      .cols = timer_total_time_mins
       , .fns = list(mean=mean,median=median)
     )
     , reps = dplyr::n()
